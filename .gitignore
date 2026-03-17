@@ -1,0 +1,30 @@
+# Build and generated files
+bin/
+obj/
+dist/
+.vs/
+.vscode/
+*.dll
+*.exe
+*.pdb
+*.cache
+*.cache.json
+
+# Dependencies
+node_modules/
+.vite/
+node_modules/.vite/deps/
+node_modules/.vite/deps/_metadata.json
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+thumbs.db
+.DS_Store
