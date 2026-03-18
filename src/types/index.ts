@@ -106,6 +106,7 @@ export interface Tournament {
   name: string;
   format?: string;
   oversPerInning?: number;
+  maxPlayersPerTeam?: number;
   status: string;
   startDate?: string;
   endDate?: string;

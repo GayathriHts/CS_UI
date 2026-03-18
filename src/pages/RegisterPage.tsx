@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { authService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
 import type { RegisterConfirmRequest, RegisterRequest, RegisterStartRequest } from '../types';
+import { getPasswordValidationError } from '../utils/passwordValidation';
 
 type TabType = 'email' | 'mobile';
 type Step = 'details' | 'otp';
@@ -93,8 +94,14 @@ export default function RegisterPage() {
     }
 
     const password = getValues('password');
+    const passwordValidationError = getPasswordValidationError(password);
+    if (passwordValidationError) {
+      setError(passwordValidationError);
+      return;
+    }
+
     if (password !== confirmPassword) {
-      setError('Username or password is incorrect.');
+      setError('Passwords do not match.');
       return;
     }
 
@@ -273,7 +280,7 @@ export default function RegisterPage() {
                     Show password
                   </label>
                 </div>
-                <button onClick={handleVerifyOtp} className="w-full btn-primary py-3 text-lg">
+                <button type="button" onClick={handleVerifyOtp} className="w-full btn-primary py-3 text-lg">
                   Verify OTP & Create Account
                 </button>
               </div>

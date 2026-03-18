@@ -2,6 +2,8 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://10.10.20.24:9000/api/v1';
 
+const isAuthRequest = (url?: string) => !!url && /\/auth\//.test(url);
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: { 'Content-Type': 'application/json' },
@@ -18,7 +20,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isAuthRequest(error.config?.url)) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }

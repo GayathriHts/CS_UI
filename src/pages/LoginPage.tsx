@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { authService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
 import type { LoginRequest } from '../types';
+import { getPasswordValidationError } from '../utils/passwordValidation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -48,6 +49,12 @@ export default function LoginPage() {
 
       setForgotStep('reset');
     } else if (forgotStep === 'reset') {
+      const passwordValidationError = getPasswordValidationError(newPassword);
+      if (passwordValidationError) {
+        setError(passwordValidationError);
+        return;
+      }
+
       if (newPassword !== confirmPassword) {
         setError('Passwords do not match.');
         return;
@@ -178,7 +185,7 @@ export default function LoginPage() {
                     <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                       className="input-field" placeholder="you@example.com" />
                   </div>
-                  <button onClick={handleForgotPassword} className="w-full btn-primary py-3">Send OTP</button>
+                  <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Send OTP</button>
                 </div>
               )}
               {forgotStep === 'otp' && (
@@ -188,7 +195,7 @@ export default function LoginPage() {
                     <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)}
                       className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} placeholder="••••••" />
                   </div>
-                  <button onClick={handleForgotPassword} className="w-full btn-primary py-3">Verify OTP</button>
+                  <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Verify OTP</button>
                   <p className="text-center text-sm text-gray-500">
                     Didn't receive the code? <button className="text-brand-green font-medium">Resend OTP</button>
                   </p>
@@ -225,7 +232,7 @@ export default function LoginPage() {
                       Show password
                     </label>
                   </div>
-                  <button onClick={handleForgotPassword} className="w-full btn-primary py-3">Reset Password</button>
+                  <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Reset Password</button>
                 </div>
               )}
               {forgotStep === 'done' && (
