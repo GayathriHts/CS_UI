@@ -215,13 +215,11 @@ export default function RegisterPage() {
                         className="input-field"
                         placeholder=""
                         onInput={e => {
-                          const value = e.target.value.replace(/[^A-Za-z]/g, '');
-                          e.target.value = value;
-                          if (/[^A-Za-z]/.test(e.target.value)) {
-                            setError('Special characters and numbers are not allowed in First Name');
-                          } else {
-                            setError('');
+                          let value = e.target.value.replace(/[^A-Za-z]/g, '');
+                          if (value.length > 0) {
+                            value = value.charAt(0).toUpperCase() + value.slice(1);
                           }
+                          e.target.value = value;
                         }}
                       />
                     </div>
@@ -232,13 +230,11 @@ export default function RegisterPage() {
                         className="input-field"
                         placeholder=""
                         onInput={e => {
-                          const value = e.target.value.replace(/[^A-Za-z]/g, '');
-                          e.target.value = value;
-                          if (/[^A-Za-z]/.test(e.target.value)) {
-                            setError('Special characters and numbers are not allowed in Last Name');
-                          } else {
-                            setError('');
+                          let value = e.target.value.replace(/[^A-Za-z]/g, '');
+                          if (value.length > 0) {
+                            value = value.charAt(0).toUpperCase() + value.slice(1);
                           }
+                          e.target.value = value;
                         }}
                       />
                     </div>
