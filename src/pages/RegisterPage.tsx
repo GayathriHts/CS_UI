@@ -168,12 +168,12 @@ export default function RegisterPage() {
       }
       if (typeof errorMsg === 'string' && errorMsg.length > 0) {
         if (errorMsg.toLowerCase().includes('already') && errorMsg.toLowerCase().includes('email')) {
-          setError('This email account is already registered.');
+          setError('This email user is already registered');
         } else {
           setError(errorMsg);
         }
       } else {
-        setError('Unable to Register the,Please try again later');
+        setError('This email user is already registered');
       }
     }
   };
