@@ -85,11 +85,13 @@ export default function LoginPage() {
         {!showForgotPassword ? (
           /* Login Form */
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-brand-green p-6 text-center">
-              <img src="/images/cs-logo.png" alt="" className="h-12 mx-auto mb-2" />
-              <h1 className="text-2xl font-bold text-white">Welcome Back!</h1>
-              <p className="text-green-200 text-sm mt-1">Sign in to your CricketSocial account</p>
-            </div>
+             <div className="bg-brand-green py-4 text-center">
+  
+  <h1 className="text-xl font-bold text-white">Sign In</h1>
+  
+   
+
+</div>
 
             <div className="p-8">
               {error && (
