@@ -18,11 +18,43 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showResetPasswords, setShowResetPasswords] = useState(false);
-  const { register, handleSubmit, formState: { isSubmitting } } = useForm<LoginRequest>();
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginRequest>();
 
   const onSubmit = async (data: LoginRequest) => {
+        // Email format validation
+        if (data.email) {
+          if (!data.email.includes('@')) {
+            setError('Email address must contain @');
+            return;
+          }
+          if (!data.email.endsWith('.com')) {
+            setError('Email address must end with .com');
+            return;
+          }
+          if (/\s/.test(data.email)) {
+            setError('Email address should not contain spaces anywhere.');
+            return;
+          }
+          const domainPattern = /@([^.]+)\.com$/;
+          const domainMatch = data.email.match(domainPattern);
+          if (!domainMatch || !domainMatch[1]) {
+            setError('Email address domain is incorrect.');
+            return;
+          }
+        }
+    setError('');
+    // Show react-hook-form errors for empty fields
+    if (errors.email && errors.password) {
+      setError('Email Address and Password should not be empty.');
+      return;
+    } else if (errors.email) {
+      setError('Email Address is required');
+      return;
+    } else if (errors.password) {
+      setError('Password is required');
+      return;
+    }
     try {
-      setError('');
       const res = await authService.login(data);
       login(res.data.token, res.data.user);
       navigate('/dashboard');
@@ -110,6 +142,9 @@ export default function LoginPage() {
                     className="input-field"
                     placeholder=""
                   />
+                  {errors.email && (
+                    <div className="text-red-600 text-xs mt-1">Email Address is required</div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
@@ -119,6 +154,9 @@ export default function LoginPage() {
                     className="input-field"
                     placeholder=""
                   />
+                  {errors.password && (
+                    <div className="text-red-600 text-xs mt-1">Password is required</div>
+                  )}
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-2 text-gray-600 cursor-pointer">
