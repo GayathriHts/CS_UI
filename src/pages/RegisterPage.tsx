@@ -44,34 +44,52 @@ export default function RegisterPage() {
   });
 
   const handleContinue = async () => {
-            // Custom email validation
-            if (activeTab === 'email') {
-              let email = getValues('email');
-              if (typeof email === 'string') {
-                email = email.trim();
-              }
-              // Must contain '@'
-              if (!email.includes('@')) {
-                setError('Email address must contain @');
-                return;
-              }
-              // Must end with '.com'
-              if (!email.endsWith('.com')) {
-                setError('Email address must end with .com');
-                return;
-              }
-              // No spaces
-              if (/\s/.test(email)) {
-                setError('Email address should not contain spaces anywhere.');
-                return;
-              }
-              // Invalid domain after .com
-              const domainPattern = /\.[a-zA-Z]{2,}$/;
-              if (!domainPattern.test(email)) {
-                setError('Email address domain is invalid.');
-                return;
-              }
-            }
+    setError('');
+    // Field-specific required validation for email registration
+    if (activeTab === 'email') {
+      const firstName = getValues('firstName');
+      const lastName = getValues('lastName');
+      let email = getValues('email');
+      if (typeof email === 'string') {
+        email = email.trim();
+      }
+      const missingFields = [];
+      if (!firstName) missingFields.push('First Name');
+      if (!lastName) missingFields.push('Last Name');
+      if (!email) missingFields.push('Email Address');
+      if (missingFields.length > 0) {
+        if (missingFields.length === 3) {
+          setError('Please fill First Name, Last Name, and Email Address.');
+        } else {
+          setError(missingFields.map(f => `${f} is required`).join('\n'));
+        }
+        return;
+      }
+      // Only after all required fields are filled, do email format validation
+      if (!email.includes('@')) {
+        setError('Email address must contain @');
+        return;
+      }
+       // Domain name validation: must have something between '@' and '.com'
+       const domainMatch = email.match(/@([^.]+)\.com$/);
+       if (!domainMatch || !domainMatch[1]) {
+         setError('Email address domain is incorrect.');
+         return;
+       }
+      if (!email.endsWith('.com')) {
+        setError('Email address must end with .com');
+        return;
+      }
+      if (/\s/.test(email)) {
+        setError('Email address should not contain spaces anywhere.');
+        return;
+      }
+      const domainPattern = /\.[a-zA-Z]{2,}$/;
+      if (!domainPattern.test(email)) {
+        setError('Email address domain is invalid.');
+        return;
+      }
+    }
         // Phone number: should not allow alphabetic characters
         const phoneNumber = getValues('phoneNumber');
         if (activeTab === 'mobile' && /[A-Za-z]/.test(phoneNumber)) {
