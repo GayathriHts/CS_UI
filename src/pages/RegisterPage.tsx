@@ -150,6 +150,16 @@ export default function RegisterPage() {
   const handleVerifyOtp = async () => {
     setError('');
 
+    // Validate required fields
+    const data = getValues();
+    if (!data.firstName || !data.lastName) {
+      setError('First name and last name are required.');
+      return;
+    }
+    if (!data.email) {
+      setError('Email is required.');
+      return;
+    }
     if (otpValue.length !== 6) {
       setError('Please enter the 6-digit OTP.');
       return;
@@ -174,13 +184,25 @@ export default function RegisterPage() {
     }
 
     try {
-      const data = getValues();
       const res = await authService.confirmRegister(buildRegisterConfirmPayload(data));
       loginStore(res.data.token, res.data.user);
       navigate('/dashboard');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error || 'Invalid OTP or registration failed.';
-      setError(msg);
+      // Try to detect OTP mismatch from backend error
+      const errorMsg = (err as { response?: { data?: { error?: any } } })?.response?.data?.error;
+      let errorStr = '';
+      if (typeof errorMsg === 'string') {
+        errorStr = errorMsg;
+      } else if (typeof errorMsg === 'object' && errorMsg !== null) {
+        errorStr = JSON.stringify(errorMsg);
+      }
+      if (errorStr.toLowerCase().includes('otp') && errorStr.toLowerCase().includes('mismatch')) {
+        setError('Invalid otp');
+      } else if (errorStr.toLowerCase().includes('invalid otp')) {
+        setError('Invalid otp');
+      } else {
+        setError(errorStr || 'Invalid OTP or registration failed.');
+      }
     }
   };
 
