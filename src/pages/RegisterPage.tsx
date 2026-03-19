@@ -44,6 +44,34 @@ export default function RegisterPage() {
   });
 
   const handleContinue = async () => {
+            // Custom email validation
+            if (activeTab === 'email') {
+              let email = getValues('email');
+              if (typeof email === 'string') {
+                email = email.trim();
+              }
+              // Must contain '@'
+              if (!email.includes('@')) {
+                setError('Email address must contain @');
+                return;
+              }
+              // Must end with '.com'
+              if (!email.endsWith('.com')) {
+                setError('Email address must end with .com');
+                return;
+              }
+              // No spaces
+              if (/\s/.test(email)) {
+                setError('Email address should not contain spaces anywhere.');
+                return;
+              }
+              // Invalid domain after .com
+              const domainPattern = /\.[a-zA-Z]{2,}$/;
+              if (!domainPattern.test(email)) {
+                setError('Email address domain is invalid.');
+                return;
+              }
+            }
         // Phone number: should not allow alphabetic characters
         const phoneNumber = getValues('phoneNumber');
         if (activeTab === 'mobile' && /[A-Za-z]/.test(phoneNumber)) {
