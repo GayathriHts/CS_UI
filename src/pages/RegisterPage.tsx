@@ -59,7 +59,7 @@ export default function RegisterPage() {
       if (!email) missingFields.push('Email Address');
       if (missingFields.length > 0) {
         if (missingFields.length === 3) {
-          setError('Please fill First Name Last Name & Email Address.');
+          setError('First Name, Last Name, and Email Address are required');
         } else {
           setError(missingFields.map(f => `${f} is required`).join('\n'));
         }
@@ -283,11 +283,12 @@ export default function RegisterPage() {
                         className="input-field"
                         placeholder=""
                         onInput={e => {
-                          let value = e.target.value.replace(/[^A-Za-z]/g, '');
+                          const input = e.target as HTMLInputElement;
+                          let value = input.value.replace(/[^A-Za-z]/g, '');
                           if (value.length > 0) {
                             value = value.charAt(0).toUpperCase() + value.slice(1);
                           }
-                          e.target.value = value;
+                          input.value = value;
                         }}
                       />
                     </div>
@@ -298,11 +299,12 @@ export default function RegisterPage() {
                         className="input-field"
                         placeholder=""
                         onInput={e => {
-                          let value = e.target.value.replace(/[^A-Za-z]/g, '');
+                          const input = e.target as HTMLInputElement;
+                          let value = input.value.replace(/[^A-Za-z]/g, '');
                           if (value.length > 0) {
                             value = value.charAt(0).toUpperCase() + value.slice(1);
                           }
-                          e.target.value = value;
+                          input.value = value;
                         }}
                       />
                     </div>
