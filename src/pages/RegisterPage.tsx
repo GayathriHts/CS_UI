@@ -59,7 +59,7 @@ export default function RegisterPage() {
       if (!email) missingFields.push('Email Address');
       if (missingFields.length > 0) {
         if (missingFields.length === 3) {
-          setError('Please fill First Name, Last Name & Email Address.');
+          setError('Please fill First Name Last Name & Email Address.');
         } else {
           setError(missingFields.map(f => `${f} is required`).join('\n'));
         }
