@@ -160,8 +160,21 @@ export default function RegisterPage() {
       setPendingPhoneNumber(payload.mobileNumber || '');
       setPendingEmail(payload.email || '');
       setStep('otp');
-    } catch {
-      setError('Failed to send OTP. Please check the details and try again.');
+    } catch (err: any) {
+      let errorMsg = '';
+      const response = err?.response;
+      if (response && typeof response === 'object' && response.data && typeof response.data === 'object' && 'error' in response.data) {
+        errorMsg = response.data.error;
+      }
+      if (typeof errorMsg === 'string' && errorMsg.length > 0) {
+        if (errorMsg.toLowerCase().includes('already') && errorMsg.toLowerCase().includes('email')) {
+          setError('This email account is already registered.');
+        } else {
+          setError(errorMsg);
+        }
+      } else {
+        setError('Unable to Register the,Please try again later');
+      }
     }
   };
 
