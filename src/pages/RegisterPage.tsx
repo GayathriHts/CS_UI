@@ -44,6 +44,12 @@ export default function RegisterPage() {
   });
 
   const handleContinue = async () => {
+        // Phone number: should not allow alphabetic characters
+        const phoneNumber = getValues('phoneNumber');
+        if (activeTab === 'mobile' && /[A-Za-z]/.test(phoneNumber)) {
+          setError('Phone Number should not contain alphabetic characters.');
+          return;
+        }
     setError('');
 
     const fieldsToValidate: Array<keyof RegisterRequest> = ['firstName', 'lastName'];
@@ -56,6 +62,40 @@ export default function RegisterPage() {
     const isValid = await trigger(fieldsToValidate);
     if (!isValid) {
       setError(activeTab === 'email' ? 'Please fill in your name and email.' : 'Please fill in your name and mobile number.');
+      return;
+    }
+
+    // Custom validation for names and email
+    const firstName = getValues('firstName');
+    const lastName = getValues('lastName');
+    let email = getValues('email');
+    if (typeof email === 'string') {
+      email = email.trim();
+    }
+
+    // No initial space for first name or last name
+    if (/^\s/.test(firstName) || /^\s/.test(lastName)) {
+      setError('First Name and Last Name should not start with a space.');
+      return;
+    }
+
+   
+    
+    // No numbers or special chars for names
+    if (/[^A-Za-z]/.test(firstName) || /[^A-Za-z]/.test(lastName)) {
+      setError('First and Last Name should only contain alphabets.');
+      return;
+    }
+
+    // First letter capitalized for names
+    if (!/^[A-Z]/.test(firstName) || !/^[A-Z]/.test(lastName)) {
+      setError('First letter of First and Last Name should be capitalized.');
+      return;
+    }
+
+    // Email: no spaces anywhere (including trailing/leading)
+    if (activeTab === 'email' && email && /\s/.test(email)) {
+      setError('Email address should not contain spaces anywhere.');
       return;
     }
 
@@ -132,10 +172,9 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-brand-green p-6 text-center">
-            <img src="/images/cs-logo.png" alt="" className="h-12 mx-auto mb-2" />
-            <h1 className="text-2xl font-bold text-white">Create Account</h1>
+             <h1 className="text-2xl font-bold text-white">Create Account</h1>
             <p className="text-green-200 text-sm mt-1">
-              {step === 'details' && 'Fill in your details to get started'}
+              {step === 'details' && ''}
               {step === 'otp' && (activeTab === 'email' ? 'Verify your email address' : 'Verify your mobile number')}
             </p>
           </div>
@@ -155,7 +194,7 @@ export default function RegisterPage() {
                       activeTab === 'email' ? 'bg-brand-green text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'
                     }`}
                   >
-                    📧 Use My Email
+                     Use My Email
                   </button>
                   <button
                     onClick={() => setActiveTab('mobile')}
@@ -163,7 +202,7 @@ export default function RegisterPage() {
                       activeTab === 'mobile' ? 'bg-brand-green text-white shadow-sm' : 'text-gray-600 hover:text-gray-800'
                     }`}
                   >
-                    📱 Use My Mobile
+                     Use My Mobile
                   </button>
                 </div>
 
@@ -174,7 +213,16 @@ export default function RegisterPage() {
                       <input
                         {...register('firstName', { required: true })}
                         className="input-field"
-                        placeholder="John"
+                        placeholder=""
+                        onInput={e => {
+                          const value = e.target.value.replace(/[^A-Za-z]/g, '');
+                          e.target.value = value;
+                          if (/[^A-Za-z]/.test(e.target.value)) {
+                            setError('Special characters and numbers are not allowed in First Name');
+                          } else {
+                            setError('');
+                          }
+                        }}
                       />
                     </div>
                     <div>
@@ -182,19 +230,29 @@ export default function RegisterPage() {
                       <input
                         {...register('lastName', { required: true })}
                         className="input-field"
-                        placeholder="Doe"
+                        placeholder=""
+                        onInput={e => {
+                          const value = e.target.value.replace(/[^A-Za-z]/g, '');
+                          e.target.value = value;
+                          if (/[^A-Za-z]/.test(e.target.value)) {
+                            setError('Special characters and numbers are not allowed in Last Name');
+                          } else {
+                            setError('');
+                          }
+                        }}
                       />
                     </div>
                   </div>
 
                   {activeTab === 'email' ? (
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5" htmlFor="email">Email Address</label>
                       <input
+                        id="email"
                         type="email"
                         {...register('email', { required: activeTab === 'email' })}
                         className="input-field"
-                        placeholder="you@example.com"
+                        placeholder=""
                       />
                     </div>
                   ) : (
@@ -211,7 +269,7 @@ export default function RegisterPage() {
                           type="tel"
                           {...register('phoneNumber', { required: activeTab === 'mobile' })}
                           className="input-field flex-1"
-                          placeholder="(555) 123-4567"
+                          placeholder=""
                         />
                       </div>
                     </div>

@@ -106,7 +106,7 @@ export default function LoginPage() {
                     type="email"
                     {...register('email', { required: true })}
                     className="input-field"
-                    placeholder="you@example.com"
+                    placeholder=""
                   />
                 </div>
                 <div>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                     type={showLoginPassword ? 'text' : 'password'}
                     {...register('password', { required: true })}
                     className="input-field"
-                    placeholder="••••••••"
+                    placeholder=""
                   />
                 </div>
                 <div className="flex items-center justify-between text-sm">
