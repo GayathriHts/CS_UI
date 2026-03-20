@@ -95,7 +95,7 @@ export default function LoginPage() {
         await authService.resetPassword(forgotEmail, otp, newPassword);
         setForgotStep('done');
       } catch {
-        setError('Failed to reset password.');
+        setError('Invalid OTP or failed to reset password. Please try again.');
       }
     }
   };
