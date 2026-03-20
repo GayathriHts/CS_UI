@@ -67,8 +67,36 @@ export default function LoginPage() {
     setError('');
 
     if (forgotStep === 'email') {
+      // Email validation (same as Register page)
+      let email = forgotEmail ? forgotEmail.trim() : '';
+      if (!email) {
+        setError('Email Address is required');
+        return;
+      }
+      if (!email.includes('@')) {
+        setError('Email address must contain @');
+        return;
+      }
+      if (!email.endsWith('.com')) {
+        setError('Invalid email address');
+        return;
+      }
+      if (/\s/.test(email)) {
+        setError('Email address should not contain spaces anywhere.');
+        return;
+      }
+      const domainMatch = email.match(/@([^.]+)\.com$/);
+      if (!domainMatch || !domainMatch[1]) {
+        setError('Invalid email address');
+        return;
+      }
+      const domainPattern = /\.[a-zA-Z]{2,}$/;
+      if (!domainPattern.test(email)) {
+        setError('Invalid email address');
+        return;
+      }
       try {
-        await authService.forgotPassword(forgotEmail);
+        await authService.forgotPassword(email);
         setForgotStep('otp');
       } catch {
         setError('Failed to send OTP. Please check your email.');
