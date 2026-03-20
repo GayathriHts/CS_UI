@@ -27,34 +27,40 @@ export default function LoginPage() {
             setError('Email address must contain @');
             return;
           }
-    let email = forgotEmail.trim();
-    if (!email) {
+          if (!data.email.endsWith('.com')) {
+            setError('Email address must end with .com');
+            return;
+          }
+          if (/\s/.test(data.email)) {
+            setError('Email address should not contain spaces anywhere.');
+            return;
+          }
+          const domainPattern = /@([^.]+)\.com$/;
+          const domainMatch = data.email.match(domainPattern);
+          if (!domainMatch || !domainMatch[1]) {
+            setError('Email address domain is incorrect.');
+            return;
+          }
+        }
+    setError('');
+    // Show react-hook-form errors for empty fields
+    if (errors.email && errors.password) {
+      setError('Email Address and Password should not be empty.');
+      return;
+    } else if (errors.email) {
       setError('Email Address is required');
       return;
-    }
-    if (!email.includes('@')) {
-      setError('Email address must contain @');
+    } else if (errors.password) {
+      setError('Password is required');
       return;
     }
-    const domainMatch = email.match(/@([^.]+)\.com$/);
-    if (!domainMatch || !domainMatch[1]) {
-      setError('Email address domain is incorrect.');
-      return;
+    try {
+      const res = await authService.login(data);
+      login(res.data.token, res.data.user);
+      navigate('/dashboard');
+    } catch {
+      setError('Invalid email or password.');
     }
-    if (!email.endsWith('.com')) {
-      setError('Email address must end with .com');
-      return;
-    }
-    if (/\s/.test(email)) {
-      setError('Email address should not contain spaces anywhere.');
-      return;
-    }
-    const domainPattern = /\.[a-zA-Z]{2,}$/;
-    if (!domainPattern.test(email)) {
-      setError('Email address domain is invalid.');
-      return;
-    }
-    // OTP sending logic would go here
   };
 
   const handleForgotPassword = async () => {
