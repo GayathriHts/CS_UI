@@ -170,7 +170,7 @@ export default function LoginPage() {
                   </label>
                   <button
                     type="button"
-                    onClick={() => setShowForgotPassword(true)}
+                    onClick={() => { setShowForgotPassword(true); setError(''); }}
                     className="text-brand-green hover:underline font-medium"
                   >
                     Forgot Password?
@@ -223,7 +223,7 @@ export default function LoginPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                     <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
-                      className="input-field" placeholder="you@example.com" />
+                      className="input-field" />
                   </div>
                   <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Send OTP</button>
                 </div>
