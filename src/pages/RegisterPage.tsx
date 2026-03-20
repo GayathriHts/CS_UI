@@ -74,7 +74,7 @@ export default function RegisterPage() {
        // Domain name validation: must have something between '@' and '.com'
        const domainMatch = email.match(/@([^.]+)\.com$/);
        if (!domainMatch || !domainMatch[1]) {
-         setError('Email address domain is incorrect.');
+         setError('Invalid email address');
          return;
        }
       if (!email.endsWith('.com')) {

@@ -10,11 +10,11 @@ interface ResendOtpButtonProps {
 const ResendOtpButton: React.FC<ResendOtpButtonProps> = ({ email, setError, setSuccessMessage }) => {
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (timer > 0) {
-      intervalRef.current = setInterval(() => {
+      intervalRef.current = window.setInterval(() => {
         setTimer(prev => {
           if (prev <= 1) {
             clearInterval(intervalRef.current!);

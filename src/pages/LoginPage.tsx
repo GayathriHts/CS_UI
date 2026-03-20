@@ -317,9 +317,18 @@ export default function LoginPage() {
 
               {forgotStep !== 'done' && (
                 <div className="mt-6 text-center">
-                  <button onClick={() => { setShowForgotPassword(false); setError(''); }}
+                  <button
+                    onClick={() => {
+                      if (forgotStep === 'reset') {
+                        setForgotStep('otp');
+                        setError('');
+                      } else {
+                        setShowForgotPassword(false);
+                        setError('');
+                      }
+                    }}
                     className="text-sm text-gray-500 hover:text-brand-green">
-                    ← Back to Sign In
+                    {forgotStep === 'reset' ? '← Back to OTP' : '← Back to Sign In'}
                   </button>
                 </div>
               )}
