@@ -5,6 +5,7 @@ import { authService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
 import type { RegisterConfirmRequest, RegisterRequest, RegisterStartRequest } from '../types';
 import { getPasswordValidationError } from '../utils/passwordValidation';
+import ResendOtpButton from '../components/ResendOtpButton';
 
 type TabType = 'email' | 'mobile';
 type Step = 'details' | 'otp';
@@ -366,18 +367,22 @@ export default function RegisterPage() {
             )}
 
             {step === 'otp' && (
-              <div className="space-y-5">
-                 
+              <div className="space-y-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter Verification Code</label>
+                  <label className="block text-xs font-medium text-gray-700 mb-0.5 text-center">Enter Verification Code</label>
                   <input
                     type="text"
                     value={otpValue}
                     onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="input-field text-center text-3xl tracking-[0.5em] font-mono"
+                    className="input-field w-full text-center text-base tracking-[0.2em] font-mono py-1"
                     maxLength={6}
                     placeholder="------"
                     autoFocus
+                  />
+                  <ResendOtpButton
+                    email={pendingEmail}
+                    setError={setError}
+                    setSuccessMessage={msg => setError(msg)}
                   />
                 </div>
                 <div>
