@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://10.10.20.24:9000/api/v1';
+const API_BASE_URL = 'http://10.10.20.24:9002/api/v1';
 
 const isAuthRequest = (url?: string) => !!url && /\/auth\//.test(url);
 

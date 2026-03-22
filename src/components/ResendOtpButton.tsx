@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import { authService } from '../services/cricketSocialService';
 
 interface ResendOtpButtonProps {
   email: string;
@@ -34,9 +34,9 @@ const ResendOtpButton: React.FC<ResendOtpButtonProps> = ({ email, setError, setS
     setSuccessMessage('');
     setLoading(true);
     try {
-      await axios.post('/auth/send-email-otp', { email });
+      await authService.sendEmailOtp(email);
       setSuccessMessage('OTP resent successfully.');
-       
+      setTimer(30); // Start 30s cooldown
     } catch (err) {
       setError('Failed to resend OTP. Please try again.');
     } finally {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import ResendOtpButton from '../components/ResendOtpButton';
 import { authService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
 import type { LoginRequest } from '../types';
@@ -262,11 +263,13 @@ export default function LoginPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter OTP</label>
                     <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)}
                       className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} placeholder="••••••" />
+                    <ResendOtpButton
+                      email={forgotEmail}
+                      setError={setError}
+                      setSuccessMessage={(msg: string) => setError(msg)}
+                    />
                   </div>
                   <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Verify OTP</button>
-                  <p className="text-center text-sm text-gray-500">
-                    Didn't receive the code? <button className="text-brand-green font-medium">Resend OTP</button>
-                  </p>
                 </div>
               )}
               {forgotStep === 'reset' && (
