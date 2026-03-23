@@ -380,9 +380,10 @@ export default function RegisterPage() {
                     autoFocus
                   />
                   <ResendOtpButton
-                    email={pendingEmail}
+                    registrationPayload={buildRegisterStartPayload()}
                     setError={setError}
-                    setSuccessMessage={msg => setError(msg)}
+                    setSuccessMessage={(msg: string) => setError(msg)}
+                    resendType="register"
                   />
                 </div>
                 <div>
@@ -391,7 +392,7 @@ export default function RegisterPage() {
                     type={showPasswords ? 'text' : 'password'}
                     {...register('password', { required: true, minLength: 8 })}
                     className="input-field"
-                    placeholder="Minimum 8 characters"
+                   
                   />
                 </div>
                 <div>
@@ -401,7 +402,7 @@ export default function RegisterPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="input-field"
-                    placeholder="Re-enter password"
+                    
                   />
                   <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                     <input

@@ -13,6 +13,7 @@ import type {
 
 // ── Auth ──
 export const authService = {
+    resendRegisterOtp: (data: RegisterStartRequest) => api.post('/auth/register', data),
   register: (data: RegisterRequest) =>
     api.post<AuthResponse>('/auth/register/confirm', {
       firstName: data.firstName,
