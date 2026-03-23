@@ -46,7 +46,8 @@ const ResendOtpButton: React.FC<ResendOtpButtonProps> = ({ email, registrationPa
       if (resendType === 'register' && registrationPayload) {
         await authService.resendRegisterOtp(registrationPayload);
       } else if (email) {
-        await authService.sendEmailOtp(email);
+        // Use forgotPassword endpoint for forgot password resend OTP
+        await authService.forgotPassword(email);
       } else {
         throw new Error('Missing email or registration payload');
       }
