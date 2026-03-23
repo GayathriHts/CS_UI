@@ -229,9 +229,9 @@ export default function RegisterPage() {
         errorStr = JSON.stringify(errorMsg);
       }
       if (errorStr.toLowerCase().includes('otp') && errorStr.toLowerCase().includes('mismatch')) {
-        setError('Invalid otp');
-      } else if (errorStr.toLowerCase().includes('invalid otp')) {
-        setError('Invalid otp');
+        setError('Invalid OTP');
+      } else if (errorStr.toLowerCase().includes('invalid OTP')) {
+        setError('Invalid OTP');
       } else {
         setError(errorStr || 'Invalid OTP or registration failed.');
       }
