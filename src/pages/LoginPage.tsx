@@ -262,7 +262,7 @@ export default function LoginPage() {
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter OTP</label>
                     <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)}
-                      className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} placeholder="••••••" />
+                      className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} />
                     <ResendOtpButton
                       email={forgotEmail}
                       setError={setError}
@@ -281,7 +281,7 @@ export default function LoginPage() {
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
                       className="input-field"
-                      placeholder="••••••••"
+                       
                     />
                   </div>
                   <div>
@@ -291,7 +291,7 @@ export default function LoginPage() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       className="input-field"
-                      placeholder="••••••••"
+                    
                     />
                     <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                       <input
