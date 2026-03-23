@@ -211,7 +211,7 @@ export default function RegisterPage() {
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError('Confirmation password doesn’t match');
       return;
     }
 
