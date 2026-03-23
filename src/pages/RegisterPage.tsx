@@ -169,12 +169,12 @@ export default function RegisterPage() {
       }
       if (typeof errorMsg === 'string' && errorMsg.length > 0) {
         if (errorMsg.toLowerCase().includes('already') && errorMsg.toLowerCase().includes('email')) {
-          setError('This email user is already registered');
+          setError('This user already has an account. Please login.');
         } else {
           setError(errorMsg);
         }
       } else {
-        setError('This email user is already registered');
+        setError('This user already has an account. Please login.');
       }
     }
   };
