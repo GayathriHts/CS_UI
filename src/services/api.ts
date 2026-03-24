@@ -25,8 +25,7 @@ const boardApi = {
         Authorization: isValidToken(token)
           ? `Bearer ${token}`
           : undefined,
-        'Content-Type': 'application/json',
-      },
+       },
     });
   },
 
@@ -93,6 +92,7 @@ api.interceptors.request.use((config) => {
 });
 
 // Handle 401 → redirect to login
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

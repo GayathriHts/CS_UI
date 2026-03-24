@@ -47,7 +47,6 @@ export const userService = {
   getProfile: () => api.get<User>('/users/me'),
   getById: (id: string) => api.get<User>(`/users/${id}`),
   updateProfile: (data: Partial<User>) => api.put<User>('/users/me', data),
-  getStats: (id: string) => api.get<PlayerStats>(`/users/${id}/stats`),
   getTopBatsmen: (page = 1, pageSize = 20) => api.get<PagedResponse<PlayerStats>>('/users/top-batsmen', { params: { page, pageSize } }),
   getTopBowlers: (page = 1, pageSize = 20) => api.get<PagedResponse<PlayerStats>>('/users/top-bowlers', { params: { page, pageSize } }),
   comparePlayers: (user1: string, user2: string) => api.get<PlayerStats[]>('/users/compare', { params: { user1, user2 } }),
@@ -73,8 +72,10 @@ export const boardService = {
   }) => boardApi.post('/Boards', data),
 
   // Get all boards (with optional pagination)
-  getAll: (page = 1, pageSize = 20) =>
-    boardApi.get('/Boards', { params: { page, pageSize } }),
+  getAll: (page = 1, pageSize = 20, version = 1) =>
+  boardApi.get('/Boards', { 
+    params: { page, pageSize, version } 
+  }),
 
   // Get a board by ID
   getById: (id: string) => boardApi.get(`/Boards/${id}`),
@@ -113,7 +114,6 @@ export const tournamentService = {
   getById: (id: string) => api.get<Tournament>(`/tournaments/${id}`),
   getByBoard: (boardId: string, page = 1, pageSize = 20) =>
     api.get<PagedResponse<Tournament>>(`/tournaments/board/${boardId}`, { params: { page, pageSize } }),
-  getUpcoming: (page = 1, pageSize = 20) => api.get<PagedResponse<Tournament>>('/tournaments/upcoming', { params: { page, pageSize } }),
   update: (id: string, data: { name?: string; format?: string; oversPerInning?: number; maxPlayersPerTeam?: number; startDate?: Date; endDate?: Date }) =>
     api.put<Tournament>(`/tournaments/${id}`, data),
   cancel: (id: string) => api.delete(`/tournaments/${id}`),

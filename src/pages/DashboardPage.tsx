@@ -28,10 +28,17 @@ export default function DashboardPage() {
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
 
-  const { data: boards } = useQuery({
-    queryKey: ['myBoards'],
-    queryFn: () => boardService.getMyBoards().then((r) => r.data),
-  });
+  
+
+const { data: boards } = useQuery({
+  queryKey: ['myBoards'],
+  queryFn: async () => {
+    //console.log('🔥 QUERY RUNNING');
+    const res = await boardService.getAll(1, 20);
+    return res.data;
+  },
+});
+
 
   const { data: upcoming } = useQuery({
     queryKey: ['upcomingTournaments'],
@@ -72,14 +79,20 @@ export default function DashboardPage() {
     enabled: !!activeCommentsPostId && activeMenu === 'pitch',
   });
 
-  const addCommentMutation = useMutation({
-    mutationFn: ({ id, content }: { id: string; content: string }) => feedService.addComment(id, content),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ['feed'] });
-      await qc.invalidateQueries({ queryKey: ['feedComments', activeCommentsPostId] });
-      setCommentText('');
-    },
-  });
+ const addCommentMutation = useMutation({
+  mutationFn: ({ id, content }: { id: string; content: string }) =>
+    feedService.addComment(id, content),
+
+  onSuccess: () => {
+    // ✅ Refresh only feed (not boards)
+    qc.invalidateQueries({ queryKey: ['feed'] });
+
+    // Optional: also refresh comments for that post
+    qc.invalidateQueries({ queryKey: ['feedComments'] });
+  },
+});
+
+  
 
   const postMutation = useMutation({
     mutationFn: (content: string) => feedService.create({ content }),
@@ -501,8 +514,8 @@ export default function DashboardPage() {
                 <div className="card mb-6">
                   <h3 className="font-semibold mb-4">Create New Board</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label><input value={newBoardName} onChange={e => setNewBoardName(e.target.value)} className="input-field" placeholder="Enter board name" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name</label><input value={newBoardName} onChange={e => setNewBoardName(e.target.value)} className="input-field" placeholder="Enter board name" /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                       <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as 'Team' | 'League')} className="input-field"><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" placeholder="City" /></div>
@@ -513,7 +526,7 @@ export default function DashboardPage() {
                     className="btn-primary text-sm px-6 mt-4">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
                 </div>
               )}
-              {boards?.items.length ? (
+              {boards?.items?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {boards.items.map((b: any) => (
                     <Link key={b.id} to={`/boards/${b.id}`} className="card hover:shadow-lg transition-shadow">
