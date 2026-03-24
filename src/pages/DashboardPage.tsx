@@ -87,10 +87,49 @@ export default function DashboardPage() {
   });
 
   // B7 Fix: Add create board mutation
+  const boardTypeValue = newBoardType === 'Team' ? 1 : newBoardType === 'League' ? 2 : 1;
   const createBoardMutation = useMutation({
-    mutationFn: () => boardService.create({ name: newBoardName, boardType: newBoardType, description: newBoardDescription, city: newBoardCity, state: newBoardState, country: newBoardCountry }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['myBoards'] }); setShowCreateBoard(false); setNewBoardName(''); setNewBoardDescription(''); setNewBoardCity(''); setNewBoardState(''); setNewBoardCountry(''); },
+    mutationFn: () => {
+      if (!user) throw new Error('User not authenticated');
+      return boardService.create({
+        name: newBoardName,
+        description: newBoardDescription,
+        boardType: boardTypeValue,
+        city: newBoardCity,
+        state: newBoardState,
+        country: newBoardCountry,
+        ownerId: user.id,
+        logoUrl: '',
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myBoards'] });
+      setShowCreateBoard(false);
+      setNewBoardName('');
+      setNewBoardDescription('');
+      setNewBoardCity('');
+      setNewBoardState('');
+      setNewBoardCountry('');
+    },
+    onError: (error: any) => {
+      if (error?.response?.status === 401) {
+        alert('Session expired. Please login again.');
+        window.location.href = '/login';
+      } else {
+        alert('Failed to create board.');
+      }
+    },
   });
+// Login API call example (use in your login form handler)
+//
+// import { authService } from '../services/cricketSocialService';
+// import { useAuthStore } from '../store/slices/authStore';
+//
+// const handleLogin = async (email: string, password: string) => {
+//   const res = await authService.login({ email, password });
+//   const { token, user } = res.data;
+//   useAuthStore.getState().login(token, user);
+// };
 
   const handleLogout = () => {
     logout();
@@ -476,7 +515,7 @@ export default function DashboardPage() {
               )}
               {boards?.items.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {boards.items.map((b) => (
+                  {boards.items.map((b: any) => (
                     <Link key={b.id} to={`/boards/${b.id}`} className="card hover:shadow-lg transition-shadow">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-brand-green/10 rounded-xl flex items-center justify-center">

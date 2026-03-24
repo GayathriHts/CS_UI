@@ -1,4 +1,4 @@
-import api from './api';
+import api, { boardApi } from './api';
 import type {
   AuthResponse, LoginRequest, RegisterConfirmRequest, RegisterRequest, RegisterStartRequest,
   User, PlayerStats, Board, Roster, RosterMember,
@@ -60,16 +60,37 @@ export const userService = {
 
 // ── Boards ──
 export const boardService = {
-  create: (data: { name: string; boardType: string; description?: string; city?: string; state?: string; country?: string }) =>
-    api.post<Board>('/boards', data),
-  getById: (id: string) => api.get<Board>(`/boards/${id}`),
-  getMyBoards: (page = 1, pageSize = 20) => api.get<PagedResponse<Board>>('/boards/mine', { params: { page, pageSize } }),
-  search: (query?: string, type?: string, page = 1, pageSize = 20) =>
-    api.get<PagedResponse<Board>>('/boards', { params: { query, type, page, pageSize } }),
-  update: (id: string, data: Partial<Board>) => api.put<Board>(`/boards/${id}`, data),
-  delete: (id: string) => api.delete(`/boards/${id}`),
-  addFan: (id: string) => api.post(`/boards/${id}/fans`),
-  removeFan: (id: string) => api.delete(`/boards/${id}/fans`),
+  // Create a new board
+  create: (data: {
+    name: string;
+    description: string;
+    boardType: number;
+    city: string;
+    state: string;
+    country: string;
+    ownerId: string;
+    logoUrl: string;
+  }) => boardApi.post('/Boards', data),
+
+  // Get all boards (with optional pagination)
+  getAll: (page = 1, pageSize = 20) =>
+    boardApi.get('/Boards', { params: { page, pageSize } }),
+
+  // Get a board by ID
+  getById: (id: string) => boardApi.get(`/Boards/${id}`),
+
+  // Update a board by ID
+  update: (id: string, data: Partial<Board>) => boardApi.put(`/Boards/${id}`, data),
+
+  // Delete a board by ID
+  delete: (id: string) => boardApi.delete(`/Boards/${id}`),
+
+  // The following endpoints are not supported by the current Swagger spec and are commented out:
+  // getMyBoards: (page = 1, pageSize = 20) => boardApi.get('/Boards/mine', { params: { page, pageSize } }),
+  // search: (query?: string, type?: string, page = 1, pageSize = 20) =>
+  //   boardApi.get('/Boards', { params: { query, type, page, pageSize } }),
+  // addFan: (id: string) => boardApi.post(`/Boards/${id}/fans`, {}),
+  // removeFan: (id: string) => boardApi.delete(`/Boards/${id}/fans`),
 };
 
 // ── Rosters ──
