@@ -217,7 +217,8 @@ export default function RegisterPage() {
 
     try {
       const res = await authService.confirmRegister(buildRegisterConfirmPayload(data));
-      loginStore(res.data.token, res.data.user);
+     loginStore(res.data.data.accessToken, res.data.data.user);
+     
         navigate('/dashboard');
     } catch (err: unknown) {
       // Try to detect OTP mismatch from backend error

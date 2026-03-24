@@ -57,10 +57,30 @@ export default function LoginPage() {
     }
     try {
       const res = await authService.login(data);
-      login(res.data.token, res.data.user);
+      console.log('Full login API response:', res);
+      // Only access properties that exist on AuthResponse
+      const token = res.data?.data?.accessToken;
+        const user = res.data?.data?.user;
+      console.log('Extracted token:', token);
+      console.log('Extracted user:', user);
+      if (token) {
+        sessionStorage.setItem('token', token);
+        localStorage.setItem('token', token);
+        console.log('Token stored in sessionStorage:', sessionStorage.getItem('token'));
+        console.log('Token stored in localStorage:', localStorage.getItem('token'));
+      }
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+        console.log('User stored in localStorage:', localStorage.getItem('user'));
+        login(token, user);
+      } else {
+        setError('Login response missing user information.');
+        return;
+      }
       navigate('/dashboard');
-    } catch {
+    } catch (err) {
       setError('Invalid email or password.');
+      console.error('Login error:', err);
     }
   };
 

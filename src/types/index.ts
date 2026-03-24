@@ -29,10 +29,13 @@ export interface LoginRequest {
 }
 
 export interface AuthResponse {
-  token: string;
-  refreshToken: string;
-  expiresAt: string;
-  user: User;
+  success: boolean;
+  data: {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: string;
+    user: User;
+  };
 }
 
 // ── User ──

@@ -1,6 +1,82 @@
 import axios from 'axios';
+import type { AxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = 'http://10.10.20.24:9002/api/v1';
+const API_BASE_URL = 'http://10.10.20.24:9002/api/v1'; 
+
+const BOARD_API_BASE_URL = 'http://10.10.20.24:9003/api/v1';
+
+const getBoardToken = () => {
+  return sessionStorage.getItem('token') || localStorage.getItem('token');
+};
+
+const isValidToken = (token: string | null) =>
+  token && token !== 'undefined' && token !== 'null';
+
+type BoardApiConfig = AxiosRequestConfig;
+
+const boardApi = {
+  get: (url: string, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+
+    return axios.get(BOARD_API_BASE_URL + url, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token)
+          ? `Bearer ${token}`
+          : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+
+  post: (url: string, data: any, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+
+    return axios.post(BOARD_API_BASE_URL + url, data, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token)
+          ? `Bearer ${token}`
+          : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+
+  put: (url: string, data: any, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+
+    return axios.put(BOARD_API_BASE_URL + url, data, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token)
+          ? `Bearer ${token}`
+          : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+
+  delete: (url: string, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+
+    return axios.delete(BOARD_API_BASE_URL + url, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token)
+          ? `Bearer ${token}`
+          : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+};
+
+export { boardApi };
 
 const isAuthRequest = (url?: string) => !!url && /\/auth\//.test(url);
 
