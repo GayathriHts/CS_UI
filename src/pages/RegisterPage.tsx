@@ -372,7 +372,10 @@ export default function RegisterPage() {
                     type={showPasswords ? 'text' : 'password'}
                     {...register('password', { required: true, minLength: 8 })}
                     className="input-field"
-                   
+                    onInput={e => {
+                      const input = e.target as HTMLInputElement;
+                      input.value = input.value.replace(/\s/g, '');
+                    }}
                   />
                   {fieldErrors.password && (
                     <div className="text-red-600 text-xs mt-1">{fieldErrors.password}</div>
@@ -383,9 +386,8 @@ export default function RegisterPage() {
                   <input
                     type={showPasswords ? 'text' : 'password'}
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
                     className="input-field"
-                    
                   />
                   {fieldErrors.confirmPassword && (
                     <div className="text-red-600 text-xs mt-1">{fieldErrors.confirmPassword}</div>
