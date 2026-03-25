@@ -162,7 +162,7 @@ export default function RegisterPage() {
 
     const hasValidPassword = await trigger('password');
     if (!hasValidPassword) {
-      errs.password = 'Please create a 8-character strong password with one uppercase letter, one lowercase letter, one special character and with numeric';
+      errs.password = 'Please create a strong password with at least 8 characters, one uppercase letter, one lowercase letter, one number, one special character';
     } else {
       const password = getValues('password');
       const passwordValidationError = getPasswordValidationError(password);
