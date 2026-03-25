@@ -202,6 +202,10 @@ export default function LoginPage() {
                     {...register('password', { required: true })}
                     className="input-field"
                     placeholder=""
+                    onInput={e => {
+                      const input = e.target as HTMLInputElement;
+                      input.value = input.value.replace(/^\s+/, '');
+                    }}
                   />
                   {errors.password && (
                     <div className="text-red-600 text-xs mt-1">Password is required</div>
