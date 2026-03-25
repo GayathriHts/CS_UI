@@ -161,7 +161,7 @@ export default function LoginPage() {
         }
         setForgotStep('reset');
       } catch {
-        setForgotFieldErrors({ otp: 'Invalid OTP. Please try again.' });
+        setForgotFieldErrors({ otp: 'Invalid OTP Please try again' });
       }
     } else if (forgotStep === 'reset') {
       const errs: Record<string, string> = {};

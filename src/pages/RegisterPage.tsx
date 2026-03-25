@@ -168,7 +168,7 @@ export default function RegisterPage() {
       const errorStr = resp?.error?.message || resp?.message || resp?.error || '';
       const errorLower = (typeof errorStr === 'string' ? errorStr : JSON.stringify(errorStr)).toLowerCase();
       if (errorLower.includes('otp') || errorLower.includes('invalid') || errorLower.includes('expired')) {
-        setFieldErrors({ otp: 'Invalid OTP' });
+        setFieldErrors({ otp: 'Invalid OTP. Please try again' });
       } else {
         setFieldErrors({ otp: 'Invalid OTP or verification failed.' });
       }
