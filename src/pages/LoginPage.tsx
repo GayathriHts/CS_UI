@@ -299,7 +299,7 @@ export default function LoginPage() {
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter OTP</label>
-                    <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)}
+                    <input type="text" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} />
                     {forgotFieldErrors.otp && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.otp}</div>
@@ -320,7 +320,7 @@ export default function LoginPage() {
                     <input
                       type={showResetPasswords ? 'text' : 'password'}
                       value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
+                      onChange={(e) => setNewPassword(e.target.value.replace(/^\s+/, ''))}
                       className="input-field"
                        
                     />
@@ -333,7 +333,7 @@ export default function LoginPage() {
                     <input
                       type={showResetPasswords ? 'text' : 'password'}
                       value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      onChange={(e) => setConfirmPassword(e.target.value.replace(/^\s+/, ''))}
                       className="input-field"
                     
                     />
