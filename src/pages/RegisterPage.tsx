@@ -8,7 +8,7 @@ import { getPasswordValidationError } from '../utils/passwordValidation';
 import ResendOtpButton from '../components/ResendOtpButton';
 
 type TabType = 'email' | 'mobile';
-type Step = 'details' | 'otp';
+type Step = 'details' | 'otp' | 'password';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -153,26 +153,45 @@ export default function RegisterPage() {
   const handleVerifyOtp = async () => {
     setError('');
     setFieldErrors({});
+
+    if (otpValue.length !== 6) {
+      setFieldErrors({ otp: 'Please enter the 6-digit OTP.' });
+      return;
+    }
+
+    try {
+      const email = activeTab === 'email' ? getValues('email') : '';
+      await authService.verifyRegisterOtp(email || '', otpValue);
+      setStep('password');
+    } catch (err: unknown) {
+      const resp = (err as { response?: { data?: any } })?.response?.data;
+      const errorStr = resp?.error?.message || resp?.message || resp?.error || '';
+      const errorLower = (typeof errorStr === 'string' ? errorStr : JSON.stringify(errorStr)).toLowerCase();
+      if (errorLower.includes('otp') || errorLower.includes('invalid') || errorLower.includes('expired')) {
+        setFieldErrors({ otp: 'Invalid OTP' });
+      } else {
+        setFieldErrors({ otp: 'Invalid OTP or verification failed.' });
+      }
+    }
+  };
+
+  const handleCreateAccount = async () => {
+    setError('');
+    setFieldErrors({});
     const errs: Record<string, string> = {};
 
     const data = getValues();
-    if (otpValue.length !== 6) {
-      errs.otp = 'Please enter the 6-digit OTP.';
+    const password = getValues('password');
+
+    const passwordValidationError = getPasswordValidationError(password);
+    if (passwordValidationError) {
+      errs.password = passwordValidationError;
     }
 
-    const hasValidPassword = await trigger('password');
-    if (!hasValidPassword) {
-      errs.password = 'Please create a strong password with at least 8 characters, one uppercase letter, one lowercase letter, one number, one special character';
-    } else {
-      const password = getValues('password');
-      const passwordValidationError = getPasswordValidationError(password);
-      if (passwordValidationError) {
-        errs.password = passwordValidationError;
-      } else if (!confirmPassword) {
-        errs.confirmPassword = 'Please enter Confirm Password';
-      } else if (password !== confirmPassword) {
-        errs.confirmPassword = "Confirmation password doesn't match";
-      }
+    if (!confirmPassword) {
+      errs.confirmPassword = 'Please enter Confirm Password';
+    } else if (password && !errs.password && password !== confirmPassword) {
+      errs.confirmPassword = "Confirmation password doesn't match";
     }
 
     if (Object.keys(errs).length > 0) {
@@ -182,17 +201,18 @@ export default function RegisterPage() {
 
     try {
       const res = await authService.confirmRegister(buildRegisterConfirmPayload(data));
-     loginStore(res.data.data.accessToken, res.data.data.user);
-     
-        navigate('/dashboard');
+      loginStore(res.data.data.accessToken, res.data.data.user);
+      navigate('/dashboard');
     } catch (err: unknown) {
       const resp = (err as { response?: { data?: any } })?.response?.data;
-      const errorStr = resp?.message || resp?.error || '';
+      const errorStr = resp?.error?.message || resp?.message || resp?.error || '';
       const errorLower = (typeof errorStr === 'string' ? errorStr : JSON.stringify(errorStr)).toLowerCase();
       if (errorLower.includes('otp') || errorLower.includes('invalid') || errorLower.includes('expired')) {
-        setFieldErrors({ otp: 'Invalid OTP' });
+        setError('Registration failed. Please try again.');
+      } else if (typeof errorStr === 'string' && errorStr.length > 0) {
+        setError(errorStr);
       } else {
-        setFieldErrors({ otp: 'Invalid OTP or registration failed.' });
+        setError('Registration failed. Please try again.');
       }
     }
   };
@@ -215,7 +235,8 @@ export default function RegisterPage() {
              <h1 className="text-2xl font-bold text-white">Create Account</h1>
             <p className="text-green-200 text-sm mt-1">
               {step === 'details' && ''}
-              {step === 'otp' && (activeTab === 'email' ? 'Verify your email address Enter 6 digit password' : 'Verify your mobile number')}
+              {step === 'otp' && (activeTab === 'email' ? 'Verify your email address' : 'Verify your mobile number')}
+              {step === 'password' && 'Create a new password'}
             </p>
           </div>
 
@@ -340,9 +361,9 @@ export default function RegisterPage() {
             )}
 
             {step === 'otp' && (
-              <div className="space-y-1">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-0.5 text-center">Enter Verification Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter Verification Code</label>
                   <input
                     type="text"
                     value={otpValue}
@@ -362,6 +383,14 @@ export default function RegisterPage() {
                     resendType="register"
                   />
                 </div>
+                <button type="button" onClick={handleVerifyOtp} className="w-full btn-primary py-3 text-lg">
+                  Verify OTP
+                </button>
+              </div>
+            )}
+
+            {step === 'password' && (
+              <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Create Password</label>
                   <input
@@ -398,8 +427,8 @@ export default function RegisterPage() {
                     Show password
                   </label>
                 </div>
-                <button type="button" onClick={handleVerifyOtp} className="w-full btn-primary py-3 text-lg">
-                  Verify OTP & Create Account
+                <button type="button" onClick={handleCreateAccount} className="w-full btn-primary py-3 text-lg">
+                  Create Account
                 </button>
               </div>
             )}
