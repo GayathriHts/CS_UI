@@ -22,6 +22,7 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [pendingPhoneNumber, setPendingPhoneNumber] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const { register, getValues, trigger, formState: { isSubmitting } } = useForm<RegisterRequest>();
 
   const buildRegisterStartPayload = (): RegisterStartRequest => {
@@ -46,73 +47,9 @@ export default function RegisterPage() {
 
   const handleContinue = async () => {
     setError('');
-    // Field-specific required validation for email registration
-    if (activeTab === 'email') {
-      const firstName = getValues('firstName');
-      const lastName = getValues('lastName');
-      let email = getValues('email');
-      if (typeof email === 'string') {
-        email = email.trim();
-      }
-      const missingFields = [];
-      if (!firstName) missingFields.push('First Name');
-      if (!lastName) missingFields.push('Last Name');
-      if (!email) missingFields.push('Email Address');
-      if (missingFields.length > 0) {
-        if (missingFields.length === 3) {
-          setError('First Name, Last Name, and Email Address are required');
-        } else {
-          setError(missingFields.map(f => `${f} is required`).join('\n'));
-        }
-        return;
-      }
-      // Only after all required fields are filled, do email format validation
-      if (!email.includes('@')) {
-        setError('Email address must contain @');
-        return;
-      }
-       // Domain name validation: must have something between '@' and '.com'
-       const domainMatch = email.match(/@([^.]+)\.com$/);
-       if (!domainMatch || !domainMatch[1]) {
-         setError('Invalid email address');
-         return;
-       }
-      if (!email.endsWith('.com')) {
-        setError('Email address must end with .com');
-        return;
-      }
-      if (/\s/.test(email)) {
-        setError('Email address should not contain spaces anywhere.');
-        return;
-      }
-      const domainPattern = /\.[a-zA-Z]{2,}$/;
-      if (!domainPattern.test(email)) {
-        setError('Email address domain is invalid.');
-        return;
-      }
-    }
-        // Phone number: should not allow alphabetic characters
-        const phoneNumber = getValues('phoneNumber');
-        if (activeTab === 'mobile' && /[A-Za-z]/.test(phoneNumber)) {
-          setError('Phone Number should not contain alphabetic characters.');
-          return;
-        }
-    setError('');
+    setFieldErrors({});
+    const errs: Record<string, string> = {};
 
-    const fieldsToValidate: Array<keyof RegisterRequest> = ['firstName', 'lastName'];
-    if (activeTab === 'email') {
-      fieldsToValidate.push('email');
-    } else {
-      fieldsToValidate.push('phoneNumber');
-    }
-
-    const isValid = await trigger(fieldsToValidate);
-    if (!isValid) {
-      setError(activeTab === 'email' ? 'Please fill in your name and email.' : 'Please fill in your name and mobile number.');
-      return;
-    }
-
-    // Custom validation for names and email
     const firstName = getValues('firstName');
     const lastName = getValues('lastName');
     let email = getValues('email');
@@ -120,40 +57,74 @@ export default function RegisterPage() {
       email = email.trim();
     }
 
-    // No initial space for first name or last name
-    if (/^\s/.test(firstName) || /^\s/.test(lastName)) {
-      setError('First Name and Last Name should not start with a space.');
-      return;
+    if (activeTab === 'email') {
+      if (!firstName) errs.firstName = 'First Name is required';
+      if (!lastName) errs.lastName = 'Last Name is required';
+      if (!email) {
+        errs.email = 'Email Address is required';
+      } else if (!email.includes('@')) {
+        errs.email = 'Email address must contain @';
+      } else {
+        const domainMatch = email.match(/@([^.]+)\.com$/);
+        if (!domainMatch || !domainMatch[1]) {
+          errs.email = 'Invalid email address';
+        } else if (!email.endsWith('.com')) {
+          errs.email = 'Email address must end with .com';
+        } else if (/\s/.test(email)) {
+          errs.email = 'Email address should not contain spaces anywhere.';
+        } else {
+          const domainPattern = /\.[a-zA-Z]{2,}$/;
+          if (!domainPattern.test(email)) {
+            errs.email = 'Email address domain is invalid.';
+          }
+        }
+      }
     }
 
-   
-    
-    // No numbers or special chars for names
-    if (/[^A-Za-z]/.test(firstName) || /[^A-Za-z]/.test(lastName)) {
-      setError('First and Last Name should only contain alphabets.');
-      return;
+    const phoneNumber = getValues('phoneNumber');
+    if (activeTab === 'mobile') {
+      if (!firstName) errs.firstName = 'First Name is required';
+      if (!lastName) errs.lastName = 'Last Name is required';
+      if (!phoneNumber) {
+        errs.phoneNumber = 'Mobile Number is required';
+      } else if (/[A-Za-z]/.test(phoneNumber)) {
+        errs.phoneNumber = 'Phone Number should not contain alphabetic characters.';
+      }
     }
 
-    // First letter capitalized for names
-    if (!/^[A-Z]/.test(firstName) || !/^[A-Z]/.test(lastName)) {
-      setError('First letter of First and Last Name should be capitalized.');
-      return;
+    // Name validations (only if names are provided)
+    if (firstName) {
+      if (/^\s/.test(firstName)) {
+        errs.firstName = 'First Name should not start with a space.';
+      } else if (/[^A-Za-z]/.test(firstName)) {
+        errs.firstName = 'First Name should only contain alphabets.';
+      } else if (!/^[A-Z]/.test(firstName)) {
+        errs.firstName = 'First letter of First Name should be capitalized.';
+      }
+    }
+    if (lastName) {
+      if (/^\s/.test(lastName)) {
+        errs.lastName = 'Last Name should not start with a space.';
+      } else if (/[^A-Za-z]/.test(lastName)) {
+        errs.lastName = 'Last Name should only contain alphabets.';
+      } else if (!/^[A-Z]/.test(lastName)) {
+        errs.lastName = 'First letter of Last Name should be capitalized.';
+      }
     }
 
-    // Email: no spaces anywhere (including trailing/leading)
-    if (activeTab === 'email' && email && /\s/.test(email)) {
-      setError('Email address should not contain spaces anywhere.');
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
 
     try {
       const payload = buildRegisterStartPayload();
       if (activeTab === 'email' && !payload.email) {
-        setError('Please enter an email address.');
+        setFieldErrors({ email: 'Please enter an email address.' });
         return;
       }
       if (activeTab === 'mobile' && !payload.mobileNumber) {
-        setError('Please enter a mobile number.');
+        setFieldErrors({ phoneNumber: 'Please enter a mobile number.' });
         return;
       }
 
@@ -181,37 +152,29 @@ export default function RegisterPage() {
 
   const handleVerifyOtp = async () => {
     setError('');
+    setFieldErrors({});
+    const errs: Record<string, string> = {};
 
-    // Validate required fields
     const data = getValues();
-    if (!data.firstName || !data.lastName) {
-      setError('First name and last name are required.');
-      return;
-    }
-    if (!data.email) {
-      setError('Email is required.');
-      return;
-    }
     if (otpValue.length !== 6) {
-      setError('Please enter the 6-digit OTP.');
-      return;
+      errs.otp = 'Please enter the 6-digit OTP.';
     }
 
     const hasValidPassword = await trigger('password');
     if (!hasValidPassword) {
-      setError('Please enter a password with at least 8 characters.');
-      return;
+      errs.password = 'Please enter a password with at least 8 characters.';
+    } else {
+      const password = getValues('password');
+      const passwordValidationError = getPasswordValidationError(password);
+      if (passwordValidationError) {
+        errs.password = passwordValidationError;
+      } else if (password !== confirmPassword) {
+        errs.confirmPassword = "Confirmation password doesnu2019t match";
+      }
     }
 
-    const password = getValues('password');
-    const passwordValidationError = getPasswordValidationError(password);
-    if (passwordValidationError) {
-      setError(passwordValidationError);
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Confirmation password doesn’t match');
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
       return;
     }
 
@@ -221,7 +184,6 @@ export default function RegisterPage() {
      
         navigate('/dashboard');
     } catch (err: unknown) {
-      // Try to detect OTP mismatch from backend error
       const errorMsg = (err as { response?: { data?: { error?: any } } })?.response?.data?.error;
       let errorStr = '';
       if (typeof errorMsg === 'string') {
@@ -230,15 +192,14 @@ export default function RegisterPage() {
         errorStr = JSON.stringify(errorMsg);
       }
       if (errorStr.toLowerCase().includes('otp') && errorStr.toLowerCase().includes('mismatch')) {
-        setError('Invalid OTP');
+        setFieldErrors({ otp: 'Invalid OTP' });
       } else if (errorStr.toLowerCase().includes('invalid OTP')) {
-        setError('Invalid OTP');
+        setFieldErrors({ otp: 'Invalid OTP' });
       } else {
-        setError(errorStr || 'Invalid OTP or registration failed.');
+        setFieldErrors({ otp: errorStr || 'Invalid OTP or registration failed.' });
       }
     }
   };
-
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-cover bg-center relative"
@@ -264,7 +225,10 @@ export default function RegisterPage() {
 
           <div className="p-8">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</div>
+              <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg mb-4 text-sm flex items-center gap-2">
+                <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                {error}
+              </div>
             )}
 
             {step === 'details' && (
@@ -306,6 +270,9 @@ export default function RegisterPage() {
                           input.value = value;
                         }}
                       />
+                      {fieldErrors.firstName && (
+                        <div className="text-red-600 text-xs mt-1">{fieldErrors.firstName}</div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
@@ -322,6 +289,9 @@ export default function RegisterPage() {
                           input.value = value;
                         }}
                       />
+                      {fieldErrors.lastName && (
+                        <div className="text-red-600 text-xs mt-1">{fieldErrors.lastName}</div>
+                      )}
                     </div>
                   </div>
 
@@ -335,6 +305,9 @@ export default function RegisterPage() {
                         className="input-field"
                         placeholder=""
                       />
+                      {fieldErrors.email && (
+                        <div className="text-red-600 text-xs mt-1">{fieldErrors.email}</div>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -353,6 +326,9 @@ export default function RegisterPage() {
                           placeholder=""
                         />
                       </div>
+                      {fieldErrors.phoneNumber && (
+                        <div className="text-red-600 text-xs mt-1">{fieldErrors.phoneNumber}</div>
+                      )}
                     </div>
                   )}
 
@@ -380,6 +356,9 @@ export default function RegisterPage() {
                     placeholder="------"
                     autoFocus
                   />
+                  {fieldErrors.otp && (
+                    <div className="text-red-600 text-xs mt-1">{fieldErrors.otp}</div>
+                  )}
                   <ResendOtpButton
                     registrationPayload={buildRegisterStartPayload()}
                     setError={setError}
@@ -395,6 +374,9 @@ export default function RegisterPage() {
                     className="input-field"
                    
                   />
+                  {fieldErrors.password && (
+                    <div className="text-red-600 text-xs mt-1">{fieldErrors.password}</div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
@@ -405,6 +387,9 @@ export default function RegisterPage() {
                     className="input-field"
                     
                   />
+                  {fieldErrors.confirmPassword && (
+                    <div className="text-red-600 text-xs mt-1">{fieldErrors.confirmPassword}</div>
+                  )}
                   <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                     <input
                       type="checkbox"

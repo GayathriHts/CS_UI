@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showResetPasswords, setShowResetPasswords] = useState(false);
+  const [forgotFieldErrors, setForgotFieldErrors] = useState<Record<string, string>>({});
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginRequest>();
 
   const onSubmit = async (data: LoginRequest) => {
@@ -86,58 +87,63 @@ export default function LoginPage() {
 
   const handleForgotPassword = async () => {
     setError('');
+    setForgotFieldErrors({});
 
     if (forgotStep === 'email') {
       // Email validation (same as Register page)
       let email = forgotEmail ? forgotEmail.trim() : '';
       if (!email) {
-        setError('Email Address is required');
+        setForgotFieldErrors({ email: 'Email Address is required' });
         return;
       }
       if (!email.includes('@')) {
-        setError('Email address must contain @');
+        setForgotFieldErrors({ email: 'Email address must contain @' });
         return;
       }
       if (!email.endsWith('.com')) {
-        setError('Invalid email address');
+        setForgotFieldErrors({ email: 'Invalid email address' });
         return;
       }
       if (/\s/.test(email)) {
-        setError('Email address should not contain spaces anywhere.');
+        setForgotFieldErrors({ email: 'Email address should not contain spaces anywhere.' });
         return;
       }
       const domainMatch = email.match(/@([^.]+)\.com$/);
       if (!domainMatch || !domainMatch[1]) {
-        setError('Invalid email address');
+        setForgotFieldErrors({ email: 'Invalid email address' });
         return;
       }
       const domainPattern = /\.[a-zA-Z]{2,}$/;
       if (!domainPattern.test(email)) {
-        setError('Invalid email address');
+        setForgotFieldErrors({ email: 'Invalid email address' });
         return;
       }
       try {
         await authService.forgotPassword(email);
         setForgotStep('otp');
       } catch {
-        setError('Failed to send OTP. Please check your email.');
+        setForgotFieldErrors({ email: 'Failed to send OTP. Please check your email.' });
       }
     } else if (forgotStep === 'otp') {
       if (otp.length !== 6) {
-        setError('Please enter the 6-digit OTP.');
+        setForgotFieldErrors({ otp: 'Please enter the 6-digit OTP.' });
         return;
       }
 
       setForgotStep('reset');
     } else if (forgotStep === 'reset') {
+      const errs: Record<string, string> = {};
       const passwordValidationError = getPasswordValidationError(newPassword);
       if (passwordValidationError) {
-        setError(passwordValidationError);
-        return;
+        errs.newPassword = passwordValidationError;
       }
 
       if (newPassword !== confirmPassword) {
-        setError('Passwords do not match.');
+        errs.confirmPassword = 'Passwords do not match.';
+      }
+
+      if (Object.keys(errs).length > 0) {
+        setForgotFieldErrors(errs);
         return;
       }
       try {
@@ -269,7 +275,12 @@ export default function LoginPage() {
             </div>
 
             <div className="p-8">
-              {error && <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-4 text-sm">{error}</div>}
+              {error && (
+                <div className="bg-red-50 border border-red-200 text-red-600 p-3 rounded-lg mb-4 text-sm flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                  {error}
+                </div>
+              )}
 
               {forgotStep === 'email' && (
                 <div className="space-y-5">
@@ -277,6 +288,9 @@ export default function LoginPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                     <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                       className="input-field" />
+                    {forgotFieldErrors.email && (
+                      <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.email}</div>
+                    )}
                   </div>
                   <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Send OTP</button>
                 </div>
@@ -287,6 +301,9 @@ export default function LoginPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter OTP</label>
                     <input type="text" value={otp} onChange={(e) => setOtp(e.target.value)}
                       className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} />
+                    {forgotFieldErrors.otp && (
+                      <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.otp}</div>
+                    )}
                     <ResendOtpButton
                       email={forgotEmail}
                       setError={setError}
@@ -307,6 +324,9 @@ export default function LoginPage() {
                       className="input-field"
                        
                     />
+                    {forgotFieldErrors.newPassword && (
+                      <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.newPassword}</div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
@@ -317,6 +337,9 @@ export default function LoginPage() {
                       className="input-field"
                     
                     />
+                    {forgotFieldErrors.confirmPassword && (
+                      <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.confirmPassword}</div>
+                    )}
                     <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                       <input
                         type="checkbox"
