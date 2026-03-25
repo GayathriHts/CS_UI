@@ -26,18 +26,20 @@ export const authService = {
   startRegister: (data: RegisterStartRequest) => api.post('/auth/register', data),
   confirmRegister: (data: RegisterConfirmRequest) => api.post<AuthResponse>('/auth/register/confirm', data),
   login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
-  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
+  forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }, {
+    headers: { 'Content-Type': 'application/json' },
+  }),
   verifyForgotPasswordOtp: (email: string, otp: string) =>
     api.post('/auth/verify-forgot-password-otp', {
       email,
       otp,
-    }),
+    }, { headers: { 'Content-Type': 'application/json' } }),
   resetPassword: (email: string, token: string, newPassword: string) =>
     api.post('/auth/reset-password', {
       email,
       token,
       newPassword,
-    }),
+    }, { headers: { 'Content-Type': 'application/json' } }),
   sendEmailOtp: (email: string) => api.post('/auth/send-email-otp', { email }),
   verifyEmailOtp: (email: string, otp: string) => api.post('/auth/verify-email-otp', { email, otp }),
   verifyOtp: (email: string, otp: string) => api.post('/auth/verify-otp', { email, otp }),

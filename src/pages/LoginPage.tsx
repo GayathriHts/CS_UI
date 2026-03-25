@@ -123,11 +123,12 @@ export default function LoginPage() {
         await authService.forgotPassword(email);
         setForgotStep('otp');
       } catch (err: any) {
-        const msg = err?.response?.data?.message || err?.response?.data?.error || '';
+        const resp = err?.response?.data;
+        const msg = resp?.error?.message || resp?.message || (typeof resp?.error === 'string' ? resp.error : '');
         if (typeof msg === 'string' && msg.length > 0) {
           setForgotFieldErrors({ email: msg });
         } else {
-          setForgotFieldErrors({ email: 'Failed to send OTP' });
+          setForgotFieldErrors({ email: 'Failed to send OTP. Please try again.' });
         }
       }
     } else if (forgotStep === 'otp') {
@@ -155,7 +156,9 @@ export default function LoginPage() {
         errs.newPassword = passwordValidationError;
       }
 
-      if (newPassword !== confirmPassword) {
+      if (!confirmPassword) {
+        errs.confirmPassword = 'Please enter Confirm Password';
+      } else if (newPassword !== confirmPassword) {
         errs.confirmPassword = "Confirmation password doesn't match";
       }
 
@@ -385,20 +388,15 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {forgotStep !== 'done' && (
+              {forgotStep !== 'done' && forgotStep !== 'reset' && (
                 <div className="mt-6 text-center">
                   <button
                     onClick={() => {
-                      if (forgotStep === 'reset') {
-                        setForgotStep('otp');
-                        setError('');
-                      } else {
-                        setShowForgotPassword(false);
-                        setError('');
-                      }
+                      setShowForgotPassword(false);
+                      setError('');
                     }}
                     className="text-sm text-gray-500 hover:text-brand-green">
-                    {forgotStep === 'reset' ? '← Back to OTP' : '← Back to Sign In'}
+                    ← Back to Sign In
                   </button>
                 </div>
               )}
