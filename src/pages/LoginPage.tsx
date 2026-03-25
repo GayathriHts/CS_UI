@@ -120,15 +120,29 @@ export default function LoginPage() {
         return;
       }
       try {
-        await authService.forgotPassword(email);
+        const res = await authService.forgotPassword(email);
+        const data = res?.data;
+        if (data?.success === false) {
+          const msg = data?.error?.message || data?.message || '';
+          if (typeof msg === 'string' && msg.length > 0) {
+            setForgotFieldErrors({ email: msg });
+          } else {
+            setForgotFieldErrors({ email: 'Please register your account' });
+          }
+          return;
+        }
         setForgotStep('otp');
       } catch (err: any) {
         const resp = err?.response?.data;
         const msg = resp?.error?.message || resp?.message || (typeof resp?.error === 'string' ? resp.error : '');
         if (typeof msg === 'string' && msg.length > 0) {
-          setForgotFieldErrors({ email: msg });
+          if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no user') || msg.toLowerCase().includes('does not exist')) {
+            setForgotFieldErrors({ email: 'Please register your account' });
+          } else {
+            setForgotFieldErrors({ email: msg });
+          }
         } else {
-          setForgotFieldErrors({ email: 'Failed to send OTP. Please try again.' });
+          setForgotFieldErrors({ email: 'Something went wrong. Please try again' });
         }
       }
     } else if (forgotStep === 'otp') {
