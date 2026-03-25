@@ -72,11 +72,11 @@ export const boardService = {
   }) => boardApi.post('/Boards', data),
 
   // Get all boards (with optional pagination)
-  getAll: (page = 1, pageSize = 1, version = 1) =>
+  getAll: (page = 1, pageSize = 20, version = 1) =>
   boardApi.get('/Boards', { 
     params: { page, pageSize, version } 
   }),
-    getMyBoards: (page = 1, pageSize = 20) => api.get<PagedResponse<Board>>('/boards/mine', { params: { page, pageSize } }),
+    getMyBoards: (page = 1, pageSize = 20) => boardApi.get('/Boards', { params: { page, pageSize } }),
 
 
   // Get a board by ID

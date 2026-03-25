@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/slices/authStore';
 import { boardService, tournamentService, userService, feedService } from '../services/cricketSocialService';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 type MenuSection = 'score' | 'pitch' | 'events' | 'fans' | 'fanof' | 'board' | 'buddies' | 'compare' | 'book' | 'invoices';
 
@@ -23,7 +23,9 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState<MenuSection>('score');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as MenuSection) || 'score';
+  const [activeMenu, setActiveMenu] = useState<MenuSection>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -34,7 +36,12 @@ const { data: boards } = useQuery({
   queryKey: ['myBoards'],
   queryFn: () => boardService.getMyBoards(1, 20).then((r) => {
     console.log('Boards API response:', r.data);
-    return r.data;
+    const raw = r.data;
+    // Normalize: API may return { items: [...] }, [...], or { data: [...] }
+    if (raw?.items) return raw;
+    if (Array.isArray(raw)) return { items: raw };
+    if (raw?.data && Array.isArray(raw.data)) return { items: raw.data };
+    return { items: [] };
   }),
 });
 
@@ -115,8 +122,11 @@ const { data: boards } = useQuery({
           items: [newBoard, ...(old.items || [])],
         };
       });
-      // Also refetch for consistency
-      qc.invalidateQueries({ queryKey: ['myBoards'] });
+      // Refetch after backend cache expires (5 min) to stay in sync
+      // Don't invalidate immediately — backend cache returns stale data
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ['myBoards'] });
+      }, 5 * 60 * 1000);
       setShowCreateBoard(false);
       setNewBoardName('');
       setNewBoardDescription('');
@@ -403,7 +413,9 @@ const { data: boards } = useQuery({
               {(() => { console.log('Boards rendered:', boards?.items); return null; })()}
               {boards?.items?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {boards.items.map((b: any) => (
+                  {boards.items.map((b: any) => {
+                    const boardTypeLabel = b.boardType === 1 || b.boardType === 'Team' ? 'Team' : b.boardType === 2 || b.boardType === 'League' ? 'League' : b.boardType;
+                    return (
                     <Link key={b.id} to={`/boards/${b.id}`} className="card hover:shadow-lg transition-shadow">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-brand-green/10 rounded-xl flex items-center justify-center">
@@ -411,7 +423,7 @@ const { data: boards } = useQuery({
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-gray-800">{b.name}</p>
-                          <p className="text-sm text-gray-500">{b.boardType} Board</p>
+                          <p className="text-sm text-gray-500">{boardTypeLabel} Board</p>
                           <div className="flex gap-4 mt-1 text-xs text-gray-400">
                             <span>{b.rosterCount} teams</span>
                             <span>{b.fanCount} fans</span>
@@ -421,14 +433,15 @@ const { data: boards } = useQuery({
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
-                      {b.boardType === 'League' && (
-                        <Link to={`/league/${b.id}`} onClick={e => e.stopPropagation()}
-                          className="mt-3 block text-center bg-brand-green/10 text-brand-green text-sm font-medium py-2 rounded-lg hover:bg-brand-green/20 transition-colors">
+                      {boardTypeLabel === 'League' && (
+                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); navigate(`/boards/${b.id}`); }}
+                          className="mt-3 block w-full text-center bg-brand-green/10 text-brand-green text-sm font-medium py-2 rounded-lg hover:bg-brand-green/20 transition-colors">
                           ⚙️ Manage Your League
-                        </Link>
+                        </button>
                       )}
                     </Link>
-                  ))}
+                  );
+                  })}
                 </div>
               ) : (
                 <div className="card text-center py-12">
