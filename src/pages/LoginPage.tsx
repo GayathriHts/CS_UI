@@ -122,8 +122,13 @@ export default function LoginPage() {
       try {
         await authService.forgotPassword(email);
         setForgotStep('otp');
-      } catch {
-        setForgotFieldErrors({ email: 'Failed to send OTP. Please check your email.' });
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err?.response?.data?.error || '';
+        if (typeof msg === 'string' && msg.length > 0) {
+          setForgotFieldErrors({ email: msg });
+        } else {
+          setForgotFieldErrors({ email: 'Failed to send OTP' });
+        }
       }
     } else if (forgotStep === 'otp') {
       if (otp.length !== 6) {
@@ -133,9 +138,11 @@ export default function LoginPage() {
 
       try {
         const res = await authService.verifyForgotPasswordOtp(forgotEmail, otp);
-        const token = res.data?.token || res.data?.data?.token;
+        console.log('verify-forgot-password-otp full response:', JSON.stringify(res.data));
+        const token = res.data?.data?.token || res.data?.token || res.data?.data;
+        console.log('Extracted reset token:', token);
         if (token) {
-          setResetToken(token);
+          setResetToken(typeof token === 'string' ? token : JSON.stringify(token));
         }
         setForgotStep('reset');
       } catch {
@@ -157,10 +164,13 @@ export default function LoginPage() {
         return;
       }
       try {
+        console.log('Calling reset-password with:', { email: forgotEmail, token: resetToken, newPassword: '***' });
         await authService.resetPassword(forgotEmail, resetToken, newPassword);
         setForgotStep('done');
-      } catch {
-        setError('Invalid OTP or failed to reset password. Please try again.');
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err?.response?.data?.error || '';
+        console.log('reset-password error response:', JSON.stringify(err?.response?.data));
+        setError(typeof msg === 'string' && msg.length > 0 ? msg : 'Failed to reset password. Please try again.');
       }
     }
   };
