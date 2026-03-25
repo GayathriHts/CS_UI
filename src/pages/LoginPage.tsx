@@ -139,7 +139,7 @@ export default function LoginPage() {
       }
 
       if (newPassword !== confirmPassword) {
-        errs.confirmPassword = 'Passwords do not match.';
+        errs.confirmPassword = "Confirmation password doesn't match";
       }
 
       if (Object.keys(errs).length > 0) {

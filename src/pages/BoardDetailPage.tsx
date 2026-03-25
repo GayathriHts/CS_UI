@@ -22,11 +22,21 @@ export default function BoardDetailPage() {
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
   const qc = useQueryClient();
 
-  const { data: board } = useQuery({
+  const { data: board, isError } = useQuery({
     queryKey: ['board', id],
     queryFn: () => boardService.getById(id!).then((r) => r.data),
     enabled: !!id,
+    retry: false,
   });
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center gap-4">
+        <p className="text-gray-600 text-lg">Board not found or has been deleted.</p>
+        <Link to="/dashboard?tab=board" className="btn-primary px-6 py-2">Back to Dashboard</Link>
+      </div>
+    );
+  }
 
   if (!board) {
     return (

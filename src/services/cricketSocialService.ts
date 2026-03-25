@@ -76,7 +76,10 @@ export const boardService = {
   boardApi.get('/Boards', { 
     params: { page, pageSize, version } 
   }),
-    getMyBoards: (page = 1, pageSize = 20) => boardApi.get('/Boards', { params: { page, pageSize } }),
+    getMyBoards: (page = 1, pageSize = 20) => boardApi.get('/Boards', {
+      params: { page, pageSize, _t: Date.now() },
+      headers: { 'Cache-Control': 'no-cache' },
+    }),
 
 
   // Get a board by ID

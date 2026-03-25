@@ -34,12 +34,14 @@ export default function DashboardPage() {
 
 const { data: boards } = useQuery({
   queryKey: ['myBoards'],
+  staleTime: 0,
   queryFn: () => boardService.getMyBoards(1, 20).then((r) => {
-    console.log('Boards API response:', r.data);
+    console.log('Boards API raw response:', JSON.stringify(r.data));
     const raw = r.data;
-    // Normalize: API may return { items: [...] }, [...], or { data: [...] }
+    // Normalize: API may return { items: [...] }, [...], { data: [...] }, or { data: { items: [...] } }
     if (raw?.items) return raw;
     if (Array.isArray(raw)) return { items: raw };
+    if (raw?.data?.items) return raw.data;
     if (raw?.data && Array.isArray(raw.data)) return { items: raw.data };
     return { items: [] };
   }),
@@ -122,11 +124,10 @@ const { data: boards } = useQuery({
           items: [newBoard, ...(old.items || [])],
         };
       });
-      // Refetch after backend cache expires (5 min) to stay in sync
-      // Don't invalidate immediately — backend cache returns stale data
+      // Delay refetch to allow backend to process
       setTimeout(() => {
         qc.invalidateQueries({ queryKey: ['myBoards'] });
-      }, 5 * 60 * 1000);
+      }, 2000);
       setShowCreateBoard(false);
       setNewBoardName('');
       setNewBoardDescription('');
