@@ -162,12 +162,14 @@ export default function RegisterPage() {
 
     const hasValidPassword = await trigger('password');
     if (!hasValidPassword) {
-      errs.password = 'Please create a strong password with one uppercase letter, one lowercase letter, one special character';
+      errs.password = 'Please create a 8-character strong password with one uppercase letter, one lowercase letter, one special character and with numeric';
     } else {
       const password = getValues('password');
       const passwordValidationError = getPasswordValidationError(password);
       if (passwordValidationError) {
         errs.password = passwordValidationError;
+      } else if (!confirmPassword) {
+        errs.confirmPassword = 'Please enter Confirm Password';
       } else if (password !== confirmPassword) {
         errs.confirmPassword = "Confirmation password doesn't match";
       }

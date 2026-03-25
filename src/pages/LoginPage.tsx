@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showResetPasswords, setShowResetPasswords] = useState(false);
   const [forgotFieldErrors, setForgotFieldErrors] = useState<Record<string, string>>({});
+  const [resetToken, setResetToken] = useState('');
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginRequest>();
 
   const onSubmit = async (data: LoginRequest) => {
@@ -130,7 +131,16 @@ export default function LoginPage() {
         return;
       }
 
-      setForgotStep('reset');
+      try {
+        const res = await authService.verifyForgotPasswordOtp(forgotEmail, otp);
+        const token = res.data?.token || res.data?.data?.token;
+        if (token) {
+          setResetToken(token);
+        }
+        setForgotStep('reset');
+      } catch {
+        setForgotFieldErrors({ otp: 'Invalid OTP. Please try again.' });
+      }
     } else if (forgotStep === 'reset') {
       const errs: Record<string, string> = {};
       const passwordValidationError = getPasswordValidationError(newPassword);
@@ -147,7 +157,7 @@ export default function LoginPage() {
         return;
       }
       try {
-        await authService.resetPassword(forgotEmail, otp, newPassword);
+        await authService.resetPassword(forgotEmail, resetToken, newPassword);
         setForgotStep('done');
       } catch {
         setError('Invalid OTP or failed to reset password. Please try again.');

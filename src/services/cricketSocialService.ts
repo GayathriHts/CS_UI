@@ -27,11 +27,15 @@ export const authService = {
   confirmRegister: (data: RegisterConfirmRequest) => api.post<AuthResponse>('/auth/register/confirm', data),
   login: (data: LoginRequest) => api.post<AuthResponse>('/auth/login', data),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (email: string, otp: string, newPassword: string) =>
-    api.post('/auth/reset-password-otp', {
+  verifyForgotPasswordOtp: (email: string, otp: string) =>
+    api.post('/auth/verify-forgot-password-otp', {
       email,
-      mobileNumber: '',
       otp,
+    }),
+  resetPassword: (email: string, token: string, newPassword: string) =>
+    api.post('/auth/reset-password', {
+      email,
+      token,
       newPassword,
     }),
   sendEmailOtp: (email: string) => api.post('/auth/send-email-otp', { email }),
