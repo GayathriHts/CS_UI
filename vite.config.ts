@@ -12,12 +12,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/board-api': {
-        target: 'http://10.10.20.24:9003',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/board-api/, '/api'),
-      },
       '/api': {
         target: 'http://10.10.20.24:9002',
         changeOrigin: true,
