@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/slices/authStore';
 import { boardService, tournamentService, userService, feedService } from '../services/cricketSocialService';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 type MenuSection = 'score' | 'pitch' | 'events' | 'fans' | 'fanof' | 'board' | 'buddies' | 'compare' | 'book' | 'invoices';
 
@@ -23,7 +23,9 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
-  const [activeMenu, setActiveMenu] = useState<MenuSection>('score');
+  const [searchParams] = useSearchParams();
+  const initialTab = (searchParams.get('tab') as MenuSection) || 'score';
+  const [activeMenu, setActiveMenu] = useState<MenuSection>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
@@ -34,7 +36,12 @@ const { data: boards } = useQuery({
   queryKey: ['myBoards'],
   queryFn: () => boardService.getMyBoards(1, 20).then((r) => {
     console.log('Boards API response:', r.data);
-    return r.data;
+    const raw = r.data;
+    // Normalize: API may return { items: [...] }, [...], or { data: [...] }
+    if (raw?.items) return raw;
+    if (Array.isArray(raw)) return { items: raw };
+    if (raw?.data && Array.isArray(raw.data)) return { items: raw.data };
+    return { items: [] };
   }),
 });
 

@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService } from '../services/cricketSocialService';
 import type { BoardInfo, BoardDirector, BoardSponsor, BoardFan, BoardFeedItem, BoardScore, RosterDetail, BoardFollowing, BoardEvent } from '../types';
 
 type BoardTab = 'info' | 'pitch' | 'score' | 'fans' | 'squad' | 'invite' | 'events';
-type InfoSubTab = 'about' | 'history' | 'rules' | 'awards' | 'faq' | 'directors' | 'sponsors';
+type InfoSubTab = 'about' | 'history' | 'rules' | 'awards' | 'faq' | 'directors';
 
 const tabs: { id: BoardTab; label: string; icon: string }[] = [
   { id: 'info', label: 'Board Info', icon: 'ℹ️' },
@@ -19,14 +19,61 @@ const tabs: { id: BoardTab; label: string; icon: string }[] = [
 
 export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editCountry, setEditCountry] = useState('');
   const qc = useQueryClient();
 
   const { data: board } = useQuery({
     queryKey: ['board', id],
-    queryFn: () => boardService.getById(id!).then((r) => r.data),
+    queryFn: () => boardService.getById(id!).then((r) => r.data?.data || r.data),
     enabled: !!id,
   });
+
+  const updateBoardMutation = useMutation({
+    mutationFn: () =>
+      boardService.update(id!, {
+        name: editName,
+        description: editDescription,
+        city: editCity,
+        state: editState,
+        country: editCountry,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['board', id] });
+      qc.invalidateQueries({ queryKey: ['myBoards'] });
+      setShowEditModal(false);
+    },
+    onError: () => {
+      alert('Failed to update board.');
+    },
+  });
+
+  const deleteBoardMutation = useMutation({
+    mutationFn: () => boardService.delete(id!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myBoards'] });
+      navigate('/dashboard?tab=board');
+    },
+    onError: () => {
+      alert('Failed to delete board.');
+    },
+  });
+
+  const openEditModal = () => {
+    setEditName(board?.name || '');
+    setEditDescription(board?.description || '');
+    setEditCity(board?.city || '');
+    setEditState(board?.state || '');
+    setEditCountry(board?.country || '');
+    setShowEditModal(true);
+  };
 
   if (!board) {
     return (
@@ -42,7 +89,7 @@ export default function BoardDetailPage() {
         <div className="max-w-full mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <div className="flex items-center gap-4">
-              <Link to="/dashboard" className="text-white/80 hover:text-white">
+              <Link to="/dashboard?tab=board" className="text-white/80 hover:text-white">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
               </Link>
               <Link to="/" className="flex items-center gap-2">
@@ -61,9 +108,17 @@ export default function BoardDetailPage() {
               {board.logoUrl ? <img src={board.logoUrl} alt="" className="w-16 h-16 rounded-lg object-cover" /> : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />}
             </div>
             <div>
-              <span className="text-xs bg-white/20 px-3 py-1 rounded-full">{board.boardType} Board</span>
+              <span className="text-xs bg-white/20 px-3 py-1 rounded-full">{board.boardType === 1 || board.boardType === 'Team' ? 'Team' : board.boardType === 2 || board.boardType === 'League' ? 'League' : board.boardType} Board</span>
               <h1 className="text-3xl font-bold mt-2">{board.name}</h1>
               <p className="text-green-200 mt-1">{board.city && `${board.city}, `}{board.country} · {board.fanCount} fans · {board.rosterCount} teams</p>
+            </div>
+            <div className="ml-auto flex gap-2">
+              <button onClick={openEditModal} className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-medium rounded-lg transition-colors">
+                ✏️ Edit
+              </button>
+              <button onClick={() => setShowDeleteConfirm(true)} className="px-4 py-2 bg-red-500/80 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors">
+                🗑️ Delete
+              </button>
             </div>
           </div>
           {board.description && <p className="mt-4 text-green-100 max-w-2xl">{board.description}</p>}
@@ -79,7 +134,7 @@ export default function BoardDetailPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-8">
-        {activeTab === 'info' && <InfoTab boardId={id!} />}
+        {activeTab === 'info' && <InfoTab boardId={id!} board={board} />}
         {activeTab === 'pitch' && <PitchTab boardId={id!} />}
         {activeTab === 'score' && <ScoreTab boardId={id!} />}
         {activeTab === 'fans' && <FansTab boardId={id!} />}
@@ -87,29 +142,84 @@ export default function BoardDetailPage() {
         {activeTab === 'invite' && <InviteTab boardId={id!} />}
         {activeTab === 'events' && <EventsTab boardId={id!} />}
       </div>
+
+      {/* Edit Board Modal */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Edit Board</h2>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Board Name</label>
+                <input value={editName} onChange={e => setEditName(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none" rows={3} />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input value={editCity} onChange={e => setEditCity(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                  <input value={editState} onChange={e => setEditState(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <input value={editCountry} onChange={e => setEditCountry(e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none" />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowEditModal(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => editName.trim() && updateBoardMutation.mutate()} disabled={!editName.trim() || updateBoardMutation.isPending}
+                className="px-6 py-2 text-sm bg-brand-green text-white font-medium rounded-lg hover:bg-brand-green/90 transition-colors disabled:opacity-50">
+                {updateBoardMutation.isPending ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Delete Board</h2>
+            <p className="text-gray-600 mb-6">Are you sure you want to delete <strong>{board.name}</strong>? This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg transition-colors">Cancel</button>
+              <button onClick={() => deleteBoardMutation.mutate()} disabled={deleteBoardMutation.isPending}
+                className="px-6 py-2 text-sm bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50">
+                {deleteBoardMutation.isPending ? 'Deleting...' : 'Delete Board'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ── INFO TAB ──
-function InfoTab({ boardId }: { boardId: string }) {
+function InfoTab({ boardId, board }: { boardId: string; board: any }) {
   const [subTab, setSubTab] = useState<InfoSubTab>('about');
-  const { data: info } = useQuery({ queryKey: ['boardInfo', boardId], queryFn: () => boardDetailService.getInfo(boardId).then(r => r.data) });
-  const { data: directors } = useQuery({ queryKey: ['directors', boardId], queryFn: () => boardDetailService.getDirectors(boardId).then(r => r.data) });
-  const { data: sponsors } = useQuery({ queryKey: ['sponsors', boardId], queryFn: () => boardDetailService.getSponsors(boardId).then(r => r.data) });
-  const { data: following } = useQuery({ queryKey: ['following', boardId], queryFn: () => boardDetailService.getFollowing(boardId).then(r => r.data) });
+  const { data: directors } = useQuery({ queryKey: ['directors', boardId], queryFn: () => boardDetailService.getDirectors(boardId).then(r => r.data), retry: false });
+  const { data: following } = useQuery({ queryKey: ['following', boardId], queryFn: () => boardDetailService.getFollowing(boardId).then(r => r.data), retry: false });
 
   const subTabs: { id: InfoSubTab; label: string }[] = [
     { id: 'about', label: 'About Organization' }, { id: 'history', label: 'History' },
     { id: 'rules', label: 'Rules & Regulations' }, { id: 'awards', label: 'Awards & Honors' },
-    { id: 'faq', label: 'FAQ' }, { id: 'directors', label: 'Directors' }, { id: 'sponsors', label: 'Sponsors' },
+    { id: 'faq', label: 'FAQ' }, { id: 'directors', label: 'Directors' },
   ];
 
   const renderContent = () => {
-    if (!info) return <p className="text-gray-400 text-center py-8">No information available yet.</p>;
     const contentMap: Record<string, string | undefined> = {
-      about: info.aboutOrganization, history: info.history, rules: info.rulesAndRegulations,
-      awards: info.awardsAndHonors, faq: info.faq,
+      about: board?.description || 'No information available yet.',
+      history: undefined, rules: undefined,
+      awards: undefined, faq: undefined,
     };
     if (subTab === 'directors') {
       return directors?.length ? (
@@ -123,19 +233,6 @@ function InfoTab({ boardId }: { boardId: string }) {
           ))}
         </div>
       ) : <p className="text-gray-400 text-center py-8">No directors added yet.</p>;
-    }
-    if (subTab === 'sponsors') {
-      return sponsors?.length ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {sponsors.map(s => (
-            <div key={s.id} className="bg-white rounded-xl p-4 text-center shadow-sm border">
-              <div className="w-16 h-16 mx-auto bg-blue-50 rounded-lg flex items-center justify-center text-xl font-bold text-blue-600 mb-3">{s.name[0]}</div>
-              <p className="font-semibold text-gray-800">{s.name}</p>
-              {s.websiteUrl && <a href={s.websiteUrl} target="_blank" className="text-sm text-brand-green hover:underline">{s.websiteUrl}</a>}
-            </div>
-          ))}
-        </div>
-      ) : <p className="text-gray-400 text-center py-8">No sponsors added yet.</p>;
     }
     const content = contentMap[subTab];
     return content ? <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">{content}</div>
