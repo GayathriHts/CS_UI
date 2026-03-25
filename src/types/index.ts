@@ -68,7 +68,6 @@ export interface PlayerStats {
   highestScore: number;
   bestBowling?: string;
 }
-
 // ── Board ──
 export interface Board {
   id: string;

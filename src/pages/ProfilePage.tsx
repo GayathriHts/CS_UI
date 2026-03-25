@@ -18,11 +18,6 @@ export default function ProfilePage() {
     queryFn: () => userService.getProfile().then((r) => r.data),
   });
 
-  const { data: stats } = useQuery({
-    queryKey: ['myStats', user?.id],
-    queryFn: () => userService.getStats(user!.id).then((r) => r.data),
-    enabled: !!user?.id,
-  });
 
   const updateProfile = useMutation({
     mutationFn: (data: Partial<User>) => userService.updateProfile(data),
@@ -145,25 +140,6 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-8">
-            <div className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm">
-              <p className="text-3xl font-bold">{stats?.totalMatches || 0}</p>
-              <p className="text-green-200 text-sm mt-1">Matches</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm">
-              <p className="text-3xl font-bold">{stats?.totalRuns || 0}</p>
-              <p className="text-green-200 text-sm mt-1">Runs</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm">
-              <p className="text-3xl font-bold">{stats?.totalWickets || 0}</p>
-              <p className="text-green-200 text-sm mt-1">Wickets</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-4 text-center backdrop-blur-sm">
-              <p className="text-3xl font-bold">{stats?.highestScore || 0}</p>
-              <p className="text-green-200 text-sm mt-1">Highest Score</p>
-            </div>
-          </div>
         </div>
 
         {/* Edit Form or Profile Details */}
@@ -311,37 +287,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Batting Stats */}
-            <div className="card">
-              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <img src="/images/batsman.png" alt="" className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                Batting Statistics
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                <StatBox label="Matches" value={stats?.totalMatches || 0} />
-                <StatBox label="Runs" value={stats?.totalRuns || 0} />
-                <StatBox label="Average" value={stats?.battingAverage?.toFixed(1) || '—'} />
-                <StatBox label="Strike Rate" value={stats?.strikeRate?.toFixed(1) || '—'} />
-                <StatBox label="100s" value={stats?.centuries || 0} />
-                <StatBox label="50s" value={stats?.halfCenturies || 0} />
-                <StatBox label="Highest" value={stats?.highestScore || 0} highlight />
-              </div>
-            </div>
 
-            {/* Bowling Stats */}
-            <div className="card">
-              <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <img src="/images/ball3.png" alt="" className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                Bowling Statistics
-              </h3>
-              <div className="grid grid-cols-3 gap-3">
-                <StatBox label="Wickets" value={stats?.totalWickets || 0} />
-                <StatBox label="Average" value={stats?.bowlingAverage?.toFixed(1) || '—'} />
-                <StatBox label="Economy" value={stats?.economyRate?.toFixed(1) || '—'} />
-                <StatBox label="5W Hauls" value={stats?.fiveWicketHauls || 0} />
-                <StatBox label="Best" value={stats?.bestBowling || '—'} highlight />
-              </div>
-            </div>
           </div>
         )}
       </div>

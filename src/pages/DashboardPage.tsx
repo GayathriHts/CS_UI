@@ -32,24 +32,12 @@ export default function DashboardPage() {
 
 const { data: boards } = useQuery({
   queryKey: ['myBoards'],
-  queryFn: async () => {
-    //console.log('🔥 QUERY RUNNING');
-    const res = await boardService.getAll(1, 20);
-    return res.data;
-  },
+  queryFn: () => boardService.getMyBoards(1, 20).then((r) => {
+    console.log('Boards API response:', r.data);
+    return r.data;
+  }),
 });
 
-
-  const { data: upcoming } = useQuery({
-    queryKey: ['upcomingTournaments'],
-    queryFn: () => tournamentService.getUpcoming().then((r) => r.data),
-  });
-
-  const { data: stats } = useQuery({
-    queryKey: ['myStats', user?.id],
-    queryFn: () => userService.getStats(user!.id).then((r) => r.data),
-    enabled: !!user?.id,
-  });
 
   const { data: feed } = useQuery({
     queryKey: ['feed'],
@@ -102,9 +90,10 @@ const { data: boards } = useQuery({
   // B7 Fix: Add create board mutation
   const boardTypeValue = newBoardType === 'Team' ? 1 : newBoardType === 'League' ? 2 : 1;
   const createBoardMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!user) throw new Error('User not authenticated');
-      return boardService.create({
+      // The API returns the created board in res.data.data
+      const res = await boardService.create({
         name: newBoardName,
         description: newBoardDescription,
         boardType: boardTypeValue,
@@ -114,8 +103,19 @@ const { data: boards } = useQuery({
         ownerId: user.id,
         logoUrl: '',
       });
+      // Support both .data and .data.data (API response wrapper)
+      return res.data?.data || res.data;
     },
-    onSuccess: () => {
+    onSuccess: (newBoard) => {
+      // Optimistically update the cache so the new board appears instantly
+      qc.setQueryData(['myBoards'], (old: any) => {
+        if (!old) return { items: [newBoard] };
+        return {
+          ...old,
+          items: [newBoard, ...(old.items || [])],
+        };
+      });
+      // Also refetch for consistency
       qc.invalidateQueries({ queryKey: ['myBoards'] });
       setShowCreateBoard(false);
       setNewBoardName('');
@@ -220,20 +220,7 @@ const { data: boards } = useQuery({
                 <p className="text-xs text-brand-green font-medium mt-0.5">View Profile →</p>
               </div>
             </div>
-            <div className="flex gap-4 text-center text-xs">
-              <div className="flex-1 bg-white rounded-lg py-2 shadow-sm">
-                <p className="font-bold text-brand-green">{stats?.totalMatches || 0}</p>
-                <p className="text-gray-500">Matches</p>
-              </div>
-              <div className="flex-1 bg-white rounded-lg py-2 shadow-sm">
-                <p className="font-bold text-brand-green">{stats?.totalRuns || 0}</p>
-                <p className="text-gray-500">Runs</p>
-              </div>
-              <div className="flex-1 bg-white rounded-lg py-2 shadow-sm">
-                <p className="font-bold text-brand-green">{stats?.totalWickets || 0}</p>
-                <p className="text-gray-500">Wickets</p>
-              </div>
-            </div>
+            {/* Removed stats quick summary */}
           </Link>
 
           {/* Navigation Menu */}
@@ -259,91 +246,7 @@ const { data: boards } = useQuery({
         {/* Main Content */}
         <main className="flex-1 ml-64 mr-72 p-6 min-h-[calc(100vh-56px)]">
           {/* My Score Section */}
-          {activeMenu === 'score' && (
-            <div className="animate-fade-in">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">My Score</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Batting Stats */}
-                <div className="card">
-                  <div className="flex items-center gap-2 mb-4">
-                    <img src="/images/batsman.png" alt="" className="w-6 h-6" onError={(e) => { (e.target as HTMLImageElement).textContent = '🏏'; }} />
-                    <h3 className="font-semibold text-gray-800">Batting</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.totalMatches || 0}</p>
-                      <p className="text-xs text-gray-500">Matches</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.totalRuns || 0}</p>
-                      <p className="text-xs text-gray-500">Runs</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.battingAverage?.toFixed(1) || '-'}</p>
-                      <p className="text-xs text-gray-500">Average</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.strikeRate?.toFixed(1) || '-'}</p>
-                      <p className="text-xs text-gray-500">Strike Rate</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.centuries || 0}</p>
-                      <p className="text-xs text-gray-500">100s</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.halfCenturies || 0}</p>
-                      <p className="text-xs text-gray-500">50s</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bowling Stats */}
-                <div className="card">
-                  <div className="flex items-center gap-2 mb-4">
-                    <img src="/images/ball3.png" alt="" className="w-6 h-6" />
-                    <h3 className="font-semibold text-gray-800">Bowling</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.totalWickets || 0}</p>
-                      <p className="text-xs text-gray-500">Wickets</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.bowlingAverage?.toFixed(1) || '-'}</p>
-                      <p className="text-xs text-gray-500">Average</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.economyRate?.toFixed(1) || '-'}</p>
-                      <p className="text-xs text-gray-500">Economy</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.fiveWicketHauls || 0}</p>
-                      <p className="text-xs text-gray-500">5W Hauls</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-3 text-center col-span-2">
-                      <p className="text-2xl font-bold text-brand-green">{stats?.bestBowling || '-'}</p>
-                      <p className="text-xs text-gray-500">Best Bowling</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Highest Score */}
-                <div className="card">
-                  <h3 className="font-semibold text-gray-800 mb-4">Career Highlights</h3>
-                  <div className="space-y-4">
-                    <div className="bg-gradient-to-r from-brand-green to-brand-dark rounded-lg p-4 text-white">
-                      <p className="text-3xl font-bold">{stats?.highestScore || 0}</p>
-                      <p className="text-green-200 text-sm">Highest Score</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <p className="text-3xl font-bold text-brand-green">{stats?.totalMatches || 0}</p>
-                      <p className="text-gray-500 text-sm">Total Matches</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Removed My Score section (stats) */}
 
           {/* Pitch (Feed) Section */}
           {activeMenu === 'pitch' && (
@@ -448,36 +351,7 @@ const { data: boards } = useQuery({
           )}
 
           {/* My Events & Fixtures */}
-          {activeMenu === 'events' && (
-            <div className="animate-fade-in">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6">My Events & Fixtures</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="card">
-                  <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    Upcoming Matches
-                  </h3>
-                  {upcoming?.items.length ? (
-                    <ul className="space-y-3">
-                      {upcoming.items.slice(0, 5).map((t) => (
-                        <li key={t.id} className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors">
-                          <p className="font-medium text-gray-800">{t.name}</p>
-                          <p className="text-sm text-gray-500 mt-1">{t.format} · {t.matchCount} matches</p>
-                          <p className="text-xs text-gray-400 mt-1">{t.boardName}</p>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-gray-400 text-center py-8">No upcoming matches</p>
-                  )}
-                </div>
-                <div className="card">
-                  <h3 className="font-semibold text-gray-800 mb-4">My Tournaments</h3>
-                  <p className="text-gray-400 text-center py-8">No tournaments to display</p>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Removed My Events & Fixtures section (upcoming) */}
 
           {/* My Fans */}
           {activeMenu === 'fans' && (
@@ -526,6 +400,7 @@ const { data: boards } = useQuery({
                     className="btn-primary text-sm px-6 mt-4">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
                 </div>
               )}
+              {(() => { console.log('Boards rendered:', boards?.items); return null; })()}
               {boards?.items?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {boards.items.map((b: any) => (

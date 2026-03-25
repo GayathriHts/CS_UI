@@ -386,13 +386,7 @@ function SquadTab({ boardId }: { boardId: string }) {
                     <span className={`text-xs px-2 py-0.5 rounded-full ${m.role === 'Captain' ? 'bg-yellow-100 text-yellow-700' : m.role === 'ViceCaptain' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{m.role}</span>
                   </div>
                 </div>
-                {m.stats && (
-                  <div className="grid grid-cols-3 gap-2 text-center border-t pt-3">
-                    <div><p className="text-sm font-bold text-gray-800">{m.stats.totalMatches}</p><p className="text-xs text-gray-500">Matches</p></div>
-                    <div><p className="text-sm font-bold text-gray-800">{m.stats.totalRuns}</p><p className="text-xs text-gray-500">Runs</p></div>
-                    <div><p className="text-sm font-bold text-gray-800">{m.stats.totalWickets}</p><p className="text-xs text-gray-500">Wickets</p></div>
-                  </div>
-                )}
+                {/* Removed m.stats display */}
               </div>
             ))}
           </div>
