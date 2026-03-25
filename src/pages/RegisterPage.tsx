@@ -186,19 +186,13 @@ export default function RegisterPage() {
      
         navigate('/dashboard');
     } catch (err: unknown) {
-      const errorMsg = (err as { response?: { data?: { error?: any } } })?.response?.data?.error;
-      let errorStr = '';
-      if (typeof errorMsg === 'string') {
-        errorStr = errorMsg;
-      } else if (typeof errorMsg === 'object' && errorMsg !== null) {
-        errorStr = JSON.stringify(errorMsg);
-      }
-      if (errorStr.toLowerCase().includes('otp') && errorStr.toLowerCase().includes('mismatch')) {
-        setFieldErrors({ otp: 'Invalid OTP' });
-      } else if (errorStr.toLowerCase().includes('invalid OTP')) {
+      const resp = (err as { response?: { data?: any } })?.response?.data;
+      const errorStr = resp?.message || resp?.error || '';
+      const errorLower = (typeof errorStr === 'string' ? errorStr : JSON.stringify(errorStr)).toLowerCase();
+      if (errorLower.includes('otp') || errorLower.includes('invalid') || errorLower.includes('expired')) {
         setFieldErrors({ otp: 'Invalid OTP' });
       } else {
-        setFieldErrors({ otp: errorStr || 'Invalid OTP or registration failed.' });
+        setFieldErrors({ otp: 'Invalid OTP or registration failed.' });
       }
     }
   };
