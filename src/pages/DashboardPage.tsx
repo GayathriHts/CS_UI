@@ -32,18 +32,45 @@ export default function DashboardPage() {
 
   
 
+// Track recently created boards to prevent them vanishing on refetch or reload
+const [recentBoards, setRecentBoards] = useState<any[]>(() => {
+  try {
+    const stored = sessionStorage.getItem('recentBoards');
+    return stored ? JSON.parse(stored) : [];
+  } catch { return []; }
+});
+const updateRecentBoards = (boards: any[]) => {
+  setRecentBoards(boards);
+  if (boards.length > 0) {
+    sessionStorage.setItem('recentBoards', JSON.stringify(boards));
+  } else {
+    sessionStorage.removeItem('recentBoards');
+  }
+};
+
 const { data: boards } = useQuery({
   queryKey: ['myBoards'],
   staleTime: 0,
+  gcTime: 0,
+  refetchOnMount: 'always',
+  refetchOnWindowFocus: true,
   queryFn: () => boardService.getMyBoards(1, 20).then((r) => {
-    console.log('Boards API raw response:', JSON.stringify(r.data));
     const raw = r.data;
     // Normalize: API may return { items: [...] }, [...], { data: [...] }, or { data: { items: [...] } }
-    if (raw?.items) return raw;
-    if (Array.isArray(raw)) return { items: raw };
-    if (raw?.data?.items) return raw.data;
-    if (raw?.data && Array.isArray(raw.data)) return { items: raw.data };
-    return { items: [] };
+    let items: any[] = [];
+    if (raw?.items) items = raw.items;
+    else if (Array.isArray(raw)) items = raw;
+    else if (raw?.data?.items) items = raw.data.items;
+    else if (raw?.data && Array.isArray(raw.data)) items = raw.data;
+
+    // Merge recently created boards that backend hasn't returned yet
+    const serverIds = new Set(items.map((b: any) => b.id));
+    const missing = recentBoards.filter(b => b.id && !serverIds.has(b.id));
+    // Clean up recentBoards once backend returns them
+    if (recentBoards.length > 0 && missing.length === 0) {
+      updateRecentBoards([]);
+    }
+    return { items: [...missing, ...items] };
   }),
 });
 
@@ -101,6 +128,7 @@ const { data: boards } = useQuery({
   const createBoardMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('User not authenticated');
+      console.log('Creating board with ownerId:', user.id, 'user:', user);
       // The API returns the created board in res.data.data
       const res = await boardService.create({
         name: newBoardName,
@@ -116,7 +144,9 @@ const { data: boards } = useQuery({
       return res.data?.data || res.data;
     },
     onSuccess: (newBoard) => {
-      // Optimistically update the cache so the new board appears instantly
+      // Track the new board so it persists even if backend is slow
+      updateRecentBoards([newBoard, ...recentBoards]);
+      // Add to cache instantly
       qc.setQueryData(['myBoards'], (old: any) => {
         if (!old) return { items: [newBoard] };
         return {
@@ -124,10 +154,6 @@ const { data: boards } = useQuery({
           items: [newBoard, ...(old.items || [])],
         };
       });
-      // Delay refetch to allow backend to process
-      setTimeout(() => {
-        qc.invalidateQueries({ queryKey: ['myBoards'] });
-      }, 2000);
       setShowCreateBoard(false);
       setNewBoardName('');
       setNewBoardDescription('');
