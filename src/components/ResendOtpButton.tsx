@@ -27,7 +27,6 @@ const ResendOtpButton: React.FC<ResendOtpButtonProps> = ({ email, registrationPa
         setTimer(prev => {
           if (prev <= 1) {
             clearInterval(intervalRef.current!);
-            setSuccessMessage('');
             return 0;
           }
           return prev - 1;
