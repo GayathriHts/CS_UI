@@ -214,7 +214,6 @@ export default function RegisterPage() {
 
       <Link to="/" className="absolute top-6 left-6 z-20 flex items-center gap-2">
         <img src="/images/cs-logo.png" alt="CricketSocial" className="h-10" />
-        <span className="text-white font-bold text-xl">CricketSocial</span>
       </Link>
 
       <div className="relative z-10 w-full max-w-md mx-4 animate-fade-in">
