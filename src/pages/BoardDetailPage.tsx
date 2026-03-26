@@ -335,11 +335,7 @@ function SquadTab({ boardId }: { boardId: string }) {
   const createRosterMutation = useMutation({
     mutationFn: (data: RosterFormData) => {
       return rosterService.create(boardId, {
-        rosterName: data.rosterName,
-        captain: data.captain || undefined,
-        viceCaptain: data.viceCaptain || undefined,
-        coach: data.coach || undefined,
-        members: data.members.length > 0 ? data.members : undefined,
+        name: data.rosterName,
       });
     },
     onSuccess: () => {

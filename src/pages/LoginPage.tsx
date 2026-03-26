@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ResendOtpButton from '../components/ResendOtpButton';
@@ -21,7 +21,15 @@ export default function LoginPage() {
   const [showResetPasswords, setShowResetPasswords] = useState(false);
   const [forgotFieldErrors, setForgotFieldErrors] = useState<Record<string, string>>({});
   const [resetToken, setResetToken] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginRequest>();
+
+  useEffect(() => {
+    if (successMessage) {
+      const timeout = setTimeout(() => setSuccessMessage(''), 6000);
+      return () => clearTimeout(timeout);
+    }
+  }, [successMessage]);
 
   const onSubmit = async (data: LoginRequest) => {
         // Email format validation
@@ -286,6 +294,11 @@ export default function LoginPage() {
                   {error}
                 </div>
               )}
+              {successMessage && (
+                <div className="text-black text-sm text-center mb-4 p-2">
+                  {successMessage}
+                </div>
+              )}
 
               {forgotStep === 'email' && (
                 <div className="space-y-5">
@@ -312,7 +325,7 @@ export default function LoginPage() {
                     <ResendOtpButton
                       email={forgotEmail}
                       setError={setError}
-                      setSuccessMessage={(msg: string) => setError(msg)}
+                      setSuccessMessage={(msg: string) => { setError(''); setSuccessMessage(msg); }}
                     />
                   </div>
                   <button type="button" onClick={handleForgotPassword} className="w-full btn-primary py-3">Verify OTP</button>

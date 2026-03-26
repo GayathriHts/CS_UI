@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { authService } from '../services/cricketSocialService';
@@ -23,7 +23,15 @@ export default function RegisterPage() {
   const [pendingPhoneNumber, setPendingPhoneNumber] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [successMessage, setSuccessMessage] = useState('');
   const { register, getValues, trigger, formState: { isSubmitting } } = useForm<RegisterRequest>();
+
+  useEffect(() => {
+    if (successMessage) {
+      const timeout = setTimeout(() => setSuccessMessage(''), 6000);
+      return () => clearTimeout(timeout);
+    }
+  }, [successMessage]);
 
   const buildRegisterStartPayload = (): RegisterStartRequest => {
     const rawPhoneNumber = (getValues('phoneNumber') || '').replace(/\D/g, '');
@@ -235,6 +243,11 @@ export default function RegisterPage() {
                 {error}
               </div>
             )}
+            {successMessage && (
+              <div className="text-black text-sm text-center mb-4 p-2">
+                {successMessage}
+              </div>
+            )}
 
             {step === 'details' && (
               <>
@@ -367,7 +380,7 @@ export default function RegisterPage() {
                   <ResendOtpButton
                     registrationPayload={buildRegisterStartPayload()}
                     setError={setError}
-                    setSuccessMessage={(msg: string) => setError(msg)}
+                    setSuccessMessage={(msg: string) => { setError(''); setSuccessMessage(msg); }}
                     resendType="register"
                   />
                 </div>
