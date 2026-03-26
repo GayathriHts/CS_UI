@@ -62,21 +62,10 @@ export default function RegisterPage() {
       if (!lastName) errs.lastName = 'Last Name is required';
       if (!email) {
         errs.email = 'Email Address is required';
-      } else if (!email.includes('@')) {
-        errs.email = 'Email address must contain @';
       } else {
-        const domainMatch = email.match(/@([^.]+)\.com$/);
-        if (!domainMatch || !domainMatch[1]) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
+        if (!emailRegex.test(email)) {
           errs.email = 'Invalid email address';
-        } else if (!email.endsWith('.com')) {
-          errs.email = 'Email address must end with .com';
-        } else if (/\s/.test(email)) {
-          errs.email = 'Email address should not contain spaces anywhere.';
-        } else {
-          const domainPattern = /\.[a-zA-Z]{2,}$/;
-          if (!domainPattern.test(email)) {
-            errs.email = 'Email address domain is invalid.';
-          }
         }
       }
     }

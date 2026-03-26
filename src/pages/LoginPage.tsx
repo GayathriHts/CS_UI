@@ -26,22 +26,9 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginRequest) => {
         // Email format validation
         if (data.email) {
-          if (!data.email.includes('@')) {
-            setError('Email address must contain @');
-            return;
-          }
-          if (!data.email.endsWith('.com')) {
-            setError('Email address must end with .com');
-            return;
-          }
-          if (/\s/.test(data.email)) {
-            setError('Email address should not contain spaces anywhere.');
-            return;
-          }
-          const domainPattern = /@([^.]+)\.com$/;
-          const domainMatch = data.email.match(domainPattern);
-          if (!domainMatch || !domainMatch[1]) {
-            setError('Email address domain is incorrect.');
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
+          if (!emailRegex.test(data.email)) {
+            setError('Invalid email address');
             return;
           }
         }
@@ -97,25 +84,8 @@ export default function LoginPage() {
         setForgotFieldErrors({ email: 'Email Address is required' });
         return;
       }
-      if (!email.includes('@')) {
-        setForgotFieldErrors({ email: 'Email address must contain @' });
-        return;
-      }
-      if (!email.endsWith('.com')) {
-        setForgotFieldErrors({ email: 'Invalid email address' });
-        return;
-      }
-      if (/\s/.test(email)) {
-        setForgotFieldErrors({ email: 'Email address should not contain spaces anywhere.' });
-        return;
-      }
-      const domainMatch = email.match(/@([^.]+)\.com$/);
-      if (!domainMatch || !domainMatch[1]) {
-        setForgotFieldErrors({ email: 'Invalid email address' });
-        return;
-      }
-      const domainPattern = /\.[a-zA-Z]{2,}$/;
-      if (!domainPattern.test(email)) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
+      if (!emailRegex.test(email)) {
         setForgotFieldErrors({ email: 'Invalid email address' });
         return;
       }
