@@ -219,8 +219,8 @@ export default function RegisterPage() {
       <div className="relative z-10 w-full max-w-md mx-4 animate-fade-in">
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
-          <div className="bg-brand-green p-6 text-center">
-             <h1 className="text-2xl font-bold text-white">Create Account</h1>
+          <div className="bg-brand-green py-4 text-center">
+             <h1 className="text-xl font-bold text-white">Create Account</h1>
             <p className="text-green-200 text-sm mt-1">
               {step === 'details' && ''}
               {step === 'otp' && (activeTab === 'email' ? 'Verify your email address' : 'Verify your mobile number')}
