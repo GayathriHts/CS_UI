@@ -110,16 +110,25 @@ export const boardService = {
 };
 
 // ── Rosters ──
+// Endpoints: POST/GET /boards/{boardId}/Rosters, GET/PUT/DELETE /boards/{boardId}/Rosters/{rosterId}
 export const rosterService = {
-  create: (data: { name: string; boardId: string }) => api.post<Roster>('/rosters', data),
-  getById: (id: string) => api.get<Roster>(`/rosters/${id}`),
-  getByBoard: (boardId: string) => api.get<Roster[]>(`/rosters/board/${boardId}`),
-  addMember: (rosterId: string, userId: string, role: string) =>
-    api.post<RosterMember>(`/rosters/${rosterId}/members`, { userId, role }),
-  updateMemberStatus: (memberId: string, status: string) =>
-    api.put(`/rosters/members/${memberId}/status`, JSON.stringify(status)),
-  removeMember: (rosterId: string, userId: string) => api.delete(`/rosters/${rosterId}/members/${userId}`),
-  delete: (id: string) => api.delete(`/rosters/${id}`),
+  create: (boardId: string, data: {
+    rosterName: string;
+    captain?: string;
+    viceCaptain?: string;
+    coach?: string;
+    members?: string[];
+  }) => boardApi.post(`/boards/${boardId}/Rosters`, data) as Promise<{ data: Roster }>,
+  getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
+  getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
+  update: (boardId: string, rosterId: string, data: {
+    rosterName?: string;
+    captain?: string;
+    viceCaptain?: string;
+    coach?: string;
+    members?: string[];
+  }) => boardApi.put(`/boards/${boardId}/Rosters/${rosterId}`, data) as Promise<{ data: Roster }>,
+  delete: (boardId: string, rosterId: string) => boardApi.delete(`/boards/${boardId}/Rosters/${rosterId}`),
 };
 
 // ── Tournaments ──
@@ -233,9 +242,9 @@ export const boardDetailService = {
   deleteFeed: (boardId: string, feedId: string) => api.delete(`/boards/${boardId}/feeds/${feedId}`),
   // Score
   getScore: (boardId: string, year?: number) => api.get<BoardScore>(`/boards/${boardId}/score`, { params: { year } }),
-  // Squad
-  getSquad: (boardId: string, tournamentId?: string) =>
-    api.get<RosterDetail[]>(`/boards/${boardId}/squad`, { params: { tournamentId } }),
+  // Squad — uses board API roster endpoint
+  getSquad: (boardId: string) =>
+    boardApi.get(`/boards/${boardId}/Rosters`).then((r: { data: any }) => ({ data: r.data as RosterDetail[] })),
   // Following (Fan-Of)
   getFollowing: (boardId: string) => api.get<BoardFollowing[]>(`/boards/${boardId}/following`),
   follow: (boardId: string, targetBoardId: string) => api.post(`/boards/${boardId}/following/${targetBoardId}`),

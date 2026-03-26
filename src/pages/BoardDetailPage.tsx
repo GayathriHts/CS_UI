@@ -300,109 +300,416 @@ function FansTab({ boardId }: { boardId: string }) {
 }
 
 // ── SQUAD TAB ──
+interface RosterFormData {
+  rosterName: string;
+  captain: string;
+  viceCaptain: string;
+  coach: string;
+  members: string[];
+}
+
 function SquadTab({ boardId }: { boardId: string }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newRosterName, setNewRosterName] = useState('');
+  const [formData, setFormData] = useState<RosterFormData>({
+    rosterName: '', captain: '', viceCaptain: '', coach: '', members: [],
+  });
+  const [newMember, setNewMember] = useState('');
+  const [activeSearchField, setActiveSearchField] = useState<'captain' | 'viceCaptain' | 'coach' | 'member' | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const qc = useQueryClient();
 
-  const { data: squads } = useQuery({ queryKey: ['squad', boardId], queryFn: () => boardDetailService.getSquad(boardId).then(r => r.data) });
+  const { data: squads, isLoading } = useQuery({
+    queryKey: ['squad', boardId],
+    queryFn: () => boardDetailService.getSquad(boardId).then(r => r.data),
+  });
+
+  // Search buddies for autocomplete
+  const { data: searchResults } = useQuery({
+    queryKey: ['buddySearch', boardId, searchTerm],
+    queryFn: () => boardDetailService.searchBuddies(boardId, searchTerm).then(r => r.data),
+    enabled: searchTerm.length >= 2,
+  });
 
   const createRosterMutation = useMutation({
-    mutationFn: (name: string) => rosterService.create({ name, boardId }),
+    mutationFn: (data: RosterFormData) => {
+      return rosterService.create(boardId, {
+        rosterName: data.rosterName,
+        captain: data.captain || undefined,
+        viceCaptain: data.viceCaptain || undefined,
+        coach: data.coach || undefined,
+        members: data.members.length > 0 ? data.members : undefined,
+      });
+    },
     onSuccess: () => {
-      setShowCreateForm(false);
-      setNewRosterName('');
+      resetForm();
       qc.invalidateQueries({ queryKey: ['squad', boardId] });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
     },
   });
 
-  const handleCreateRoster = () => {
-    if (newRosterName.trim()) {
-      createRosterMutation.mutate(newRosterName.trim());
+  const deleteRosterMutation = useMutation({
+    mutationFn: (rosterId: string) => rosterService.delete(boardId, rosterId),
+    onSuccess: () => {
+      setDeleteConfirmId(null);
+      qc.invalidateQueries({ queryKey: ['squad', boardId] });
+      qc.invalidateQueries({ queryKey: ['board', boardId] });
+    },
+  });
+
+  const resetForm = () => {
+    setShowCreateForm(false);
+    setFormData({ rosterName: '', captain: '', viceCaptain: '', coach: '', members: [] });
+    setNewMember('');
+    setSearchTerm('');
+    setActiveSearchField(null);
+    setErrors({});
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!formData.rosterName.trim() || formData.rosterName.trim().length < 2) {
+      newErrors.rosterName = 'Roster name must be at least 2 characters';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleCreate = () => {
+    if (validateForm()) {
+      createRosterMutation.mutate(formData);
+    }
+  };
+
+  const handleAddMember = (userId?: string) => {
+    const id = userId || newMember.trim();
+    if (id && !formData.members.includes(id) && id !== formData.captain && id !== formData.viceCaptain && id !== formData.coach) {
+      setFormData(prev => ({ ...prev, members: [...prev.members, id] }));
+      setNewMember('');
+      setSearchTerm('');
+      setActiveSearchField(null);
+    }
+  };
+
+  const handleRemoveMember = (userId: string) => {
+    setFormData(prev => ({ ...prev, members: prev.members.filter(m => m !== userId) }));
+  };
+
+  const handleSelectUser = (userId: string, field: 'captain' | 'viceCaptain' | 'coach') => {
+    setFormData(prev => ({ ...prev, [field]: userId }));
+    setSearchTerm('');
+    setActiveSearchField(null);
+  };
+
+  const handleFieldSearch = (value: string, field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
+    setSearchTerm(value);
+    setActiveSearchField(value.length >= 2 ? field : null);
+  };
+
+  const renderSearchDropdown = (field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
+    if (activeSearchField !== field || !searchResults || searchResults.length === 0) return null;
+    return (
+      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+        {searchResults.map(u => (
+          <button
+            key={u.id}
+            onClick={() => field === 'member' ? handleAddMember(u.id) : handleSelectUser(u.id, field)}
+            className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+          >
+            <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+              {u.firstName[0]}
+            </div>
+            <span>{u.firstName} {u.lastName}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const getRoleBadge = (role: string) => {
+    switch (role) {
+      case 'Captain': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'ViceCaptain': return 'bg-blue-100 text-blue-800 border-blue-300';
+      case 'Coach': return 'bg-purple-100 text-purple-800 border-purple-300';
+      default: return 'bg-gray-100 text-gray-600 border-gray-300';
     }
   };
 
   return (
     <div className="animate-fade-in">
-      {/* Create Roster Button & Form */}
-      <div className="mb-6">
-        {!showCreateForm ? (
-          <button
-            onClick={() => setShowCreateForm(true)}
-            className="btn-primary flex items-center gap-2"
-          >
+      {/* Create Roster Button */}
+      {!showCreateForm && (
+        <div className="mb-6">
+          <button onClick={() => setShowCreateForm(true)} className="btn-primary flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Create New Team/Roster
+            Create New Roster
           </button>
-        ) : (
-          <div className="card">
-            <h3 className="font-semibold text-gray-800 mb-4">Create New Team/Roster</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Team/Roster Name</label>
-                <input
-                  type="text"
-                  value={newRosterName}
-                  onChange={(e) => setNewRosterName(e.target.value)}
-                  placeholder="e.g., Team India, Squad A"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                  onKeyDown={(e) => e.key === 'Enter' && handleCreateRoster()}
-                />
+        </div>
+      )}
+
+      {/* Create Roster Form — matches legacy screenshot layout */}
+      {showCreateForm && (
+        <div className="card mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-6">Create Roster</h3>
+
+          <div className="space-y-5">
+            {/* Roster Name row */}
+            <div className="flex items-center gap-0">
+              <span className="bg-brand-dark text-white text-sm font-semibold px-5 py-2.5 rounded-l-lg whitespace-nowrap">
+                Roster Name
+              </span>
+              <input
+                type="text"
+                value={formData.rosterName}
+                onChange={(e) => setFormData(prev => ({ ...prev, rosterName: e.target.value }))}
+                placeholder="e.g., Chennai Super Kings"
+                className={`flex-1 px-4 py-2.5 border border-l-0 rounded-r-lg focus:ring-2 focus:ring-brand-green focus:border-transparent ${errors.rosterName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+              />
+            </div>
+            {errors.rosterName && <p className="text-xs text-red-600 ml-36">{errors.rosterName}</p>}
+
+            {/* Add Member / Action header */}
+            <div className="pt-2">
+              <div className="flex items-center justify-between mb-1">
+                <h4 className="font-semibold text-gray-700">Add Member</h4>
+                <span className="text-sm text-gray-500 font-medium">Action</span>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={handleCreateRoster}
-                  disabled={!newRosterName.trim() || createRosterMutation.isPending}
-                  className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {createRosterMutation.isPending ? 'Creating...' : 'Create'}
-                </button>
-                <button
-                  onClick={() => { setShowCreateForm(false); setNewRosterName(''); }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
+              <hr className="border-brand-green mb-4" />
+
+              {/* Captain */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Caption</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.captain}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, captain: e.target.value }));
+                      handleFieldSearch(e.target.value, 'captain');
+                    }}
+                    onFocus={() => formData.captain.length >= 2 && setActiveSearchField('captain')}
+                    onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                    placeholder="Search and select captain..."
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                  />
+                  {renderSearchDropdown('captain')}
+                </div>
               </div>
-              {createRosterMutation.isError && (
-                <p className="text-sm text-red-600">Failed to create roster. Please try again.</p>
+
+              {/* Vice Captain */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Vice Caption</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.viceCaptain}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, viceCaptain: e.target.value }));
+                      handleFieldSearch(e.target.value, 'viceCaptain');
+                    }}
+                    onFocus={() => formData.viceCaptain.length >= 2 && setActiveSearchField('viceCaptain')}
+                    onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                    placeholder="Search and select vice captain..."
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                  />
+                  {renderSearchDropdown('viceCaptain')}
+                </div>
+              </div>
+
+              {/* Coach */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1 italic">Coach</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.coach}
+                    onChange={(e) => {
+                      setFormData(prev => ({ ...prev, coach: e.target.value }));
+                      handleFieldSearch(e.target.value, 'coach');
+                    }}
+                    onFocus={() => formData.coach.length >= 2 && setActiveSearchField('coach')}
+                    onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                    placeholder="Search and select coach..."
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                  />
+                  {renderSearchDropdown('coach')}
+                </div>
+              </div>
+
+              {/* Add Member */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Add Member</label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={newMember}
+                      onChange={(e) => {
+                        setNewMember(e.target.value);
+                        handleFieldSearch(e.target.value, 'member');
+                      }}
+                      onFocus={() => newMember.length >= 2 && setActiveSearchField('member')}
+                      onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                      placeholder="Search member to add..."
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
+                    />
+                    {renderSearchDropdown('member')}
+                  </div>
+                  <button
+                    onClick={() => handleAddMember()}
+                    className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                    title="Add member"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Added Members List */}
+              {formData.members.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-gray-500 font-medium">Added Members ({formData.members.length})</p>
+                  {formData.members.map((m, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                          {idx + 1}
+                        </div>
+                        <span className="text-sm text-gray-700">{m}</span>
+                      </div>
+                      <button onClick={() => handleRemoveMember(m)} className="text-red-400 hover:text-red-600">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
+
+            {/* Create / Cancel Buttons */}
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={handleCreate}
+                disabled={createRosterMutation.isPending}
+                className="px-6 py-2.5 bg-brand-green text-white rounded-lg hover:bg-brand-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {createRosterMutation.isPending ? 'Creating...' : 'Create'}
+              </button>
+              <button
+                onClick={resetForm}
+                className="px-6 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+
+            {createRosterMutation.isError && (
+              <p className="text-sm text-red-600 mt-2">Failed to create roster. Please try again.</p>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <div className="w-10 h-10 border-4 border-brand-green border-t-transparent rounded-full animate-spin" />
+        </div>
+      )}
 
       {/* Rosters List */}
       {squads?.length ? squads.map(roster => (
-        <div key={roster.id} className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-brand-green/10 rounded-xl flex items-center justify-center text-brand-green font-bold">{roster.name[0]}</div>
-            <div><h3 className="font-semibold text-gray-800">{roster.name}</h3><p className="text-xs text-gray-500">{roster.memberCount} members</p></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {roster.members.map(m => (
-              <div key={m.userId} className="card hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
-                  {m.profileImageUrl ? (
-                    <img src={m.profileImageUrl} alt="" className="w-12 h-12 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-12 h-12 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold">{m.userName[0]}</div>
-                  )}
-                  <div>
-                    <p className="font-semibold text-sm">{m.userName}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${m.role === 'Captain' ? 'bg-yellow-100 text-yellow-700' : m.role === 'ViceCaptain' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{m.role}</span>
-                  </div>
-                </div>
-                {/* Removed m.stats display */}
+        <div key={roster.id} className="card mb-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-brand-green/10 rounded-xl flex items-center justify-center">
+                {roster.logoUrl ? (
+                  <img src={roster.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                ) : (
+                  <span className="text-brand-green font-bold text-lg">{roster.name[0]}</span>
+                )}
               </div>
-            ))}
+              <div>
+                <h3 className="font-semibold text-gray-800 text-lg">{roster.name}</h3>
+                <p className="text-xs text-gray-500">{roster.memberCount} members</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {deleteConfirmId === roster.id ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-red-600">Delete?</span>
+                  <button onClick={() => deleteRosterMutation.mutate(roster.id)} disabled={deleteRosterMutation.isPending}
+                    className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600">Yes</button>
+                  <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">No</button>
+                </div>
+              ) : (
+                <button onClick={() => setDeleteConfirmId(roster.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
-          {roster.members.length === 0 && <div className="card text-center py-6 text-gray-400">No members in this roster.</div>}
+
+          {/* Members grouped by role */}
+          {roster.members.length > 0 ? (
+            <div className="space-y-3">
+              {['Captain', 'ViceCaptain', 'Coach', 'Member'].map(role => {
+                const roleMembers = roster.members.filter(m => m.role === role);
+                if (roleMembers.length === 0) return null;
+                return (
+                  <div key={role}>
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                      {role === 'Captain' ? '👑' : role === 'ViceCaptain' ? '⭐' : role === 'Coach' ? '📋' : '🏏'}{' '}
+                      {role === 'ViceCaptain' ? 'Vice Captain' : role}{roleMembers.length > 1 ? 's' : ''}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {roleMembers.map(m => (
+                        <div key={m.userId} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 hover:shadow-sm transition-shadow group">
+                          {m.profileImageUrl ? (
+                            <img src={m.profileImageUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-10 h-10 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-sm">
+                              {m.userName[0]}
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm text-gray-800 truncate">{m.userName}</p>
+                            <span className={`inline-block text-xs px-2 py-0.5 rounded-full border ${getRoleBadge(m.role)}`}>
+                              {m.role === 'ViceCaptain' ? 'Vice Captain' : m.role}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-400 border-t">
+              <p className="text-sm">No members in this roster yet.</p>
+            </div>
+          )}
         </div>
-      )) : <div className="card text-center py-8 text-gray-400">No rosters created yet. Click "Create New Team/Roster" to get started.</div>}
+      )) : !isLoading && !showCreateForm && (
+        <div className="card text-center py-12 text-gray-400">
+          <svg className="w-16 h-16 mx-auto mb-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+          <p className="text-lg font-medium text-gray-500 mb-2">No Rosters Yet</p>
+          <p className="text-sm text-gray-400">Click "Create New Roster" to build your team squad.</p>
+        </div>
+      )}
     </div>
   );
 }
