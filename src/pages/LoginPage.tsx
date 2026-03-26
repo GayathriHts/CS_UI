@@ -316,9 +316,9 @@ export default function LoginPage() {
               {forgotStep === 'otp' && (
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Enter OTP</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter Verification Code</label>
                     <input type="text" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                      className="input-field text-center text-2xl tracking-[0.5em]" maxLength={6} />
+                      className="input-field w-full text-center text-base tracking-[0.2em] font-mono py-1" maxLength={6} placeholder="------" autoFocus />
                     {forgotFieldErrors.otp && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.otp}</div>
                     )}

@@ -61,7 +61,7 @@ const ResendOtpButton: React.FC<ResendOtpButtonProps> = ({ email, registrationPa
   };
 
   return (
-    <div className="mt-2 text-center">
+    <div className="mt-2 text-right">
       <button
         type="button"
         className="text-brand-green font-medium underline"
