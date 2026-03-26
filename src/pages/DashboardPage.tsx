@@ -198,7 +198,6 @@ const { data: boards } = useQuery({
           <div className="flex items-center justify-between h-14">
             <Link to="/" className="flex items-center gap-2">
               <img src="/images/cs-logo.png" alt="CricketSocial" className="h-8" />
-              <span className="text-white font-bold text-lg hidden sm:block">CricketSocial</span>
             </Link>
 
             {/* Search Bar */}
