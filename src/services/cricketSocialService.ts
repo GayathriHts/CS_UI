@@ -82,10 +82,10 @@ export const boardService = {
   }) => boardApi.post('/Boards', data),
 
   // Get all boards (with optional pagination)
-  getAll: (page = 1, pageSize = 20, version = 1) =>
-  boardApi.get('/Boards', { 
-    params: { page, pageSize, version } 
-  }),
+  // getAll: (page = 1, pageSize = 20, version = 1) =>
+  // boardApi.get('/Boards', { 
+  //   params: { page, pageSize, version } 
+  // }),
     getMyBoards: (page = 1, pageSize = 20) => boardApi.get('/Boards', {
       params: { page, pageSize, _t: Date.now() },
       headers: { 'Cache-Control': 'no-cache' },
@@ -95,8 +95,8 @@ export const boardService = {
   // Get a board by ID
   getById: (id: string) => boardApi.get(`/Boards/${id}`),
 
-  // Update a board by ID
-  update: (id: string, data: Partial<Board>) => boardApi.put(`/Boards/${id}`, data),
+  // Update a board by ID (PUT /api/v1/Boards/{id})
+  update: (id: string, data: any) => boardApi.put(`/Boards/${id}`, data),
 
   // Delete a board by ID
   delete: (id: string) => boardApi.delete(`/Boards/${id}`),
@@ -113,11 +113,8 @@ export const boardService = {
 // Endpoints: POST/GET /boards/{boardId}/Rosters, GET/PUT/DELETE /boards/{boardId}/Rosters/{rosterId}
 export const rosterService = {
   create: (boardId: string, data: {
-    rosterName: string;
-    captain?: string;
-    viceCaptain?: string;
-    coach?: string;
-    members?: string[];
+    name: string;
+    logoUrl?: string;
   }) => boardApi.post(`/boards/${boardId}/Rosters`, data) as Promise<{ data: Roster }>,
   getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
   getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
@@ -213,51 +210,51 @@ export const feedService = {
 // ── Board Detail (Team Board Side Menus) ──
 export const boardDetailService = {
   // Info
-  getInfo: (boardId: string) => api.get<BoardInfo>(`/boards/${boardId}/info`),
-  updateInfo: (boardId: string, data: Partial<BoardInfo>) => api.put<BoardInfo>(`/boards/${boardId}/info`, data),
+  getInfo: (boardId: string) => boardApi.get(`/boards/${boardId}/info`),
+  updateInfo: (boardId: string, data: Partial<BoardInfo>) => boardApi.put(`/boards/${boardId}/info`, data),
   // Directors
-  getDirectors: (boardId: string) => api.get<BoardDirector[]>(`/boards/${boardId}/directors`),
+  getDirectors: (boardId: string) => boardApi.get(`/boards/${boardId}/directors`),
   addDirector: (boardId: string, data: { name: string; title?: string; imageUrl?: string }) =>
-    api.post<BoardDirector>(`/boards/${boardId}/directors`, data),
-  removeDirector: (boardId: string, directorId: string) => api.delete(`/boards/${boardId}/directors/${directorId}`),
+    boardApi.post(`/boards/${boardId}/directors`, data),
+  removeDirector: (boardId: string, directorId: string) => boardApi.delete(`/boards/${boardId}/directors/${directorId}`),
   // Sponsors
-  getSponsors: (boardId: string) => api.get<BoardSponsor[]>(`/boards/${boardId}/sponsors`),
+  getSponsors: (boardId: string) => boardApi.get(`/boards/${boardId}/sponsors`),
   addSponsor: (boardId: string, data: { name: string; logoUrl?: string; websiteUrl?: string }) =>
-    api.post<BoardSponsor>(`/boards/${boardId}/sponsors`, data),
-  removeSponsor: (boardId: string, sponsorId: string) => api.delete(`/boards/${boardId}/sponsors/${sponsorId}`),
+    boardApi.post(`/boards/${boardId}/sponsors`, data),
+  removeSponsor: (boardId: string, sponsorId: string) => boardApi.delete(`/boards/${boardId}/sponsors/${sponsorId}`),
   // Fans
   getFans: (boardId: string, page = 1, pageSize = 20) =>
-    api.get<PagedResponse<BoardFan>>(`/boards/${boardId}/fans`, { params: { page, pageSize } }),
+    boardApi.get(`/boards/${boardId}/fans`, { params: { page, pageSize } }),
   // Pitch (Board Feed)
   getFeeds: (boardId: string, page = 1, pageSize = 20) =>
-    api.get<PagedResponse<BoardFeedItem>>(`/boards/${boardId}/feeds`, { params: { page, pageSize } }),
+    boardApi.get(`/boards/${boardId}/feeds`, { params: { page, pageSize } }),
   createFeed: (boardId: string, data: { content?: string; mediaUrl?: string; mediaType?: string }) =>
-    api.post<BoardFeedItem>(`/boards/${boardId}/feeds`, data),
-  likeFeed: (boardId: string, feedId: string) => api.post<{ isLiked: boolean; likesCount: number }>(`/boards/${boardId}/feeds/${feedId}/like`),
-  unlikeFeed: (boardId: string, feedId: string) => api.post<{ isLiked: boolean; likesCount: number }>(`/boards/${boardId}/feeds/${feedId}/unlike`),
+    boardApi.post(`/boards/${boardId}/feeds`, data),
+  likeFeed: (boardId: string, feedId: string) => boardApi.post(`/boards/${boardId}/feeds/${feedId}/like`, {}),
+  unlikeFeed: (boardId: string, feedId: string) => boardApi.post(`/boards/${boardId}/feeds/${feedId}/unlike`, {}),
   addFeedComment: (boardId: string, feedId: string, content: string) =>
-    api.post<BoardFeedComment>(`/boards/${boardId}/feeds/${feedId}/comments`, { content }),
+    boardApi.post(`/boards/${boardId}/feeds/${feedId}/comments`, { content }),
   getFeedComments: (boardId: string, feedId: string) =>
-    api.get<BoardFeedComment[]>(`/boards/${boardId}/feeds/${feedId}/comments`),
-  deleteFeed: (boardId: string, feedId: string) => api.delete(`/boards/${boardId}/feeds/${feedId}`),
+    boardApi.get(`/boards/${boardId}/feeds/${feedId}/comments`),
+  deleteFeed: (boardId: string, feedId: string) => boardApi.delete(`/boards/${boardId}/feeds/${feedId}`),
   // Score
-  getScore: (boardId: string, year?: number) => api.get<BoardScore>(`/boards/${boardId}/score`, { params: { year } }),
+  getScore: (boardId: string, year?: number) => boardApi.get(`/boards/${boardId}/score`, { params: { year } }),
   // Squad — uses board API roster endpoint
   getSquad: (boardId: string) =>
     boardApi.get(`/boards/${boardId}/Rosters`).then((r: { data: any }) => ({ data: r.data as RosterDetail[] })),
   // Following (Fan-Of)
-  getFollowing: (boardId: string) => api.get<BoardFollowing[]>(`/boards/${boardId}/following`),
-  follow: (boardId: string, targetBoardId: string) => api.post(`/boards/${boardId}/following/${targetBoardId}`),
-  unfollow: (boardId: string, targetBoardId: string) => api.delete(`/boards/${boardId}/following/${targetBoardId}`),
+  getFollowing: (boardId: string) => boardApi.get(`/boards/${boardId}/following`),
+  follow: (boardId: string, targetBoardId: string) => boardApi.post(`/boards/${boardId}/following/${targetBoardId}`, {}),
+  unfollow: (boardId: string, targetBoardId: string) => boardApi.delete(`/boards/${boardId}/following/${targetBoardId}`),
   // Events
   getEvents: (boardId: string, status?: string) =>
-    api.get<BoardEvent[]>(`/boards/${boardId}/events`, { params: { status } }),
+    boardApi.get(`/boards/${boardId}/events`, { params: { status } }),
   createEvent: (boardId: string, data: { title: string; description?: string; location?: string; eventDate: string; eventType: string }) =>
-    api.post<BoardEvent>(`/boards/${boardId}/events`, data),
-  deleteEvent: (boardId: string, eventId: string) => api.delete(`/boards/${boardId}/events/${eventId}`),
+    boardApi.post(`/boards/${boardId}/events`, data),
+  deleteEvent: (boardId: string, eventId: string) => boardApi.delete(`/boards/${boardId}/events/${eventId}`),
   // Invite
-  invite: (boardId: string, data: { email: string; message?: string }) => api.post(`/boards/${boardId}/invite`, data),
-  searchBuddies: (boardId: string, q: string) => api.get<User[]>(`/boards/${boardId}/buddies/search`, { params: { q } }),
+  invite: (boardId: string, data: { email: string; message?: string }) => boardApi.post(`/boards/${boardId}/invite`, data),
+  searchBuddies: (boardId: string, q: string) => boardApi.get(`/boards/${boardId}/buddies/search`, { params: { q } }),
 };
 
 // ── League Management ──

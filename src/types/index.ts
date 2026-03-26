@@ -76,6 +76,7 @@ export interface Board {
   description?: string;
   logoUrl?: string;
   city?: string;
+  state?: string;
   country?: string;
   ownerId: string;
   ownerName: string;

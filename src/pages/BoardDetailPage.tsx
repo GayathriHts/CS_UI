@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService } from '../services/cricketSocialService';
 import type { BoardInfo, BoardDirector, BoardSponsor, BoardFan, BoardFeedItem, BoardScore, RosterDetail, BoardFollowing, BoardEvent } from '../types';
@@ -20,7 +20,9 @@ const tabs: { id: BoardTab; label: string; icon: string }[] = [
 export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
+  const [showEditBoard, setShowEditBoard] = useState(false);
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: board, isError } = useQuery({
     queryKey: ['board', id],
@@ -70,11 +72,18 @@ export default function BoardDetailPage() {
             <div className="w-20 h-20 bg-white/20 rounded-xl flex items-center justify-center">
               {board.logoUrl ? <img src={board.logoUrl} alt="" className="w-16 h-16 rounded-lg object-cover" /> : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />}
             </div>
-            <div>
+            <div className="flex-1">
               <span className="text-xs bg-white/20 px-3 py-1 rounded-full">{board.boardType} Board</span>
               <h1 className="text-3xl font-bold mt-2">{board.name}</h1>
               <p className="text-green-200 mt-1">{board.city && `${board.city}, `}{board.country} · {board.fanCount} fans · {board.rosterCount} teams</p>
             </div>
+            <button
+              onClick={() => setShowEditBoard(true)}
+              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              Edit Board
+            </button>
           </div>
           {board.description && <p className="mt-4 text-green-100 max-w-2xl">{board.description}</p>}
           <div className="flex gap-1 mt-6 -mb-px overflow-x-auto">
@@ -97,6 +106,110 @@ export default function BoardDetailPage() {
         {activeTab === 'invite' && <InviteTab boardId={id!} />}
         {activeTab === 'events' && <EventsTab boardId={id!} />}
       </div>
+
+      {/* Edit Board Modal */}
+      {showEditBoard && (
+        <EditBoardModal
+          board={board}
+          boardId={id!}
+          onClose={() => setShowEditBoard(false)}
+          onSaved={() => {
+            setShowEditBoard(false);
+            qc.invalidateQueries({ queryKey: ['board', id] });
+            qc.invalidateQueries({ queryKey: ['myBoards'] });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── EDIT BOARD MODAL ──
+function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
+  console.log('EditBoardModal board object:', board, 'boardId:', boardId);
+  const [name, setName] = useState(board.name || '');
+  const [description, setDescription] = useState(board.description || '');
+  const [city, setCity] = useState(board.city || '');
+  const [state, setState] = useState(board.state || '');
+  const [country, setCountry] = useState(board.country || '');
+
+  const updateMutation = useMutation({
+    mutationFn: () => {
+      console.log('Full board object keys:', Object.keys(board), 'values:', board);
+      // Resolve ownerId - check all possible field names from the API response
+      const resolvedOwnerId = board.ownerId || board.owneriD || board.OwnerId 
+        || board.owner_id || board.createdBy || board.userId || board.ownerid
+        || '00000000-0000-0000-0000-000000000000';
+      const payload: any = {
+        id: boardId,
+        name,
+        description,
+        isActive: true,
+        city: city || '',
+        state: state || '',
+        country: country || '',
+        ownerId: resolvedOwnerId,
+        logoUrl: board.logoUrl || board.LogoUrl || board.logourl || '',
+      };
+      console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
+      return boardService.update(boardId, payload);
+    },
+    onSuccess: () => onSaved(),
+    onError: (error: any) => {
+      console.error('Board update error:', error?.response?.status, error?.response?.data);
+      if (error?.response?.status === 401) {
+        alert('Session expired. Please login again.');
+        window.location.href = '/login';
+      } else {
+        alert(`Failed to update board. ${error?.response?.data?.title || error?.response?.data?.message || ''}`);
+      }
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-6 border-b">
+          <h2 className="text-xl font-bold text-gray-800">Edit Board</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="input-field" placeholder="Board name" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} placeholder="Board description" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input value={city} onChange={(e) => setCity(e.target.value)} className="input-field" placeholder="City" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input value={state} onChange={(e) => setState(e.target.value)} className="input-field" placeholder="State" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <input value={country} onChange={(e) => setCountry(e.target.value)} className="input-field" placeholder="Country" />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-end gap-3 p-6 border-t">
+          <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+            Cancel
+          </button>
+          <button
+            onClick={() => name.trim() && updateMutation.mutate()}
+            disabled={!name.trim() || updateMutation.isPending}
+            className="btn-primary text-sm px-6"
+          >
+            {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -104,10 +217,10 @@ export default function BoardDetailPage() {
 // ── INFO TAB ──
 function InfoTab({ boardId }: { boardId: string }) {
   const [subTab, setSubTab] = useState<InfoSubTab>('about');
-  const { data: info } = useQuery({ queryKey: ['boardInfo', boardId], queryFn: () => boardDetailService.getInfo(boardId).then(r => r.data) });
-  const { data: directors } = useQuery({ queryKey: ['directors', boardId], queryFn: () => boardDetailService.getDirectors(boardId).then(r => r.data) });
-  const { data: sponsors } = useQuery({ queryKey: ['sponsors', boardId], queryFn: () => boardDetailService.getSponsors(boardId).then(r => r.data) });
-  const { data: following } = useQuery({ queryKey: ['following', boardId], queryFn: () => boardDetailService.getFollowing(boardId).then(r => r.data) });
+  const { data: info } = useQuery({ queryKey: ['boardInfo', boardId], queryFn: () => boardDetailService.getInfo(boardId).then((r: any) => r.data).catch(() => null), retry: false, refetchOnWindowFocus: false });
+  const { data: directors } = useQuery({ queryKey: ['directors', boardId], queryFn: () => boardDetailService.getDirectors(boardId).then((r: any) => r.data).catch(() => []), retry: false, refetchOnWindowFocus: false });
+  const { data: sponsors } = useQuery({ queryKey: ['sponsors', boardId], queryFn: () => boardDetailService.getSponsors(boardId).then((r: any) => r.data).catch(() => []), retry: false, refetchOnWindowFocus: false });
+  const { data: following } = useQuery({ queryKey: ['following', boardId], queryFn: () => boardDetailService.getFollowing(boardId).then((r: any) => r.data).catch(() => []), retry: false, refetchOnWindowFocus: false });
 
   const subTabs: { id: InfoSubTab; label: string }[] = [
     { id: 'about', label: 'About Organization' }, { id: 'history', label: 'History' },
@@ -124,7 +237,7 @@ function InfoTab({ boardId }: { boardId: string }) {
     if (subTab === 'directors') {
       return directors?.length ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {directors.map(d => (
+          {directors.map((d: any) => (
             <div key={d.id} className="bg-white rounded-xl p-4 text-center shadow-sm border">
               <div className="w-16 h-16 mx-auto bg-brand-green/10 rounded-full flex items-center justify-center text-2xl text-brand-green font-bold mb-3">{d.name[0]}</div>
               <p className="font-semibold text-gray-800">{d.name}</p>
@@ -137,7 +250,7 @@ function InfoTab({ boardId }: { boardId: string }) {
     if (subTab === 'sponsors') {
       return sponsors?.length ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {sponsors.map(s => (
+          {sponsors.map((s: any) => (
             <div key={s.id} className="bg-white rounded-xl p-4 text-center shadow-sm border">
               <div className="w-16 h-16 mx-auto bg-blue-50 rounded-lg flex items-center justify-center text-xl font-bold text-blue-600 mb-3">{s.name[0]}</div>
               <p className="font-semibold text-gray-800">{s.name}</p>
@@ -167,7 +280,7 @@ function InfoTab({ boardId }: { boardId: string }) {
         <div className="mt-6">
           <h3 className="font-semibold text-gray-800 mb-3">Fan Of</h3>
           <div className="flex flex-wrap gap-3">
-            {following.map(f => (
+            {following.map((f: any) => (
               <Link key={f.boardId} to={`/boards/${f.boardId}`} className="bg-white rounded-lg px-4 py-2 border hover:shadow-md transition-shadow flex items-center gap-2">
                 <div className="w-8 h-8 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-sm">{f.boardName[0]}</div>
                 <span className="text-sm font-medium">{f.boardName}</span>
@@ -185,7 +298,7 @@ function InfoTab({ boardId }: { boardId: string }) {
 function PitchTab({ boardId }: { boardId: string }) {
   const [content, setContent] = useState('');
   const qc = useQueryClient();
-  const { data: feeds } = useQuery({ queryKey: ['boardFeeds', boardId], queryFn: () => boardDetailService.getFeeds(boardId).then(r => r.data) });
+  const { data: feeds } = useQuery({ queryKey: ['boardFeeds', boardId], queryFn: () => boardDetailService.getFeeds(boardId).then((r: any) => r.data).catch(() => ({ items: [] })), retry: false, refetchOnWindowFocus: false });
   const createMutation = useMutation({
     mutationFn: (data: { content: string }) => boardDetailService.createFeed(boardId, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['boardFeeds', boardId] }); setContent(''); },
@@ -206,7 +319,7 @@ function PitchTab({ boardId }: { boardId: string }) {
         </div>
       </div>
       <div className="space-y-4">
-        {feeds?.items.map(f => (
+        {feeds?.items.map((f: any) => (
           <div key={f.id} className="card">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold">{f.userName[0]}</div>
@@ -230,7 +343,7 @@ function PitchTab({ boardId }: { boardId: string }) {
 function ScoreTab({ boardId }: { boardId: string }) {
   const currentYear = new Date().getFullYear();
   const [year, setYear] = useState<number | undefined>(undefined);
-  const { data: score } = useQuery({ queryKey: ['boardScore', boardId, year], queryFn: () => boardDetailService.getScore(boardId, year).then(r => r.data) });
+  const { data: score } = useQuery({ queryKey: ['boardScore', boardId, year], queryFn: () => boardDetailService.getScore(boardId, year).then((r: any) => r.data).catch(() => null), retry: false, refetchOnWindowFocus: false });
   const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
 
   return (
@@ -240,7 +353,7 @@ function ScoreTab({ boardId }: { boardId: string }) {
         <select value={year ?? ''} onChange={e => setYear(e.target.value ? Number(e.target.value) : undefined)}
           className="border rounded-lg px-3 py-1.5 text-sm">
           <option value="">All Time</option>
-          {years.map(y => <option key={y} value={y}>{y}</option>)}
+          {years.map((y: any) => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -249,7 +362,7 @@ function ScoreTab({ boardId }: { boardId: string }) {
           { label: 'Won', value: score?.matchesWon ?? 0, color: 'bg-green-50 text-green-700' },
           { label: 'Lost', value: score?.matchesLost ?? 0, color: 'bg-red-50 text-red-700' },
           { label: 'Tied', value: score?.matchesTied ?? 0, color: 'bg-yellow-50 text-yellow-700' },
-        ].map(s => (
+        ].map((s: any) => (
           <div key={s.label} className={`rounded-xl p-6 text-center ${s.color}`}>
             <p className="text-3xl font-bold">{s.value}</p>
             <p className="text-sm mt-1 opacity-80">{s.label}</p>
@@ -260,7 +373,7 @@ function ScoreTab({ boardId }: { boardId: string }) {
         <div className="card">
           <h4 className="font-semibold text-gray-800 mb-4">🏆 Tournaments</h4>
           <div className="space-y-3">
-            {score.tournaments.map(t => (
+            {score.tournaments.map((t: any) => (
               <div key={t.id} className="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
                 <div><p className="font-medium">{t.name}</p><p className="text-xs text-gray-500">{t.format} · {t.matchCount} matches</p></div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${t.status === 'Completed' ? 'bg-green-100 text-green-700' : t.status === 'InProgress' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{t.status}</span>
@@ -275,14 +388,14 @@ function ScoreTab({ boardId }: { boardId: string }) {
 
 // ── FANS TAB ──
 function FansTab({ boardId }: { boardId: string }) {
-  const { data: fans } = useQuery({ queryKey: ['boardFans', boardId], queryFn: () => boardDetailService.getFans(boardId).then(r => r.data) });
+  const { data: fans } = useQuery({ queryKey: ['boardFans', boardId], queryFn: () => boardDetailService.getFans(boardId).then((r: any) => r.data).catch(() => ({ items: [], totalCount: 0 })), retry: false, refetchOnWindowFocus: false });
 
   return (
     <div className="animate-fade-in">
       <h3 className="font-semibold text-gray-800 mb-4">Fans ({fans?.totalCount ?? 0})</h3>
       {fans?.items.length ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {fans.items.map(f => (
+          {fans.items.map((f: any) => (
             <div key={f.userId} className="card text-center py-4">
               {f.profileImageUrl ? (
                 <img src={f.profileImageUrl} alt="" className="w-16 h-16 rounded-full mx-auto object-cover mb-2" />
@@ -407,7 +520,7 @@ function SquadTab({ boardId }: { boardId: string }) {
     if (activeSearchField !== field || !searchResults || searchResults.length === 0) return null;
     return (
       <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-        {searchResults.map(u => (
+        {searchResults.map((u: any) => (
           <button
             key={u.id}
             onClick={() => field === 'member' ? handleAddMember(u.id) : handleSelectUser(u.id, field)}
@@ -669,7 +782,7 @@ function SquadTab({ boardId }: { boardId: string }) {
                       {role === 'ViceCaptain' ? 'Vice Captain' : role}{roleMembers.length > 1 ? 's' : ''}
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {roleMembers.map(m => (
+                      {roleMembers.map((m: any) => (
                         <div key={m.userId} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 hover:shadow-sm transition-shadow group">
                           {m.profileImageUrl ? (
                             <img src={m.profileImageUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
@@ -741,7 +854,7 @@ function InviteTab({ boardId }: { boardId: string }) {
             <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name..." className="input-field" />
             {buddies && buddies.length > 0 && (
               <div className="mt-2 border rounded-lg max-h-40 overflow-y-auto">
-                {buddies.map(b => (
+                {buddies.map((b: any) => (
                   <button key={b.id} onClick={() => { setEmail(b.email); setSearch(''); }}
                     className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm border-b last:border-b-0">
                     <div className="w-8 h-8 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">{b.firstName[0]}</div>
@@ -773,7 +886,7 @@ function EventsTab({ boardId }: { boardId: string }) {
   const [eventDate, setEventDate] = useState('');
   const [eventType, setEventType] = useState('Fixture');
   const qc = useQueryClient();
-  const { data: events } = useQuery({ queryKey: ['boardEvents', boardId], queryFn: () => boardDetailService.getEvents(boardId).then(r => r.data) });
+  const { data: events } = useQuery({ queryKey: ['boardEvents', boardId], queryFn: () => boardDetailService.getEvents(boardId).then((r: any) => r.data).catch(() => []), retry: false, refetchOnWindowFocus: false });
   const createMutation = useMutation({
     mutationFn: () => boardDetailService.createEvent(boardId, { title, description, location, eventDate, eventType }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['boardEvents', boardId] }); setShowForm(false); setTitle(''); setDescription(''); setLocation(''); setEventDate(''); },
@@ -804,7 +917,7 @@ function EventsTab({ boardId }: { boardId: string }) {
         </div>
       )}
       <div className="space-y-3">
-        {events?.map(e => (
+        {events?.map((e: any) => (
           <div key={e.id} className="card flex items-center gap-4">
             <div className="w-14 h-14 bg-brand-green/10 rounded-xl flex flex-col items-center justify-center text-brand-green">
               <span className="text-lg font-bold">{new Date(e.eventDate).getDate()}</span>

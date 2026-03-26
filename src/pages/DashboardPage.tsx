@@ -160,6 +160,10 @@ const { data: boards } = useQuery({
       setNewBoardCity('');
       setNewBoardState('');
       setNewBoardCountry('');
+      // Navigate to the newly created board
+      if (newBoard?.id) {
+        navigate(`/boards/${newBoard.id}`);
+      }
     },
     onError: (error: any) => {
       if (error?.response?.status === 401) {
