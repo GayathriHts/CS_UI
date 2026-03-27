@@ -17,6 +17,8 @@ const tabs: { id: BoardTab; label: string; icon: string }[] = [
   { id: 'events', label: 'Events', icon: '📅' },
 ];
 
+const visibleTabs = tabs.filter((tab) => tab.id === 'info' || tab.id === 'squad');
+
 export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
@@ -93,7 +95,7 @@ export default function BoardDetailPage() {
           </div>
           {board.description && <p className="mt-4 text-green-100 max-w-2xl">{board.description}</p>}
           <div className="flex gap-1 mt-6 -mb-px overflow-x-auto">
-            {tabs.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-gray-100 text-brand-green' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                 {tab.icon} {tab.label}
