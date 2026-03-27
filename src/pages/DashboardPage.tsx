@@ -19,12 +19,14 @@ const menuItems: { id: MenuSection; label: string; icon: string; iconImg?: strin
   { id: 'invoices', label: 'My Invoices', icon: '🧾' },
 ];
 
+const visibleMenuItems = menuItems.filter((item) => item.id === 'board');
+
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const initialTab = (searchParams.get('tab') as MenuSection) || 'score';
+  const initialTab = (searchParams.get('tab') as MenuSection) || 'board';
   const [activeMenu, setActiveMenu] = useState<MenuSection>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
@@ -293,7 +295,7 @@ const { data: boards } = useQuery({
 
           {/* Navigation Menu */}
           <nav className="p-3">
-            {menuItems.map((item) => (
+            {visibleMenuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
