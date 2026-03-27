@@ -26,7 +26,13 @@ export default function BoardDetailPage() {
 
   const { data: board, isError } = useQuery({
     queryKey: ['board', id],
-    queryFn: () => boardService.getById(id!).then((r) => r.data),
+    queryFn: () => boardService.getById(id!).then((r) => {
+      const raw = r.data;
+      // Normalize: API may return the board directly, or nested in { data: { ... } }
+      const board = raw?.data && raw.data.id ? raw.data : raw;
+      console.log('getById raw:', raw, 'resolved board:', board);
+      return board;
+    }),
     enabled: !!id,
     retry: false,
   });
@@ -116,7 +122,6 @@ export default function BoardDetailPage() {
           onSaved={() => {
             setShowEditBoard(false);
             qc.invalidateQueries({ queryKey: ['board', id] });
-            qc.invalidateQueries({ queryKey: ['myBoards'] });
           }}
         />
       )}
@@ -132,6 +137,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   const [city, setCity] = useState(board.city || '');
   const [state, setState] = useState(board.state || '');
   const [country, setCountry] = useState(board.country || '');
+  const qc = useQueryClient();
 
   const updateMutation = useMutation({
     mutationFn: () => {
@@ -144,17 +150,69 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         id: boardId,
         name,
         description,
-        isActive: true,
+        boardType: board.boardType ?? board.BoardType ?? 1,
+        isActive: board.isActive ?? board.IsActive ?? true,
         city: city || '',
         state: state || '',
         country: country || '',
         ownerId: resolvedOwnerId,
         logoUrl: board.logoUrl || board.LogoUrl || board.logourl || '',
+        createdAt: board.createdAt || board.CreatedAt || undefined,
       };
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
-      return boardService.update(boardId, payload);
+      return boardService.update(boardId, payload).then((r) => {
+        // Unwrap the response - API may nest the board in { data: { ... } }
+        const raw = r.data;
+        return raw?.data && raw.data.id ? raw.data : raw;
+      });
     },
-    onSuccess: () => onSaved(),
+    onSuccess: (updatedBoard: any) => {
+      // Use server response if available, otherwise fall back to local state values
+      const newName = updatedBoard?.name || name;
+      const newDescription = updatedBoard?.description ?? description;
+      const newCity = updatedBoard?.city ?? city;
+      const newState = updatedBoard?.state ?? state;
+      const newCountry = updatedBoard?.country ?? country;
+
+      const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry };
+
+      // Persist edit in sessionStorage so it survives page refresh and refetch race conditions
+      try {
+        const pending = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
+        pending[boardId] = editOverlay;
+        sessionStorage.setItem('boardEdits', JSON.stringify(pending));
+      } catch {}
+
+      // Update board detail cache
+      qc.setQueryData(['board', boardId], (old: any) => {
+        if (!old) return updatedBoard || old;
+        return { ...old, ...editOverlay };
+      });
+      // Update the boards list cache
+      qc.setQueryData(['myBoards'], (old: any) => {
+        if (!old?.items) return old;
+        return {
+          ...old,
+          items: old.items.map((b: any) =>
+            b.id === boardId ? { ...b, ...editOverlay } : b
+          ),
+        };
+      });
+      // Update stale recentBoards in sessionStorage
+      try {
+        const stored = sessionStorage.getItem('recentBoards');
+        if (stored) {
+          const recent = JSON.parse(stored);
+          const updated = recent.map((b: any) =>
+            b.id === boardId ? { ...b, ...editOverlay } : b
+          );
+          sessionStorage.setItem('recentBoards', JSON.stringify(updated));
+        }
+      } catch {}
+      // Refetch board detail (backend is authoritative for single-board endpoint)
+      qc.invalidateQueries({ queryKey: ['board', boardId] });
+      onSaved();
+    },
     onError: (error: any) => {
       console.error('Board update error:', error?.response?.status, error?.response?.data);
       if (error?.response?.status === 401) {

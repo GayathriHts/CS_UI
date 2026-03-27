@@ -64,6 +64,34 @@ const { data: boards } = useQuery({
     else if (raw?.data && Array.isArray(raw.data)) items = raw.data;
 
     // Merge recently created boards that backend hasn't returned yet
+    // Apply pending board edits from sessionStorage (survives refresh + refetch race conditions)
+    try {
+      const pendingEdits = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
+      if (Object.keys(pendingEdits).length > 0) {
+        let changed = false;
+        items = items.map((b: any) => {
+          const edit = pendingEdits[b.id];
+          if (edit) {
+            // If backend has caught up (name matches), remove the pending edit
+            if (b.name === edit.name) {
+              delete pendingEdits[b.id];
+              changed = true;
+              return b;
+            }
+            return { ...b, ...edit };
+          }
+          return b;
+        });
+        if (changed) {
+          if (Object.keys(pendingEdits).length === 0) {
+            sessionStorage.removeItem('boardEdits');
+          } else {
+            sessionStorage.setItem('boardEdits', JSON.stringify(pendingEdits));
+          }
+        }
+      }
+    } catch {}
+
     const serverIds = new Set(items.map((b: any) => b.id));
     const missing = recentBoards.filter(b => b.id && !serverIds.has(b.id));
     // Clean up recentBoards once backend returns them

@@ -93,7 +93,10 @@ export const boardService = {
 
 
   // Get a board by ID
-  getById: (id: string) => boardApi.get(`/Boards/${id}`),
+  getById: (id: string) => boardApi.get(`/Boards/${id}`, {
+    params: { _t: Date.now() },
+    headers: { 'Cache-Control': 'no-cache' },
+  }),
 
   // Update a board by ID (PUT /api/v1/Boards/{id})
   update: (id: string, data: any) => boardApi.put(`/Boards/${id}`, data),
