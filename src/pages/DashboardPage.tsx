@@ -117,6 +117,7 @@ const { data: boards } = useQuery({
   const [pitchContent, setPitchContent] = useState('');
   const [showCreateBoard, setShowCreateBoard] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
+  const [boardNameError, setBoardNameError] = useState('');
   const [newBoardType, setNewBoardType] = useState<'Team' | 'League'>('Team');
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [newBoardCity, setNewBoardCity] = useState('');
@@ -185,6 +186,11 @@ const { data: boards } = useQuery({
   const createBoardMutation = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error('User not authenticated');
+      // Check for duplicate board name
+      const existingNames = (boards?.items || []).map((b: any) => b.name?.toLowerCase().trim());
+      if (existingNames.includes(newBoardName.toLowerCase().trim())) {
+        throw new Error('Board name already exists. Please create a different name.');
+      }
       console.log('Creating board with ownerId:', user.id, 'user:', user);
       // The API returns the created board in res.data.data
       const res = await boardService.create({
@@ -229,7 +235,9 @@ const { data: boards } = useQuery({
       }
     },
     onError: (error: any) => {
-      if (error?.response?.status === 401) {
+      if (error?.message === 'Board name already exists. Please create a different name.') {
+        setBoardNameError(error.message);
+      } else if (error?.response?.status === 401) {
         alert('Session expired. Please login again.');
         window.location.href = '/login';
       } else {
@@ -491,7 +499,7 @@ const { data: boards } = useQuery({
                 <div className="card mb-6">
                   <h3 className="font-semibold mb-4">Create New Board</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name</label><input value={newBoardName} onChange={e => setNewBoardName(e.target.value)} className="input-field" placeholder="Enter board name" /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name</label><input value={newBoardName} onChange={e => { setNewBoardName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Enter board name" />{boardNameError && <p className="text-red-500 text-xs mt-1">{boardNameError}</p>}</div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                       <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as 'Team' | 'League')} className="input-field"><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>

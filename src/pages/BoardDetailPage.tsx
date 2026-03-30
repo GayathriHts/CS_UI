@@ -134,6 +134,7 @@ export default function BoardDetailPage() {
 function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
   console.log('EditBoardModal board object:', board, 'boardId:', boardId);
   const [name, setName] = useState(board.name || '');
+  const [boardNameError, setBoardNameError] = useState('');
   const [description, setDescription] = useState(board.description || '');
   const [city, setCity] = useState(board.city || '');
   const [state, setState] = useState(board.state || '');
@@ -165,6 +166,14 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
 
   const updateMutation = useMutation({
     mutationFn: () => {
+      // Check for duplicate board name
+      const existingBoards = qc.getQueryData<any>(['myBoards']);
+      const existingNames = (existingBoards?.items || [])
+        .filter((b: any) => b.id !== boardId)
+        .map((b: any) => b.name?.toLowerCase().trim());
+      if (existingNames.includes(name.toLowerCase().trim())) {
+        throw new Error('Board name already exists. Please create a different name.');
+      }
       console.log('Full board object keys:', Object.keys(board), 'values:', board);
       // Resolve ownerId - check all possible field names from the API response
       const resolvedOwnerId = board.ownerId || board.owneriD || board.OwnerId 
@@ -240,7 +249,9 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
     },
     onError: (error: any) => {
       console.error('Board update error:', error?.response?.status, error?.response?.data);
-      if (error?.response?.status === 401) {
+      if (error?.message === 'Board name already exists. Please create a different name.') {
+        setBoardNameError(error.message);
+      } else if (error?.response?.status === 401) {
         alert('Session expired. Please login again.');
         window.location.href = '/login';
       } else {
@@ -259,7 +270,8 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input-field" placeholder="Board name" />
+            <input value={name} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
+            {boardNameError && <p className="text-red-500 text-xs mt-1">{boardNameError}</p>}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
