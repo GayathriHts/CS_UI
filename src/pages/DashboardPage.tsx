@@ -125,7 +125,7 @@ const { data: boards } = useQuery({
   const [newBoardCountry, setNewBoardCountry] = useState('');
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
   const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
-  const [selectedCoOwners, setSelectedCoOwners] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
+  const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
 
   const { data: coOwnerUserList, isLoading: coOwnerLoading } = useQuery({
     queryKey: ['usersList'],
@@ -140,12 +140,17 @@ const { data: boards } = useQuery({
         : Array.isArray(raw?.result) ? raw.result
         : raw ? [raw] : [];
       // Normalize user fields (API may use name/fullName instead of firstName/lastName)
-      return list.map((u: any) => ({
-        id: u.id || u.userId,
-        firstName: u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '',
-        lastName: u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '',
-        email: u.email || u.emailAddress || '',
-      }));
+      return list.map((u: any) => {
+        const first = u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '';
+        const last = u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '';
+        const email = u.email || u.emailAddress || '';
+        return {
+          id: u.id || u.Id || u.userId || u.UserId,
+          firstName: first || email.split('@')[0] || email,
+          lastName: last,
+          email,
+        };
+      });
     },
     enabled: showCoOwnerDropdown,
   });
@@ -191,7 +196,11 @@ const { data: boards } = useQuery({
       if (existingNames.includes(newBoardName.toLowerCase().trim())) {
         throw new Error('Board name already exists. Please create a different name.');
       }
-      console.log('Creating board with ownerId:', user.id, 'user:', user);
+      // Only set ownerId for League boards; use co-owner's ID when selected
+      const resolvedOwnerId = newBoardType === 'League'
+        ? (selectedCoOwner ? selectedCoOwner.id : user.id)
+        : '';
+      console.log('Creating board - selectedCoOwner:', selectedCoOwner, 'resolvedOwnerId:', resolvedOwnerId, 'loggedInUserId:', user.id);
       // The API returns the created board in res.data.data
       const res = await boardService.create({
         name: newBoardName,
@@ -200,10 +209,10 @@ const { data: boards } = useQuery({
         city: newBoardCity,
         state: newBoardState,
         country: newBoardCountry,
-        ownerId: user.id,
+        ownerId: resolvedOwnerId,
         logoUrl: '',
-        ...(newBoardType === 'League' && selectedCoOwners.length > 0
-          ? { coOwnerIds: selectedCoOwners.map(co => co.id) }
+        ...(newBoardType === 'League' && selectedCoOwner
+          ? { coOwnerIds: [selectedCoOwner.id] }
           : {}),
       });
       // Support both .data and .data.data (API response wrapper)
@@ -226,7 +235,7 @@ const { data: boards } = useQuery({
       setNewBoardCity('');
       setNewBoardState('');
       setNewBoardCountry('');
-      setSelectedCoOwners([]);
+      setSelectedCoOwner(null);
       setCoOwnerSearch('');
       setShowCoOwnerDropdown(false);
       // Navigate to the newly created board
@@ -523,36 +532,29 @@ const { data: boards } = useQuery({
                     </div>
                     {newBoardType === 'League' && (
                       <div>
-                        <label className="block text-sm font-medium text-blue-600 mb-1 italic">Co-Owners</label>
+                        <label className="block text-sm font-medium text-blue-600 mb-1 italic">Co-Owner</label>
                         <div className="flex gap-2">
                           <div className="flex-1 relative">
                             {showCoOwnerDropdown && (
                               <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
                             )}
-                            {selectedCoOwners.length > 0 ? (
-                              <div
-                                className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-lg flex flex-wrap gap-1.5 items-center cursor-pointer"
-                                onClick={() => setShowCoOwnerDropdown(prev => !prev)}
-                              >
-                                {selectedCoOwners.map(co => (
-                                  <span key={co.id} className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green text-xs px-2 py-0.5 rounded-full">
-                                    {co.firstName} {co.lastName}
-                                    <button
-                                      type="button"
-                                      onClick={(e) => { e.stopPropagation(); setSelectedCoOwners(prev => prev.filter(p => p.id !== co.id)); }}
-                                      className="ml-0.5 text-brand-green hover:text-red-500 font-bold text-xs"
-                                    >×</button>
-                                  </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <div
-                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-400 cursor-pointer"
-                                onClick={() => setShowCoOwnerDropdown(prev => !prev)}
-                              >
-                                Add Co-Owners
-                              </div>
-                            )}
+                            <div
+                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                              onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                            >
+                              {selectedCoOwner ? (
+                                <span className="text-gray-900 flex items-center gap-2">
+                                  {selectedCoOwner.firstName || selectedCoOwner.lastName ? `${selectedCoOwner.firstName} ${selectedCoOwner.lastName}`.trim() : selectedCoOwner.email}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedCoOwner(null); }}
+                                    className="text-gray-400 hover:text-red-500 font-bold text-sm"
+                                  >×</button>
+                                </span>
+                              ) : (
+                                <span className="text-gray-400">Select Co-Owner</span>
+                              )}
+                            </div>
                             {showCoOwnerDropdown && (
                               <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                                 <div className="p-2 border-b border-gray-100">
@@ -572,7 +574,6 @@ const { data: boards } = useQuery({
                                   ) : (() => {
                                     const filtered = (coOwnerUserList || []).filter((u: any) =>
                                       u.id !== user?.id &&
-                                      !selectedCoOwners.some(s => s.id === u.id) &&
                                       (!coOwnerSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(coOwnerSearch.toLowerCase()))
                                     );
                                     return filtered.length === 0 ? (
@@ -582,8 +583,9 @@ const { data: boards } = useQuery({
                                         <button
                                           key={u.id}
                                           onClick={() => {
-                                            setSelectedCoOwners(prev => [...prev, { id: u.id, firstName: u.firstName, lastName: u.lastName }]);
+                                            setSelectedCoOwner({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email });
                                             setCoOwnerSearch('');
+                                            setShowCoOwnerDropdown(false);
                                           }}
                                           className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
                                         >
@@ -606,7 +608,7 @@ const { data: boards } = useQuery({
                             type="button"
                             onClick={() => setShowCoOwnerDropdown(prev => !prev)}
                             className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                            title="Add co-owner"
+                            title="Select co-owner"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
