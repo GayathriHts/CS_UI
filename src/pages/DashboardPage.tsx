@@ -122,6 +122,32 @@ const { data: boards } = useQuery({
   const [newBoardCity, setNewBoardCity] = useState('');
   const [newBoardState, setNewBoardState] = useState('');
   const [newBoardCountry, setNewBoardCountry] = useState('');
+  const [coOwnerSearch, setCoOwnerSearch] = useState('');
+  const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
+  const [selectedCoOwners, setSelectedCoOwners] = useState<{ id: string; firstName: string; lastName: string }[]>([]);
+
+  const { data: coOwnerUserList, isLoading: coOwnerLoading } = useQuery({
+    queryKey: ['usersList'],
+    queryFn: async () => {
+      const r = await userService.list();
+      const raw = r.data as any;
+      // Handle all possible response shapes
+      const list = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.data) ? raw.data
+        : Array.isArray(raw?.items) ? raw.items
+        : Array.isArray(raw?.users) ? raw.users
+        : Array.isArray(raw?.result) ? raw.result
+        : raw ? [raw] : [];
+      // Normalize user fields (API may use name/fullName instead of firstName/lastName)
+      return list.map((u: any) => ({
+        id: u.id || u.userId,
+        firstName: u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '',
+        lastName: u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '',
+        email: u.email || u.emailAddress || '',
+      }));
+    },
+    enabled: showCoOwnerDropdown,
+  });
 
   const likeMutation = useMutation({
     mutationFn: (feedId: string) => feedService.like(feedId),
@@ -170,6 +196,9 @@ const { data: boards } = useQuery({
         country: newBoardCountry,
         ownerId: user.id,
         logoUrl: '',
+        ...(newBoardType === 'League' && selectedCoOwners.length > 0
+          ? { coOwnerIds: selectedCoOwners.map(co => co.id) }
+          : {}),
       });
       // Support both .data and .data.data (API response wrapper)
       return res.data?.data || res.data;
@@ -191,6 +220,9 @@ const { data: boards } = useQuery({
       setNewBoardCity('');
       setNewBoardState('');
       setNewBoardCountry('');
+      setSelectedCoOwners([]);
+      setCoOwnerSearch('');
+      setShowCoOwnerDropdown(false);
       // Navigate to the newly created board
       if (newBoard?.id) {
         navigate(`/boards/${newBoard.id}`);
@@ -481,6 +513,100 @@ const { data: boards } = useQuery({
                         {getCities(newBoardCountry, newBoardState).map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
+                    {newBoardType === 'League' && (
+                      <div>
+                        <label className="block text-sm font-medium text-blue-600 mb-1 italic">Co-Owners</label>
+                        <div className="flex gap-2">
+                          <div className="flex-1 relative">
+                            {showCoOwnerDropdown && (
+                              <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
+                            )}
+                            {selectedCoOwners.length > 0 ? (
+                              <div
+                                className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-lg flex flex-wrap gap-1.5 items-center cursor-pointer"
+                                onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                              >
+                                {selectedCoOwners.map(co => (
+                                  <span key={co.id} className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green text-xs px-2 py-0.5 rounded-full">
+                                    {co.firstName} {co.lastName}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); setSelectedCoOwners(prev => prev.filter(p => p.id !== co.id)); }}
+                                      className="ml-0.5 text-brand-green hover:text-red-500 font-bold text-xs"
+                                    >×</button>
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <div
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-400 cursor-pointer"
+                                onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                              >
+                                Add Co-Owners
+                              </div>
+                            )}
+                            {showCoOwnerDropdown && (
+                              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                                <div className="p-2 border-b border-gray-100">
+                                  <input
+                                    type="text"
+                                    value={coOwnerSearch}
+                                    onChange={e => setCoOwnerSearch(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                                    placeholder="Search users..."
+                                    autoFocus
+                                    onClick={e => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div className="max-h-48 overflow-y-auto">
+                                  {coOwnerLoading ? (
+                                    <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
+                                  ) : (() => {
+                                    const filtered = (coOwnerUserList || []).filter((u: any) =>
+                                      u.id !== user?.id &&
+                                      !selectedCoOwners.some(s => s.id === u.id) &&
+                                      (!coOwnerSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(coOwnerSearch.toLowerCase()))
+                                    );
+                                    return filtered.length === 0 ? (
+                                      <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+                                    ) : (
+                                      filtered.map((u: any) => (
+                                        <button
+                                          key={u.id}
+                                          onClick={() => {
+                                            setSelectedCoOwners(prev => [...prev, { id: u.id, firstName: u.firstName, lastName: u.lastName }]);
+                                            setCoOwnerSearch('');
+                                          }}
+                                          className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                                        >
+                                          <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                            {u.firstName?.[0]}
+                                          </div>
+                                          <div className="min-w-0">
+                                            <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
+                                            {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
+                                          </div>
+                                        </button>
+                                      ))
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                            className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                            title="Add co-owner"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <button onClick={() => newBoardName && createBoardMutation.mutate()} disabled={!newBoardName || createBoardMutation.isPending}
                     className="btn-primary text-sm px-6 mt-4">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>

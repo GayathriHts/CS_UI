@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { boardService, boardDetailService, rosterService, tournamentService } from '../services/cricketSocialService';
+import { boardService, boardDetailService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
 import type { BoardInfo, BoardDirector, BoardSponsor, BoardFan, BoardFeedItem, BoardScore, RosterDetail, BoardFollowing, BoardEvent } from '../types';
 
 type BoardTab = 'info' | 'pitch' | 'score' | 'fans' | 'squad' | 'invite' | 'events';
@@ -140,6 +140,29 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   const [country, setCountry] = useState(board.country || '');
   const qc = useQueryClient();
 
+  const isLeague = (board.boardType === 2 || board.boardType === 'League' || board.BoardType === 2);
+  const [coOwnerSearch, setCoOwnerSearch] = useState('');
+  const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
+  const [selectedCoOwners, setSelectedCoOwners] = useState<{ id: string; firstName: string; lastName: string }[]>(
+    () => (board.coOwners || []).map((co: any) => ({ id: co.id || co.userId, firstName: co.firstName || co.name?.split(' ')[0] || '', lastName: co.lastName || co.name?.split(' ').slice(1).join(' ') || '' }))
+  );
+
+  const { data: coOwnerUserList, isLoading: coOwnerLoading } = useQuery({
+    queryKey: ['usersList'],
+    queryFn: async () => {
+      const r = await userService.list();
+      const raw = r.data as any;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.items) ? raw.items : Array.isArray(raw?.users) ? raw.users : Array.isArray(raw?.result) ? raw.result : raw ? [raw] : [];
+      return list.map((u: any) => ({
+        id: u.id || u.userId,
+        firstName: u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '',
+        lastName: u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '',
+        email: u.email || u.emailAddress || '',
+      }));
+    },
+    enabled: showCoOwnerDropdown && isLeague,
+  });
+
   const updateMutation = useMutation({
     mutationFn: () => {
       console.log('Full board object keys:', Object.keys(board), 'values:', board);
@@ -159,6 +182,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         ownerId: resolvedOwnerId,
         logoUrl: board.logoUrl || board.LogoUrl || board.logourl || '',
         createdAt: board.createdAt || board.CreatedAt || undefined,
+        ...(isLeague && selectedCoOwners.length > 0 ? { coOwnerIds: selectedCoOwners.map(co => co.id) } : {}),
       };
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
       return boardService.update(boardId, payload).then((r) => {
@@ -255,6 +279,101 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
               <input value={country} onChange={(e) => setCountry(e.target.value)} className="input-field" placeholder="Country" />
             </div>
           </div>
+          {isLeague && (
+            <div>
+              <label className="block text-sm font-medium text-blue-600 mb-1 italic">Co-Owners</label>
+              <div className="flex gap-2">
+                <div className="flex-1 relative">
+                  {showCoOwnerDropdown && (
+                    <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
+                  )}
+                  {selectedCoOwners.length > 0 ? (
+                    <div
+                      className="w-full min-h-[42px] px-3 py-2 border border-gray-300 rounded-lg flex flex-wrap gap-1.5 items-center cursor-pointer"
+                      onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                    >
+                      {selectedCoOwners.map(co => (
+                        <span key={co.id} className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green text-xs px-2 py-0.5 rounded-full">
+                          {co.firstName} {co.lastName}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setSelectedCoOwners(prev => prev.filter(p => p.id !== co.id)); }}
+                            className="ml-0.5 text-brand-green hover:text-red-500 font-bold text-xs"
+                          >×</button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-gray-400 cursor-pointer"
+                      onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                    >
+                      Add Co-Owners
+                    </div>
+                  )}
+                  {showCoOwnerDropdown && (
+                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                      <div className="p-2 border-b border-gray-100">
+                        <input
+                          type="text"
+                          value={coOwnerSearch}
+                          onChange={e => setCoOwnerSearch(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                          placeholder="Search users..."
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {coOwnerLoading ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
+                        ) : (() => {
+                          const currentUserId = board.ownerId || board.owneriD || board.OwnerId || '';
+                          const filtered = (coOwnerUserList || []).filter((u: any) =>
+                            u.id !== currentUserId &&
+                            !selectedCoOwners.some(s => s.id === u.id) &&
+                            (!coOwnerSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(coOwnerSearch.toLowerCase()))
+                          );
+                          return filtered.length === 0 ? (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+                          ) : (
+                            filtered.map((u: any) => (
+                              <button
+                                key={u.id}
+                                onClick={() => {
+                                  setSelectedCoOwners(prev => [...prev, { id: u.id, firstName: u.firstName, lastName: u.lastName }]);
+                                  setCoOwnerSearch('');
+                                }}
+                                className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                              >
+                                <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                  {u.firstName?.[0]}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
+                                  {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
+                                </div>
+                              </button>
+                            ))
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowCoOwnerDropdown(prev => !prev)}
+                  className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  title="Add co-owner"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-3 p-6 border-t">
           <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">

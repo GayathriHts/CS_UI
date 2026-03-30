@@ -65,6 +65,8 @@ export const userService = {
     form.append('file', file);
     return api.post<{ imageUrl: string }>('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
   },
+  search: (q: string) => api.get<User[]>('/users/search', { params: { q } }),
+  list: () => api.get<User[]>('/users/list'),
 };
 
 // ── Boards ──
@@ -79,6 +81,7 @@ export const boardService = {
     country: string;
     ownerId: string;
     logoUrl: string;
+    coOwnerIds?: string[];
   }) => boardApi.post('/Boards', data),
 
   // Get all boards (with optional pagination)
