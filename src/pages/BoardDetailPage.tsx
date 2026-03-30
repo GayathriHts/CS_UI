@@ -165,10 +165,12 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => {
-      // Check for duplicate board name
-      const existingBoards = qc.getQueryData<any>(['myBoards']);
-      const existingNames = (existingBoards?.items || [])
+    mutationFn: async () => {
+      // Check for duplicate board name - fetch fresh list from API
+      const boardsRes = await boardService.getMyBoards(1, 100);
+      const raw = boardsRes.data as any;
+      const allBoards = raw?.items || (Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : []);
+      const existingNames = allBoards
         .filter((b: any) => b.id !== boardId)
         .map((b: any) => b.name?.toLowerCase().trim());
       if (existingNames.includes(name.toLowerCase().trim())) {
