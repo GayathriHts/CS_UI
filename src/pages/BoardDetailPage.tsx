@@ -626,6 +626,7 @@ function SquadTab({ boardId }: { boardId: string }) {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [rosterFieldSearch, setRosterFieldSearch] = useState('');
   const qc = useQueryClient();
 
   const showSuccess = (msg: string) => { setSuccessMsg(msg); setErrorMsg(null); setTimeout(() => setSuccessMsg(null), 4000); };
@@ -639,11 +640,21 @@ function SquadTab({ boardId }: { boardId: string }) {
     }),
   });
 
-  // Search buddies for autocomplete
-  const { data: searchResults } = useQuery({
-    queryKey: ['buddySearch', boardId, searchTerm],
-    queryFn: () => boardDetailService.searchBuddies(boardId, searchTerm).then(r => r.data),
-    enabled: searchTerm.length >= 2,
+  // Load user list for autocomplete (same as co-owner)
+  const { data: rosterUserList, isLoading: rosterUsersLoading } = useQuery({
+    queryKey: ['usersList'],
+    queryFn: async () => {
+      const r = await userService.list();
+      const raw = r.data as any;
+      const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.items) ? raw.items : Array.isArray(raw?.users) ? raw.users : Array.isArray(raw?.result) ? raw.result : raw ? [raw] : [];
+      return list.map((u: any) => ({
+        id: u.id || u.userId,
+        firstName: u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '',
+        lastName: u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '',
+        email: u.email || u.emailAddress || '',
+      }));
+    },
+    enabled: activeSearchField !== null,
   });
 
   const createRosterMutation = useMutation({
@@ -678,11 +689,7 @@ function SquadTab({ boardId }: { boardId: string }) {
   const updateRosterMutation = useMutation({
     mutationFn: (data: RosterFormData & { rosterId: string }) => {
       return rosterService.update(boardId, data.rosterId, {
-        rosterName: data.rosterName,
-        captain: data.captain || undefined,
-        viceCaptain: data.viceCaptain || undefined,
-        coach: data.coach || undefined,
-        members: data.members.length > 0 ? data.members : undefined,
+        name: data.rosterName,
       });
     },
     onSuccess: () => {
@@ -715,6 +722,7 @@ function SquadTab({ boardId }: { boardId: string }) {
     setFormData({ rosterName: '', captain: '', viceCaptain: '', coach: '', members: [] });
     setNewMember('');
     setSearchTerm('');
+    setRosterFieldSearch('');
     setActiveSearchField(null);
     setErrors({});
   };
@@ -780,27 +788,64 @@ function SquadTab({ boardId }: { boardId: string }) {
   };
 
   const handleFieldSearch = (value: string, field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
-    setSearchTerm(value);
-    setActiveSearchField(value.length >= 2 ? field : null);
+    setRosterFieldSearch(value);
+    setActiveSearchField(field);
   };
 
   const renderSearchDropdown = (field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
-    if (activeSearchField !== field || !searchResults || searchResults.length === 0) return null;
+    if (activeSearchField !== field) return null;
+    const filtered = (rosterUserList || []).filter((u: any) =>
+      !formData.members.includes(u.id) &&
+      u.id !== formData.captain && u.id !== formData.viceCaptain && u.id !== formData.coach &&
+      (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
+    );
     return (
-      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
-        {searchResults.map((u: any) => (
-          <button
-            key={u.id}
-            onClick={() => field === 'member' ? handleAddMember(u.id) : handleSelectUser(u.id, field)}
-            className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
-          >
-            <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-              {u.firstName[0]}
-            </div>
-            <span>{u.firstName} {u.lastName}</span>
-          </button>
-        ))}
-      </div>
+      <>
+        <div className="fixed inset-0 z-[5]" onClick={() => { setActiveSearchField(null); setRosterFieldSearch(''); }} />
+        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              type="text"
+              value={rosterFieldSearch}
+              onChange={e => setRosterFieldSearch(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+              placeholder="Search users..."
+              autoFocus
+              onClick={e => e.stopPropagation()}
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto">
+            {rosterUsersLoading ? (
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
+            ) : filtered.length === 0 ? (
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+            ) : (
+              filtered.map((u: any) => (
+                <button
+                  key={u.id}
+                  onClick={() => {
+                    if (field === 'member') {
+                      handleAddMember(u.id);
+                    } else {
+                      handleSelectUser(u.id, field);
+                    }
+                    setRosterFieldSearch('');
+                  }}
+                  className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                >
+                  <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                    {u.firstName?.[0]}
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
+                    {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
+                  </div>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      </>
     );
   };
 
@@ -872,19 +917,15 @@ function SquadTab({ boardId }: { boardId: string }) {
 
               {/* Captain */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Caption</label>
+                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Captain</label>
                 <div className="relative">
                   <input
                     type="text"
                     value={formData.captain}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, captain: e.target.value }));
-                      handleFieldSearch(e.target.value, 'captain');
-                    }}
-                    onFocus={() => formData.captain.length >= 2 && setActiveSearchField('captain')}
-                    onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                    readOnly
+                    onClick={() => setActiveSearchField(activeSearchField === 'captain' ? null : 'captain')}
                     placeholder="Search and select captain..."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
                   />
                   {renderSearchDropdown('captain')}
                 </div>
@@ -892,19 +933,15 @@ function SquadTab({ boardId }: { boardId: string }) {
 
               {/* Vice Captain */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Vice Caption</label>
+                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Vice Captain</label>
                 <div className="relative">
                   <input
                     type="text"
                     value={formData.viceCaptain}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, viceCaptain: e.target.value }));
-                      handleFieldSearch(e.target.value, 'viceCaptain');
-                    }}
-                    onFocus={() => formData.viceCaptain.length >= 2 && setActiveSearchField('viceCaptain')}
-                    onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                    readOnly
+                    onClick={() => setActiveSearchField(activeSearchField === 'viceCaptain' ? null : 'viceCaptain')}
                     placeholder="Search and select vice captain..."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
                   />
                   {renderSearchDropdown('viceCaptain')}
                 </div>
@@ -917,14 +954,10 @@ function SquadTab({ boardId }: { boardId: string }) {
                   <input
                     type="text"
                     value={formData.coach}
-                    onChange={(e) => {
-                      setFormData(prev => ({ ...prev, coach: e.target.value }));
-                      handleFieldSearch(e.target.value, 'coach');
-                    }}
-                    onFocus={() => formData.coach.length >= 2 && setActiveSearchField('coach')}
-                    onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                    readOnly
+                    onClick={() => setActiveSearchField(activeSearchField === 'coach' ? null : 'coach')}
                     placeholder="Search and select coach..."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
                   />
                   {renderSearchDropdown('coach')}
                 </div>
@@ -938,20 +971,15 @@ function SquadTab({ boardId }: { boardId: string }) {
                     <input
                       type="text"
                       value={newMember}
-                      onChange={(e) => {
-                        setNewMember(e.target.value);
-                        handleFieldSearch(e.target.value, 'member');
-                      }}
-                      onFocus={() => newMember.length >= 2 && setActiveSearchField('member')}
-                      onBlur={() => setTimeout(() => setActiveSearchField(null), 200)}
+                      readOnly
+                      onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
                       placeholder="Search member to add..."
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
+                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
                     />
                     {renderSearchDropdown('member')}
                   </div>
                   <button
-                    onClick={() => handleAddMember()}
+                    onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
                     className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                     title="Add member"
                   >

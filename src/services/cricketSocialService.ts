@@ -140,12 +140,12 @@ export const rosterService = {
   getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
   getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
   update: (boardId: string, rosterId: string, data: {
-    rosterName?: string;
-    captain?: string;
-    viceCaptain?: string;
-    coach?: string;
-    members?: string[];
-  }) => boardApi.put(`/boards/${boardId}/Rosters/${rosterId}`, data) as Promise<{ data: Roster }>,
+    name: string;
+    logoUrl?: string;
+  }) => boardApi.put(`/boards/${boardId}/Rosters/${rosterId}`, {
+    name: data.name,
+    logoUrl: data.logoUrl || '',
+  }) as Promise<{ data: Roster }>,
   delete: (boardId: string, rosterId: string) => boardApi.delete(`/boards/${boardId}/Rosters/${rosterId}`),
 };
 
