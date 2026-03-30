@@ -219,8 +219,10 @@ export default function LoginPage() {
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
                     {...register('password', { required: true })}
-                    className="input-field"
+                    className="input-field no-select-password"
                     placeholder=""
+                    onCopy={e => e.preventDefault()}
+                    onCut={e => e.preventDefault()}
                     onInput={e => {
                       const input = e.target as HTMLInputElement;
                       input.value = input.value.replace(/^\s+/, '');
@@ -316,7 +318,7 @@ export default function LoginPage() {
               {forgotStep === 'otp' && (
                 <div className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter Verification Code</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter 6 digit Verification Code</label>
                     <input type="text" value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                       className="input-field w-full text-center text-base tracking-[0.2em] font-mono py-1" maxLength={6} placeholder="------" autoFocus />
                     {forgotFieldErrors.otp && (
@@ -339,8 +341,9 @@ export default function LoginPage() {
                       type={showResetPasswords ? 'text' : 'password'}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value.replace(/^\s+/, ''))}
-                      className="input-field"
-                       
+                      className="input-field no-select-password"
+                      onCopy={e => e.preventDefault()}
+                      onCut={e => e.preventDefault()}
                     />
                     {forgotFieldErrors.newPassword && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.newPassword}</div>
@@ -352,8 +355,9 @@ export default function LoginPage() {
                       type={showResetPasswords ? 'text' : 'password'}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value.replace(/^\s+/, ''))}
-                      className="input-field"
-                    
+                      className="input-field no-select-password"
+                      onCopy={e => e.preventDefault()}
+                      onCut={e => e.preventDefault()}
                     />
                     {forgotFieldErrors.confirmPassword && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.confirmPassword}</div>
