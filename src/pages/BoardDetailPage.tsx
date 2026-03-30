@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
@@ -145,13 +145,9 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   const isLeague = (board.boardType === 2 || board.boardType === 'League' || board.BoardType === 2);
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
   const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
-  const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(
-    () => {
-      const co = (board.coOwners || [])[0];
-      return co ? { id: co.id || co.userId, firstName: co.firstName || co.name?.split(' ')[0] || '', lastName: co.lastName || co.name?.split(' ').slice(1).join(' ') || '', email: co.email || '' } : null;
-    }
-  );
+  const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
 
+  // Fetch user list eagerly for League boards so we can resolve the co-owner from ownerId
   const { data: coOwnerUserList, isLoading: coOwnerLoading } = useQuery({
     queryKey: ['usersList'],
     queryFn: async () => {
@@ -170,8 +166,22 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         };
       });
     },
-    enabled: showCoOwnerDropdown && isLeague,
+    enabled: isLeague,
   });
+
+  // Pre-select co-owner from board's ownerId once user list loads
+  useEffect(() => {
+    if (!isLeague || !coOwnerUserList || selectedCoOwner) return;
+    const boardOwnerId = board.ownerId || board.owneriD || board.OwnerId || board.owner_id || board.ownerid || '';
+    const loggedInUserId = useAuthStore.getState().user?.id || '';
+    // If the board's ownerId is different from logged-in user, it's the co-owner
+    if (boardOwnerId && boardOwnerId !== loggedInUserId) {
+      const match = coOwnerUserList.find((u: any) => u.id === boardOwnerId);
+      if (match) {
+        setSelectedCoOwner({ id: match.id, firstName: match.firstName, lastName: match.lastName, email: match.email });
+      }
+    }
+  }, [coOwnerUserList, isLeague]);
 
   const updateMutation = useMutation({
     mutationFn: async () => {
