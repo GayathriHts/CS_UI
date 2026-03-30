@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/slices/authStore';
 import { boardService, tournamentService, userService, feedService } from '../services/cricketSocialService';
+import { getCountries, getStates, getCities } from '../services/locationService';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 type MenuSection = 'score' | 'pitch' | 'events' | 'fans' | 'fanof' | 'board' | 'buddies' | 'compare' | 'book' | 'invoices';
@@ -462,16 +463,31 @@ const { data: boards } = useQuery({
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                       <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as 'Team' | 'League')} className="input-field"><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" placeholder="City" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">State</label><input value={newBoardState} onChange={e => setNewBoardState(e.target.value)} className="input-field" placeholder="State" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Country</label><input value={newBoardCountry} onChange={e => setNewBoardCountry(e.target.value)} className="input-field" placeholder="Country" /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                      <select value={newBoardCountry} onChange={e => { setNewBoardCountry(e.target.value); setNewBoardState(''); setNewBoardCity(''); }} className="input-field">
+                        <option value="">Select Country</option>
+                        {getCountries().map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                      <select value={newBoardState} onChange={e => { setNewBoardState(e.target.value); setNewBoardCity(''); }} className="input-field" disabled={!newBoardCountry}>
+                        <option value="">{newBoardCountry ? 'Select State' : 'Select Country first'}</option>
+                        {getStates(newBoardCountry).map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                      <select value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" disabled={!newBoardState}>
+                        <option value="">{newBoardState ? 'Select City' : 'Select State first'}</option>
+                        {getCities(newBoardCountry, newBoardState).map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
                   </div>
                   <button onClick={() => newBoardName && createBoardMutation.mutate()} disabled={!newBoardName || createBoardMutation.isPending}
                     className="btn-primary text-sm px-6 mt-4">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
                 </div>
               )}
               {(() => { console.log('Boards rendered:', boards?.items); return null; })()}
-              {boards?.items?.length ? (
+              {!showCreateBoard && boards?.items?.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {boards.items.map((b: any) => {
                     const boardTypeLabel = b.boardType === 1 || b.boardType === 'Team' ? 'Team' : b.boardType === 2 || b.boardType === 'League' ? 'League' : b.boardType;
@@ -503,14 +519,14 @@ const { data: boards } = useQuery({
                   );
                   })}
                 </div>
-              ) : (
+              ) : !showCreateBoard ? (
                 <div className="card text-center py-12">
                   <img src="/images/MyBoard.png" alt="" className="w-16 h-16 mx-auto mb-4 opacity-50" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   <p className="text-gray-400 text-lg">No boards yet</p>
                   <p className="text-gray-400 text-sm mt-2">Create your first team or league board!</p>
                   <button onClick={() => setShowCreateBoard(true)} className="btn-primary mt-4">Create Board</button>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 

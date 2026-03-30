@@ -67,7 +67,6 @@ export default function BoardDetailPage() {
               </Link>
               <Link to="/" className="flex items-center gap-2">
                 <img src="/images/cs-logo.png" alt="CricketSocial" className="h-8" />
-                <span className="text-white font-bold text-lg">CricketSocial</span>
               </Link>
             </div>
           </div>
