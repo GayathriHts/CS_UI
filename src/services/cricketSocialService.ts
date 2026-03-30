@@ -117,8 +117,23 @@ export const boardService = {
 export const rosterService = {
   create: (boardId: string, data: {
     name: string;
+    boardId?: string;
+    rosterName?: string;
     logoUrl?: string;
-  }) => boardApi.post(`/boards/${boardId}/Rosters`, data) as Promise<{ data: Roster }>,
+    captain?: string;
+    viceCaptain?: string;
+    coach?: string;
+    members?: string[];
+  }) => boardApi.post(`/boards/${boardId}/Rosters`, {
+    name: data.name,
+    rosterName: data.rosterName || data.name,
+    boardId: data.boardId || boardId,
+    logoUrl: data.logoUrl || '',
+    captain: data.captain || '',
+    viceCaptain: data.viceCaptain || '',
+    coach: data.coach || '',
+    members: data.members || [],
+  }) as Promise<{ data: Roster }>,
   getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
   getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
   update: (boardId: string, rosterId: string, data: {
@@ -244,7 +259,19 @@ export const boardDetailService = {
   getScore: (boardId: string, year?: number) => boardApi.get(`/boards/${boardId}/score`, { params: { year } }),
   // Squad — uses board API roster endpoint
   getSquad: (boardId: string) =>
-    boardApi.get(`/boards/${boardId}/Rosters`).then((r: { data: any }) => ({ data: r.data as RosterDetail[] })),
+    boardApi.get(`/boards/${boardId}/Rosters`, {
+      params: { _t: Date.now() },
+      headers: { 'Cache-Control': 'no-cache' },
+    }).then((r: { data: any }) => {
+      const raw = r.data;
+      console.log('getSquad raw response:', raw);
+      // Normalize: API may return array directly, or { data: [...] }, or { items: [...] }
+      const list = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.data) ? raw.data
+        : Array.isArray(raw?.items) ? raw.items
+        : raw ? [raw] : [];
+      return { data: list as RosterDetail[] };
+    }),
   // Following (Fan-Of)
   getFollowing: (boardId: string) => boardApi.get(`/boards/${boardId}/following`),
   follow: (boardId: string, targetBoardId: string) => boardApi.post(`/boards/${boardId}/following/${targetBoardId}`, {}),

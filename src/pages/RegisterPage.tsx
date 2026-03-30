@@ -364,7 +364,7 @@ export default function RegisterPage() {
             {step === 'otp' && (
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter Verification Code</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter 6 digit Verification Code</label>
                   <input
                     type="text"
                     value={otpValue}

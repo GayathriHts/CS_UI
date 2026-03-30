@@ -483,6 +483,7 @@ interface RosterFormData {
 
 function SquadTab({ boardId }: { boardId: string }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RosterFormData>({
     rosterName: '', captain: '', viceCaptain: '', coach: '', members: [],
   });
@@ -491,11 +492,19 @@ function SquadTab({ boardId }: { boardId: string }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const qc = useQueryClient();
+
+  const showSuccess = (msg: string) => { setSuccessMsg(msg); setErrorMsg(null); setTimeout(() => setSuccessMsg(null), 4000); };
+  const showError = (msg: string) => { setErrorMsg(msg); setSuccessMsg(null); setTimeout(() => setErrorMsg(null), 5000); };
 
   const { data: squads, isLoading } = useQuery({
     queryKey: ['squad', boardId],
-    queryFn: () => boardDetailService.getSquad(boardId).then(r => r.data),
+    queryFn: () => boardDetailService.getSquad(boardId).then(r => {
+      console.log('Squad query result:', r.data);
+      return r.data;
+    }),
   });
 
   // Search buddies for autocomplete
@@ -506,15 +515,52 @@ function SquadTab({ boardId }: { boardId: string }) {
   });
 
   const createRosterMutation = useMutation({
-    mutationFn: (data: RosterFormData) => {
-      return rosterService.create(boardId, {
+    mutationFn: async (data: RosterFormData) => {
+      const createRes = await rosterService.create(boardId, {
         name: data.rosterName,
+        rosterName: data.rosterName,
+        boardId: boardId,
+        captain: data.captain || '',
+        viceCaptain: data.viceCaptain || '',
+        coach: data.coach || '',
+        members: data.members || [],
+      });
+      return createRes;
+    },
+    onSuccess: () => {
+      resetForm();
+      showSuccess('Roster created successfully!');
+      qc.invalidateQueries({ queryKey: ['squad', boardId] });
+      qc.invalidateQueries({ queryKey: ['board', boardId] });
+    },
+    onError: (error: any) => {
+      console.error('Create roster error:', error?.response?.status, error?.response?.data);
+      const errData = error?.response?.data;
+      const errMsg = errData?.errors
+        ? Object.values(errData.errors).flat().join(', ')
+        : errData?.message || errData?.title || 'Failed to create roster. Please try again.';
+      showError(errMsg);
+    },
+  });
+
+  const updateRosterMutation = useMutation({
+    mutationFn: (data: RosterFormData & { rosterId: string }) => {
+      return rosterService.update(boardId, data.rosterId, {
+        rosterName: data.rosterName,
+        captain: data.captain || undefined,
+        viceCaptain: data.viceCaptain || undefined,
+        coach: data.coach || undefined,
+        members: data.members.length > 0 ? data.members : undefined,
       });
     },
     onSuccess: () => {
       resetForm();
+      showSuccess('Roster updated successfully!');
       qc.invalidateQueries({ queryKey: ['squad', boardId] });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+    },
+    onError: (error: any) => {
+      showError(error?.response?.data?.message || error?.response?.data?.title || 'Failed to update roster. Please try again.');
     },
   });
 
@@ -522,18 +568,42 @@ function SquadTab({ boardId }: { boardId: string }) {
     mutationFn: (rosterId: string) => rosterService.delete(boardId, rosterId),
     onSuccess: () => {
       setDeleteConfirmId(null);
+      showSuccess('Roster deleted successfully!');
       qc.invalidateQueries({ queryKey: ['squad', boardId] });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+    },
+    onError: (error: any) => {
+      showError(error?.response?.data?.message || error?.response?.data?.title || 'Failed to delete roster.');
     },
   });
 
   const resetForm = () => {
     setShowCreateForm(false);
+    setEditingRosterId(null);
     setFormData({ rosterName: '', captain: '', viceCaptain: '', coach: '', members: [] });
     setNewMember('');
     setSearchTerm('');
     setActiveSearchField(null);
     setErrors({});
+  };
+
+  const startEdit = (roster: any) => {
+    const captain = roster.members?.find((m: any) => m.role === 'Captain');
+    const viceCaptain = roster.members?.find((m: any) => m.role === 'ViceCaptain');
+    const coach = roster.members?.find((m: any) => m.role === 'Coach');
+    const members = roster.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+    setEditingRosterId(roster.id);
+    setShowCreateForm(true);
+    setFormData({
+      rosterName: roster.name || '',
+      captain: captain?.userId || captain?.userName || '',
+      viceCaptain: viceCaptain?.userId || viceCaptain?.userName || '',
+      coach: coach?.userId || coach?.userName || '',
+      members,
+    });
+    setErrors({});
+    // Scroll to form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const validateForm = (): boolean => {
@@ -545,11 +615,17 @@ function SquadTab({ boardId }: { boardId: string }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCreate = () => {
+  const handleSubmit = () => {
     if (validateForm()) {
-      createRosterMutation.mutate(formData);
+      if (editingRosterId) {
+        updateRosterMutation.mutate({ ...formData, rosterId: editingRosterId });
+      } else {
+        createRosterMutation.mutate(formData);
+      }
     }
   };
+
+  const isSubmitting = createRosterMutation.isPending || updateRosterMutation.isPending;
 
   const handleAddMember = (userId?: string) => {
     const id = userId || newMember.trim();
@@ -607,10 +683,24 @@ function SquadTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="animate-fade-in">
+      {/* Success/Error Messages */}
+      {successMsg && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 flex items-center gap-2 text-sm">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          {successMsg}
+        </div>
+      )}
+      {errorMsg && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 flex items-center gap-2 text-sm">
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+          {errorMsg}
+        </div>
+      )}
+
       {/* Create Roster Button */}
       {!showCreateForm && (
         <div className="mb-6">
-          <button onClick={() => setShowCreateForm(true)} className="btn-primary flex items-center gap-2">
+          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); }} className="btn-primary flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -622,7 +712,7 @@ function SquadTab({ boardId }: { boardId: string }) {
       {/* Create Roster Form — matches legacy screenshot layout */}
       {showCreateForm && (
         <div className="card mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-6">Create Roster</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-6">{editingRosterId ? 'Edit Roster' : 'Create Roster'}</h3>
 
           <div className="space-y-5">
             {/* Roster Name row */}
@@ -763,14 +853,16 @@ function SquadTab({ boardId }: { boardId: string }) {
               )}
             </div>
 
-            {/* Create / Cancel Buttons */}
+            {/* Create/Update & Cancel Buttons */}
             <div className="flex gap-3 pt-4">
               <button
-                onClick={handleCreate}
-                disabled={createRosterMutation.isPending}
+                onClick={handleSubmit}
+                disabled={isSubmitting}
                 className="px-6 py-2.5 bg-brand-green text-white rounded-lg hover:bg-brand-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {createRosterMutation.isPending ? 'Creating...' : 'Create'}
+                {isSubmitting
+                  ? (editingRosterId ? 'Updating...' : 'Creating...')
+                  : (editingRosterId ? 'Update Roster' : 'Create')}
               </button>
               <button
                 onClick={resetForm}
@@ -779,10 +871,6 @@ function SquadTab({ boardId }: { boardId: string }) {
                 Cancel
               </button>
             </div>
-
-            {createRosterMutation.isError && (
-              <p className="text-sm text-red-600 mt-2">Failed to create roster. Please try again.</p>
-            )}
           </div>
         </div>
       )}
@@ -795,7 +883,7 @@ function SquadTab({ boardId }: { boardId: string }) {
       )}
 
       {/* Rosters List */}
-      {squads?.length ? squads.map(roster => (
+      {squads?.length ? squads.map((roster: any) => (
         <div key={roster.id} className="card mb-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
@@ -803,12 +891,12 @@ function SquadTab({ boardId }: { boardId: string }) {
                 {roster.logoUrl ? (
                   <img src={roster.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />
                 ) : (
-                  <span className="text-brand-green font-bold text-lg">{roster.name[0]}</span>
+                  <span className="text-brand-green font-bold text-lg">{(roster.name || roster.rosterName || 'R')[0]}</span>
                 )}
               </div>
               <div>
-                <h3 className="font-semibold text-gray-800 text-lg">{roster.name}</h3>
-                <p className="text-xs text-gray-500">{roster.memberCount} members</p>
+                <h3 className="font-semibold text-gray-800 text-lg">{roster.name || roster.rosterName || 'Unnamed Roster'}</h3>
+                <p className="text-xs text-gray-500">{roster.memberCount ?? roster.members?.length ?? 0} members</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -820,20 +908,27 @@ function SquadTab({ boardId }: { boardId: string }) {
                   <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">No</button>
                 </div>
               ) : (
-                <button onClick={() => setDeleteConfirmId(roster.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
+                <>
+                  <button onClick={() => startEdit(roster)} className="text-gray-400 hover:text-brand-green transition-colors" title="Edit roster">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <button onClick={() => setDeleteConfirmId(roster.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </>
               )}
             </div>
           </div>
 
           {/* Members grouped by role */}
-          {roster.members.length > 0 ? (
+          {roster.members?.length > 0 ? (
             <div className="space-y-3">
               {['Captain', 'ViceCaptain', 'Coach', 'Member'].map(role => {
-                const roleMembers = roster.members.filter(m => m.role === role);
+                const roleMembers = roster.members.filter((m: any) => m.role === role);
                 if (roleMembers.length === 0) return null;
                 return (
                   <div key={role}>
