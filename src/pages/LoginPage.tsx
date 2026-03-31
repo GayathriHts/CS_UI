@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ResendOtpButton from '../components/ResendOtpButton';
 import OtpInput from '../components/OtpInput';
+import PasswordInput from '../components/PasswordInput';
 import { authService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
 import type { LoginRequest } from '../types';
@@ -19,7 +20,8 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showResetPasswords, setShowResetPasswords] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
   const [forgotFieldErrors, setForgotFieldErrors] = useState<Record<string, string>>({});
   const [resetToken, setResetToken] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -157,9 +159,6 @@ export default function LoginPage() {
     } else if (forgotStep === 'reset') {
       const errs: Record<string, string> = {};
       const passwordValidationError = getPasswordValidationError(newPassword);
-      if (passwordValidationError) {
-        errs.newPassword = passwordValidationError;
-      }
 
       if (!confirmPassword) {
         errs.confirmPassword = 'Please enter Confirm Password';
@@ -167,7 +166,7 @@ export default function LoginPage() {
         errs.confirmPassword = "Confirmation password doesn't match";
       }
 
-      if (Object.keys(errs).length > 0) {
+      if (passwordValidationError || Object.keys(errs).length > 0) {
         setForgotFieldErrors(errs);
         return;
       }
@@ -232,32 +231,18 @@ export default function LoginPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-                  <div className="relative">
-                    <input
-                      type={showLoginPassword ? 'text' : 'password'}
-                      {...register('password', { required: true })}
-                      className="input-field no-select-password pr-10"
-                      placeholder=""
-                      onCopy={e => e.preventDefault()}
-                      onCut={e => e.preventDefault()}
-                      onInput={e => {
-                        const input = e.target as HTMLInputElement;
-                        input.value = input.value.replace(/^\s+/, '');
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      tabIndex={-1}
-                    >
-                      {showLoginPassword ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-11-7.5a11.72 11.72 0 013.168-4.477M6.343 6.343A9.97 9.97 0 0112 5c5 0 9.27 3.11 11 7.5a11.72 11.72 0 01-4.168 4.477M6.343 6.343L3 3m3.343 3.343l2.829 2.829m4.243 4.243l2.829 2.829M6.343 6.343l11.314 11.314M14.121 14.121A3 3 0 009.879 9.879" /></svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                      )}
-                    </button>
-                  </div>
+                  <PasswordInput
+                    show={showLoginPassword}
+                    onToggle={() => setShowLoginPassword(!showLoginPassword)}
+                    {...register('password', { required: true })}
+                    placeholder=""
+                    onCopy={e => e.preventDefault()}
+                    onCut={e => e.preventDefault()}
+                    onInput={e => {
+                      const input = e.target as HTMLInputElement;
+                      input.value = input.value.replace(/^\s+/, '');
+                    }}
+                  />
                   {errors.password && (
                     <div className="text-red-600 text-xs mt-1">Password is required</div>
                   )}
@@ -265,7 +250,7 @@ export default function LoginPage() {
                 <div className="flex items-center justify-end text-sm">
                   <button
                     type="button"
-                    onClick={() => { setShowForgotPassword(true); setError(''); setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmPassword(''); setForgotFieldErrors({}); setForgotStep('email'); setSuccessMessage(''); setShowResetPasswords(false); }}
+                    onClick={() => { setShowForgotPassword(true); setError(''); setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmPassword(''); setForgotFieldErrors({}); setForgotStep('email'); setSuccessMessage(''); setShowResetPassword(false); setShowResetConfirmPassword(false); }}
                     className="text-brand-green hover:underline font-medium"
                   >
                     Forgot Password?
@@ -357,61 +342,33 @@ export default function LoginPage() {
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
-                    <div className="relative">
-                      <input
-                        type={showResetPasswords ? 'text' : 'password'}
-                        value={newPassword}
-                        onChange={(e) => setNewPassword(e.target.value.replace(/^\s+/, ''))}
-                        className="input-field no-select-password pr-10"
-                        onCopy={e => e.preventDefault()}
-                        onCut={e => e.preventDefault()}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowResetPasswords(!showResetPasswords)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        tabIndex={-1}
-                      >
-                        {showResetPasswords ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-11-7.5a11.72 11.72 0 013.168-4.477M6.343 6.343A9.97 9.97 0 0112 5c5 0 9.27 3.11 11 7.5a11.72 11.72 0 01-4.168 4.477M6.343 6.343L3 3m3.343 3.343l2.829 2.829m4.243 4.243l2.829 2.829M6.343 6.343l11.314 11.314M14.121 14.121A3 3 0 009.879 9.879" /></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        )}
-                      </button>
-                    </div>
-                    {forgotFieldErrors.newPassword && (
-                      <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.newPassword}</div>
+                    <PasswordInput
+                      show={showResetPassword}
+                      onToggle={() => setShowResetPassword(!showResetPassword)}
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value.replace(/^\s+/, ''))}
+                      onCopy={e => e.preventDefault()}
+                      onCut={e => e.preventDefault()}
+                    />
+                    {getPasswordValidationError(newPassword || '') && (
+                      <div className="text-gray-500 text-xs mt-1">Please create a strong password with at least 8 characters, one uppercase letter, one lowercase letter, one number, and one special character.</div>
                     )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
-                    <div className="relative">
-                      <input
-                        type={showResetPasswords ? 'text' : 'password'}
-                        value={confirmPassword}
-                        onChange={(e) => setConfirmPassword(e.target.value.replace(/^\s+/, ''))}
-                        className="input-field no-select-password pr-10"
-                        onCopy={e => e.preventDefault()}
-                        onCut={e => e.preventDefault()}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowResetPasswords(!showResetPasswords)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        tabIndex={-1}
-                      >
-                        {showResetPasswords ? (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-11-7.5a11.72 11.72 0 013.168-4.477M6.343 6.343A9.97 9.97 0 0112 5c5 0 9.27 3.11 11 7.5a11.72 11.72 0 01-4.168 4.477M6.343 6.343L3 3m3.343 3.343l2.829 2.829m4.243 4.243l2.829 2.829M6.343 6.343l11.314 11.314M14.121 14.121A3 3 0 009.879 9.879" /></svg>
-                        ) : (
-                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        )}
-                      </button>
-                    </div>
+                    <PasswordInput
+                      show={showResetConfirmPassword}
+                      onToggle={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value.replace(/^\s+/, ''))}
+                      onCopy={e => e.preventDefault()}
+                      onCut={e => e.preventDefault()}
+                    />
                     {forgotFieldErrors.confirmPassword && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.confirmPassword}</div>
                     )}
                   </div>
-                  <button type="button" onClick={handleForgotPassword} disabled={!newPassword || !confirmPassword || loading} className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Resetting...</span> : 'Reset Password'}</button>
+                  <button type="button" onClick={handleForgotPassword} disabled={loading} className="w-full btn-primary py-3">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Resetting...</span> : 'Reset Password'}</button>
                 </div>
               )}
               {forgotStep === 'done' && (
@@ -420,7 +377,7 @@ export default function LoginPage() {
                     <svg className="w-8 h-8 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   </div>
                   <p className="text-gray-600">You can now login with your new password.</p>
-                  <button onClick={() => { setShowForgotPassword(false); setForgotStep('email'); setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmPassword(''); setForgotFieldErrors({}); setError(''); setSuccessMessage(''); setShowResetPasswords(false); }} className="w-full btn-primary py-3">
+                  <button onClick={() => { setShowForgotPassword(false); setForgotStep('email'); setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmPassword(''); setForgotFieldErrors({}); setError(''); setSuccessMessage(''); setShowResetPassword(false); setShowResetConfirmPassword(false); }} className="w-full btn-primary py-3">
                     Back to Login
                   </button>
                 </div>
@@ -438,6 +395,8 @@ export default function LoginPage() {
                       setConfirmPassword('');
                       setForgotFieldErrors({});
                       setError('');
+                      setShowResetPassword(false);
+                      setShowResetConfirmPassword(false);
                     }}
                     className="text-sm text-gray-500 hover:text-brand-green">
                     ← Back to Login
