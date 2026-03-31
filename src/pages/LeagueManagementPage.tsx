@@ -5,22 +5,55 @@ import { boardService, leagueService, rosterService, tournamentService } from '.
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
 import Navbar from '../components/Navbar';
 
-type LeagueTab = 'dashboard' | 'umpires' | 'grounds' | 'schedule' | 'tournaments' | 'applications' | 'invoices';
+type LeagueTab = 'dashboard' | 'create-umpire' | 'umpire-list' | 'create-ground' | 'ground-list' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game';
 
-const menuItems: { id: LeagueTab; label: string; icon: string }[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'umpires', label: 'Umpires', icon: '🧑‍⚖️' },
-  { id: 'grounds', label: 'Grounds', icon: '🏟️' },
-  { id: 'tournaments', label: 'Tournaments', icon: '🏆' },
-  { id: 'schedule', label: 'Schedule', icon: '📅' },
-  { id: 'applications', label: 'Applications', icon: '📋' },
-  { id: 'invoices', label: 'Invoicing', icon: '💰' },
+type SidebarSection = 'umpires' | 'grounds' | 'schedules';
+
+const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueTab; label: string }[] }[] = [
+  {
+    id: 'umpires', label: 'UMPIRES',
+    items: [
+      { id: 'create-umpire', label: 'Create Umpire' },
+      { id: 'umpire-list', label: 'Umpire List' },
+    ],
+  },
+  {
+    id: 'grounds', label: 'GROUNDS',
+    items: [
+      { id: 'create-ground', label: 'Create Ground' },
+      { id: 'ground-list', label: 'Ground List' },
+    ],
+  },
+  {
+    id: 'schedules', label: 'SCHEDULES AND RESULTS',
+    items: [
+      { id: 'schedule', label: 'Schedule' },
+      { id: 'tournaments', label: 'Tournaments' },
+      { id: 'cancel-game', label: 'Cancel Game by Date' },
+      { id: 'applications', label: 'New Applications' },
+      { id: 'invoices', label: 'Invoicing' },
+    ],
+  },
 ];
 
 export default function LeagueManagementPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const [activeTab, setActiveTab] = useState<LeagueTab>('dashboard');
+  const [expandedSections, setExpandedSections] = useState<SidebarSection[]>([]);
   const { data: board } = useQuery({ queryKey: ['board', boardId], queryFn: () => boardService.getById(boardId!).then(r => r.data), enabled: !!boardId });
+
+  const toggleSection = (section: SidebarSection) => {
+    setExpandedSections(prev =>
+      prev.includes(section) ? prev.filter(s => s !== section) : [...prev, section]
+    );
+  };
+
+  const handleTabClick = (tab: LeagueTab, section: SidebarSection) => {
+    setActiveTab(tab);
+    if (!expandedSections.includes(section)) {
+      setExpandedSections(prev => [...prev, section]);
+    }
+  };
 
   if (!board) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin" /></div>;
 
@@ -30,31 +63,69 @@ export default function LeagueManagementPage() {
 
       <div className="pt-14 flex">
         {/* Sidebar */}
-        <div className="w-60 min-h-screen bg-white border-r shadow-sm fixed left-0 top-14">
+        <div className="w-64 min-h-screen bg-white border-r shadow-sm fixed left-0 top-14 overflow-y-auto">
+          {/* Board Info */}
           <div className="p-4 border-b">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-brand-green/10 rounded-xl flex items-center justify-center text-brand-green font-bold">{board.name[0]}</div>
-              <div><p className="font-semibold text-sm">{board.name}</p><p className="text-xs text-gray-500">League Board</p></div>
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mb-3">
+                {board.logoUrl
+                  ? <img src={board.logoUrl} alt="" className="w-16 h-16 rounded-full object-cover" />
+                  : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />
+                }
+              </div>
+              <p className="font-bold text-sm flex items-center gap-1">✏️ {board.name}</p>
+              <p className="text-xs text-gray-500 mt-1">{board.fanCount ?? 0} Page Views | {board.rosterCount ?? 0} Users</p>
             </div>
           </div>
-          <div className="p-2">
-            <p className="px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Manage Your League</p>
-            {menuItems.map(m => (
-              <button key={m.id} onClick={() => setActiveTab(m.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm flex items-center gap-2 transition-colors ${activeTab === m.id ? 'bg-brand-green/10 text-brand-green font-semibold' : 'text-gray-600 hover:bg-gray-50'}`}>
-                <span>{m.icon}</span> {m.label}
-              </button>
+
+          {/* Collapsible Sections */}
+          <div className="py-2">
+            {sidebarSections.map(section => (
+              <div key={section.id} className="border-b last:border-b-0">
+                <button
+                  onClick={() => toggleSection(section.id)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-gray-800 hover:bg-gray-50 transition-colors"
+                >
+                  <span>{section.label}</span>
+                  <svg
+                    className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${expandedSections.includes(section.id) ? 'rotate-180' : ''}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {expandedSections.includes(section.id) && (
+                  <div className="pb-2">
+                    {section.items.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleTabClick(item.id, section.id)}
+                        className={`w-full text-left pl-8 pr-4 py-2 text-sm transition-colors ${
+                          activeTab === item.id
+                            ? 'text-brand-green font-semibold bg-brand-green/5'
+                            : 'text-blue-600 hover:text-blue-800 hover:bg-gray-50'
+                        }`}
+                      >
+                        &gt; {item.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         </div>
 
         {/* Content */}
-        <div className="ml-60 flex-1 p-6">
-          {activeTab === 'dashboard' && <DashboardTab boardId={boardId!} />}
-          {activeTab === 'umpires' && <UmpiresTab boardId={boardId!} />}
-          {activeTab === 'grounds' && <GroundsTab />}
+        <div className="ml-64 flex-1 p-6">
+          {activeTab === 'dashboard' && <LeagueLandingTab boardId={boardId!} />}
+          {activeTab === 'create-umpire' && <CreateUmpireTab boardId={boardId!} />}
+          {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} />}
+          {activeTab === 'create-ground' && <CreateGroundTab />}
+          {activeTab === 'ground-list' && <GroundListTab />}
           {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} />}
           {activeTab === 'schedule' && <ScheduleTab boardId={boardId!} />}
+          {activeTab === 'cancel-game' && <CancelGameTab boardId={boardId!} />}
           {activeTab === 'applications' && <ApplicationsTab boardId={boardId!} />}
           {activeTab === 'invoices' && <InvoicesTab boardId={boardId!} />}
         </div>
@@ -63,60 +134,267 @@ export default function LeagueManagementPage() {
   );
 }
 
-// ── DASHBOARD TAB ──
-function DashboardTab({ boardId }: { boardId: string }) {
-  const { data: tournaments } = useQuery({ queryKey: ['tournaments', boardId], queryFn: () => tournamentService.getByBoard(boardId).then(r => r.data) });
-  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data) });
-  const { data: invoices } = useQuery({ queryKey: ['invoices', boardId], queryFn: () => leagueService.getInvoices(boardId).then(r => r.data) });
+// ── LEAGUE LANDING TAB (default when Manage League is opened) ──
+function LeagueLandingTab({ boardId }: { boardId: string }) {
+  const { data: tournaments } = useQuery({
+    queryKey: ['tournaments', boardId],
+    queryFn: () => tournamentService.getByBoard(boardId).then(r => r.data),
+  });
+  const { data: schedule } = useQuery({
+    queryKey: ['schedule-landing', boardId],
+    queryFn: () => {
+      const now = new Date();
+      const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+      const to = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0];
+      return leagueService.getSchedule(boardId, from, to).then(r => r.data);
+    },
+  });
 
-  const totalRevenue = invoices?.reduce((s, i) => s + (i.paidAmount ?? 0), 0) ?? 0;
-  const pendingInvoices = invoices?.filter(i => i.status === 'Pending').length ?? 0;
+  const recentResults = schedule?.filter(m => m.status === 'Completed').slice(0, 5) ?? [];
+  const upcomingMatches = schedule?.filter(m => m.status === 'Scheduled' || m.status === 'Live').slice(0, 5) ?? [];
 
   return (
-    <div className="animate-fade-in">
-      <h2 className="text-2xl font-bold text-gray-800 mb-6">League Dashboard</h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Tournaments', value: tournaments?.totalCount ?? 0, color: 'bg-blue-50 text-blue-700', icon: '🏆' },
-          { label: 'Umpires', value: umpires?.length ?? 0, color: 'bg-green-50 text-green-700', icon: '🧑‍⚖️' },
-          { label: 'Revenue', value: `$${totalRevenue.toFixed(0)}`, color: 'bg-purple-50 text-purple-700', icon: '💰' },
-          { label: 'Pending Invoices', value: pendingInvoices, color: 'bg-orange-50 text-orange-700', icon: '📋' },
-        ].map(s => (
-          <div key={s.label} className={`rounded-xl p-5 ${s.color}`}>
-            <div className="flex items-center justify-between">
-              <div><p className="text-2xl font-bold">{s.value}</p><p className="text-sm opacity-80">{s.label}</p></div>
-              <span className="text-3xl">{s.icon}</span>
-            </div>
-          </div>
-        ))}
+    <div className="animate-fade-in space-y-6">
+      {/* Star Batsmen of the Week */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-800 uppercase border-b-2 border-yellow-400 pb-2 mb-3">
+          Star Batsmen of the Week
+        </h3>
+        <p className="text-red-500 text-sm italic">No Star Batsmen for the week</p>
       </div>
-      {tournaments?.items && tournaments.items.length > 0 && (
-        <div className="card">
-          <h3 className="font-semibold text-gray-800 mb-4">Recent Tournaments</h3>
+
+      {/* Star Bowlers of the Week */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-800 uppercase border-b-2 border-yellow-400 pb-2 mb-3">
+          Star Bowlers of the Week
+        </h3>
+        <p className="text-red-500 text-sm italic">No Star Bowler for the week</p>
+      </div>
+
+      {/* Recent Match Results */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-800 uppercase border-b-2 border-yellow-400 pb-2 mb-3">
+          Recent Match Results
+        </h3>
+        {recentResults.length > 0 ? (
           <div className="space-y-3">
-            {tournaments.items.slice(0, 5).map(t => (
-              <div key={t.id} className="bg-gray-50 rounded-lg p-4 flex justify-between items-center">
-                <div><p className="font-medium">{t.name}</p><p className="text-xs text-gray-500">{t.format} · {t.matchCount} matches</p></div>
-                <span className={`px-3 py-1 rounded-full text-xs font-medium ${t.status === 'Completed' ? 'bg-green-100 text-green-700' : t.status === 'Cancelled' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>{t.status}</span>
+            {recentResults.map(m => (
+              <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
+                  {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
+                </div>
+                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">View Score</span>
               </div>
             ))}
           </div>
-        </div>
-      )}
+        ) : (
+          <p className="text-gray-400 text-sm italic">No completed match results</p>
+        )}
+      </div>
+
+      {/* Upcoming / In Progress Matches */}
+      <div>
+        <h3 className="text-sm font-bold text-gray-800 uppercase border-b-2 border-yellow-400 pb-2 mb-3">
+          Upcoming/In Progress Matches
+        </h3>
+        {upcomingMatches.length > 0 ? (
+          <div className="space-y-3">
+            {upcomingMatches.map(m => (
+              <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
+                <div>
+                  <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
+                  {m.groundName && <p className="text-xs text-gray-400">📍 {m.groundName}</p>}
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {m.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-red-500 text-sm italic">No upcoming matches</p>
+        )}
+      </div>
     </div>
   );
 }
 
-// ── UMPIRES TAB ──
-function UmpiresTab({ boardId }: { boardId: string }) {
-  const [showForm, setShowForm] = useState(false);
-  const [name, setName] = useState(''); const [contact, setContact] = useState(''); const [city, setCity] = useState('');
+// ── CREATE UMPIRE TAB ──
+function CreateUmpireTab({ boardId }: { boardId: string }) {
+  const [name, setName] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [addressLine2, setAddressLine2] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [countryCode, setCountryCode] = useState('+1');
+  const [contactNo, setContactNo] = useState('');
+  const [email, setEmail] = useState('');
+  const qc = useQueryClient();
+
+  const createMutation = useMutation({
+    mutationFn: () => leagueService.createUmpire(boardId, {
+      name,
+      addressLine1: addressLine1 || undefined,
+      addressLine2: addressLine2 || undefined,
+      city: city || undefined,
+      state: state || undefined,
+      country: country || undefined,
+      zipCode: zipCode || undefined,
+      countryCode: countryCode || undefined,
+      contactNumber: contactNo || undefined,
+      email: email || undefined,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['umpires', boardId] });
+      setName(''); setAddressLine1(''); setAddressLine2('');
+      setCity(''); setState(''); setCountry('');
+      setZipCode(''); setContactNo(''); setEmail('');
+    },
+  });
+
+  return (
+    <div className="animate-fade-in">
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Create Umpire</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+            {/* Row 1 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>Umpire Name
+              </label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="input-field"
+                placeholder="Search by Name, Email or Mobile No"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+              <input
+                value={addressLine1}
+                onChange={e => setAddressLine1(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+              <input
+                value={addressLine2}
+                onChange={e => setAddressLine2(e.target.value)}
+                className="input-field"
+              />
+            </div>
+
+            {/* Row 2 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>City
+              </label>
+              <input
+                value={city}
+                onChange={e => setCity(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>State
+              </label>
+              <input
+                value={state}
+                onChange={e => setState(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>Country
+              </label>
+              <input
+                value={country}
+                onChange={e => setCountry(e.target.value)}
+                className="input-field"
+              />
+            </div>
+
+            {/* Row 3 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>Zip Code
+              </label>
+              <input
+                value={zipCode}
+                onChange={e => setZipCode(e.target.value)}
+                className="input-field"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact No</label>
+              <div className="flex gap-2">
+                <select
+                  value={countryCode}
+                  onChange={e => setCountryCode(e.target.value)}
+                  className="input-field w-28"
+                >
+                  <option value="+1">+1 (US)</option>
+                  <option value="+44">+44 (UK)</option>
+                  <option value="+91">+91 (IN)</option>
+                  <option value="+61">+61 (AU)</option>
+                  <option value="+64">+64 (NZ)</option>
+                  <option value="+27">+27 (ZA)</option>
+                  <option value="+94">+94 (LK)</option>
+                  <option value="+92">+92 (PK)</option>
+                  <option value="+880">+880 (BD)</option>
+                  <option value="+971">+971 (AE)</option>
+                </select>
+                <input
+                  value={contactNo}
+                  onChange={e => setContactNo(e.target.value)}
+                  className="input-field flex-1"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>E-mail ID
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="input-field"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={() => name && city && state && country && zipCode && email && createMutation.mutate()}
+              disabled={!name || !city || !state || !country || !zipCode || !email || createMutation.isPending}
+              className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {createMutation.isPending ? 'Submitting...' : 'Submit'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── UMPIRE LIST TAB ──
+function UmpireListTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
   const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data) });
-  const createMutation = useMutation({
-    mutationFn: () => leagueService.createUmpire(boardId, { name, contactNumber: contact, city }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['umpires', boardId] }); setShowForm(false); setName(''); setContact(''); setCity(''); },
-  });
   const deleteMutation = useMutation({
     mutationFn: (id: string) => leagueService.deleteUmpire(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['umpires', boardId] }),
@@ -124,80 +402,138 @@ function UmpiresTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Umpires</h2>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary text-sm px-4">{showForm ? 'Cancel' : '+ Create Umpire'}</button>
-      </div>
-      {showForm && (
-        <div className="card mb-6">
-          <h3 className="font-semibold mb-4">Create Umpire</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input value={name} onChange={e => setName(e.target.value)} className="input-field" placeholder="Umpire name" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Phone</label><input value={contact} onChange={e => setContact(e.target.value)} className="input-field" placeholder="Phone number" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={city} onChange={e => setCity(e.target.value)} className="input-field" placeholder="City" /></div>
-          </div>
-          <button onClick={() => name && createMutation.mutate()} disabled={!name || createMutation.isPending} className="btn-primary text-sm px-6 mt-4">{createMutation.isPending ? 'Creating...' : 'Create'}</button>
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Umpire List</h2>
         </div>
-      )}
-      <div className="card">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Name</th><th className="pb-3">Phone</th><th className="pb-3">City</th><th className="pb-3">Rating</th><th className="pb-3">Matches</th><th className="pb-3">Actions</th></tr></thead>
-          <tbody>
-            {umpires?.map(u => (
-              <tr key={u.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                <td className="py-3 font-medium">{u.name}</td><td className="py-3">{u.contactNumber || '-'}</td><td className="py-3">{u.city || '-'}</td>
-                <td className="py-3">{'⭐'.repeat(Math.round(u.rating))} ({u.rating.toFixed(1)})</td><td className="py-3">{u.totalMatches}</td>
-                <td className="py-3"><button onClick={() => deleteMutation.mutate(u.id)} className="text-red-500 hover:text-red-700 text-xs">Delete</button></td>
+        <div className="p-6">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-gray-500">
+                <th className="pb-3">Name</th>
+                <th className="pb-3">Email</th>
+                <th className="pb-3">Phone</th>
+                <th className="pb-3">City</th>
+                <th className="pb-3">Rating</th>
+                <th className="pb-3">Matches</th>
+                <th className="pb-3">Actions</th>
               </tr>
-            ))}
-            {(!umpires?.length) && <tr><td colSpan={6} className="py-8 text-center text-gray-400">No umpires created yet.</td></tr>}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {umpires?.map(u => (
+                <tr key={u.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                  <td className="py-3 font-medium">{u.name}</td>
+                  <td className="py-3">{u.email || '-'}</td>
+                  <td className="py-3">{u.contactNumber ? `${u.countryCode || ''} ${u.contactNumber}` : '-'}</td>
+                  <td className="py-3">{u.city || '-'}</td>
+                  <td className="py-3">{'⭐'.repeat(Math.round(u.rating))} ({u.rating.toFixed(1)})</td>
+                  <td className="py-3">{u.totalMatches}</td>
+                  <td className="py-3">
+                    <button onClick={() => deleteMutation.mutate(u.id)} className="text-red-500 hover:text-red-700 text-xs">Delete</button>
+                  </td>
+                </tr>
+              ))}
+              {(!umpires?.length) && (
+                <tr><td colSpan={7} className="py-8 text-center text-gray-400">No umpires created yet.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
 }
 
-// ── GROUNDS TAB ──
-function GroundsTab() {
-  const [showForm, setShowForm] = useState(false);
+// ── CREATE GROUND TAB ──
+function CreateGroundTab() {
   const [name, setName] = useState(''); const [address, setAddress] = useState(''); const [city, setCity] = useState(''); const [state, setState] = useState('');
   const qc = useQueryClient();
-  const { data: grounds } = useQuery({ queryKey: ['grounds'], queryFn: () => leagueService.getGrounds().then(r => r.data) });
   const createMutation = useMutation({
     mutationFn: () => leagueService.createGround({ name, address, city, state }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grounds'] }); setShowForm(false); setName(''); setAddress(''); setCity(''); setState(''); },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grounds'] }); setName(''); setAddress(''); setCity(''); setState(''); },
   });
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Grounds</h2>
-        <button onClick={() => setShowForm(!showForm)} className="btn-primary text-sm px-4">{showForm ? 'Cancel' : '+ Create Ground'}</button>
-      </div>
-      {showForm && (
-        <div className="card mb-6">
-          <h3 className="font-semibold mb-4">Create Ground</h3>
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Create Ground</h2>
+        </div>
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input value={name} onChange={e => setName(e.target.value)} className="input-field" placeholder="Ground name" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Name</label><input value={name} onChange={e => setName(e.target.value)} className="input-field" placeholder="Ground name" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><input value={address} onChange={e => setAddress(e.target.value)} className="input-field" placeholder="Address" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={city} onChange={e => setCity(e.target.value)} className="input-field" placeholder="City" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">State</label><input value={state} onChange={e => setState(e.target.value)} className="input-field" placeholder="State" /></div>
           </div>
-          <button onClick={() => name && createMutation.mutate()} disabled={!name || createMutation.isPending} className="btn-primary text-sm px-6 mt-4">{createMutation.isPending ? 'Creating...' : 'Create'}</button>
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {grounds?.map(g => (
-          <div key={g.id} className="card">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-xl">🏟️</div>
-              <div><p className="font-semibold">{g.name}</p>{g.city && <p className="text-xs text-gray-500">{g.city}{g.state ? `, ${g.state}` : ''}</p>}</div>
-            </div>
-            {g.address && <p className="text-sm text-gray-600">{g.address}</p>}
+          <div className="flex justify-end mt-4">
+            <button onClick={() => name && createMutation.mutate()} disabled={!name || createMutation.isPending}
+              className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors">
+              {createMutation.isPending ? 'Submitting...' : 'Submit'}
+            </button>
           </div>
-        ))}
-        {(!grounds?.length) && <div className="card col-span-full text-center py-8 text-gray-400">No grounds created yet.</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── GROUND LIST TAB ──
+function GroundListTab() {
+  const { data: grounds } = useQuery({ queryKey: ['grounds'], queryFn: () => leagueService.getGrounds().then(r => r.data) });
+
+  return (
+    <div className="animate-fade-in">
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Ground List</h2>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {grounds?.map(g => (
+              <div key={g.id} className="border rounded-lg p-4">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-xl">🏟️</div>
+                  <div><p className="font-semibold">{g.name}</p>{g.city && <p className="text-xs text-gray-500">{g.city}{g.state ? `, ${g.state}` : ''}</p>}</div>
+                </div>
+                {g.address && <p className="text-sm text-gray-600">{g.address}</p>}
+              </div>
+            ))}
+            {(!grounds?.length) && <div className="col-span-full text-center py-8 text-gray-400">No grounds created yet.</div>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CANCEL GAME BY DATE TAB ──
+function CancelGameTab({ boardId }: { boardId: string }) {
+  const today = new Date();
+  const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
+  const [to, setTo] = useState(new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().split('T')[0]);
+  const qc = useQueryClient();
+  const bulkCancelMutation = useMutation({
+    mutationFn: () => leagueService.cancelGames(boardId, from, to),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['schedule', boardId] }),
+  });
+
+  return (
+    <div className="animate-fade-in">
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Cancel Game by Date</h2>
+        </div>
+        <div className="p-6">
+          <div className="flex flex-wrap gap-4 items-end">
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className="input-field" /></div>
+            <button onClick={() => bulkCancelMutation.mutate()} disabled={bulkCancelMutation.isPending}
+              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors">
+              {bulkCancelMutation.isPending ? 'Cancelling...' : 'Cancel Games'}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -372,11 +708,6 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     },
   });
 
-  const bulkCancelMutation = useMutation({
-    mutationFn: () => leagueService.cancelGames(boardId, from, to),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['schedule', boardId] }),
-  });
-
   const createMatchMutation = useMutation({
     mutationFn: () => tournamentService.createMatch({
       tournamentId: newTournamentId,
@@ -487,7 +818,6 @@ function ScheduleTab({ boardId }: { boardId: string }) {
         <div className="flex flex-wrap gap-4 items-end">
           <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="input-field" /></div>
           <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className="input-field" /></div>
-          <button onClick={() => bulkCancelMutation.mutate()} disabled={bulkCancelMutation.isPending} className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 disabled:opacity-50">{bulkCancelMutation.isPending ? 'Cancelling...' : 'Cancel Games in Range'}</button>
         </div>
       </div>
 

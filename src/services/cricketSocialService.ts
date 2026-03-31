@@ -120,6 +120,16 @@ export const boardService = {
     return boardApi.put(`/Boards/${id}`, cleaned);
   },
 
+  // Get boards by owner/co-owner
+  getByOwner: (ownerId?: string, coOwnerId?: string) => boardApi.get('/Boards/byowner', {
+    params: {
+      ...(ownerId ? { ownerId } : {}),
+      ...(coOwnerId ? { coOwnerId } : {}),
+      _t: Date.now(),
+    },
+    headers: { 'Cache-Control': 'no-cache' },
+  }),
+
   // Delete a board by ID
   delete: (id: string) => boardApi.delete(`/Boards/${id}`),
 
@@ -309,7 +319,11 @@ export const boardDetailService = {
 // ── League Management ──
 export const leagueService = {
   // Umpires
-  createUmpire: (boardId: string, data: { name: string; email?: string; contactNumber?: string; city?: string }) =>
+  createUmpire: (boardId: string, data: {
+    name: string; email?: string; contactNumber?: string; countryCode?: string;
+    addressLine1?: string; addressLine2?: string; city?: string; state?: string;
+    country?: string; zipCode?: string;
+  }) =>
     api.post<Umpire>(`/league/boards/${boardId}/umpires`, data),
   getUmpires: (boardId: string) => api.get<Umpire[]>(`/league/boards/${boardId}/umpires`),
   updateUmpire: (umpireId: string, data: { name?: string; contactNumber?: string; city?: string }) =>

@@ -33,77 +33,95 @@ export default function DashboardPage() {
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
 
-  
-
-// Track recently created boards to prevent them vanishing on refetch or reload
-const [recentBoards, setRecentBoards] = useState<any[]>(() => {
-  try {
-    const stored = sessionStorage.getItem('recentBoards');
-    return stored ? JSON.parse(stored) : [];
-  } catch { return []; }
-});
-const updateRecentBoards = (boards: any[]) => {
-  setRecentBoards(boards);
-  if (boards.length > 0) {
-    sessionStorage.setItem('recentBoards', JSON.stringify(boards));
-  } else {
-    sessionStorage.removeItem('recentBoards');
-  }
-};
-
-const { data: boards } = useQuery({
-  queryKey: ['myBoards'],
-  staleTime: 0,
-  gcTime: 0,
-  refetchOnMount: 'always',
-  refetchOnWindowFocus: true,
-  queryFn: () => boardService.getMyBoards(1, 20).then((r) => {
-    const raw = r.data;
-    // Normalize: API may return { items: [...] }, [...], { data: [...] }, or { data: { items: [...] } }
-    let items: any[] = [];
-    if (raw?.items) items = raw.items;
-    else if (Array.isArray(raw)) items = raw;
-    else if (raw?.data?.items) items = raw.data.items;
-    else if (raw?.data && Array.isArray(raw.data)) items = raw.data;
-
-    // Merge recently created boards that backend hasn't returned yet
-    // Apply pending board edits from sessionStorage (survives refresh + refetch race conditions)
+  // Track recently created boards to prevent them vanishing on refetch or reload
+  const [recentBoards, setRecentBoards] = useState<any[]>(() => {
     try {
-      const pendingEdits = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
-      if (Object.keys(pendingEdits).length > 0) {
-        let changed = false;
-        items = items.map((b: any) => {
-          const edit = pendingEdits[b.id];
-          if (edit) {
-            // If backend has caught up (name matches), remove the pending edit
-            if (b.name === edit.name) {
-              delete pendingEdits[b.id];
-              changed = true;
-              return b;
-            }
-            return { ...b, ...edit };
-          }
-          return b;
-        });
-        if (changed) {
-          if (Object.keys(pendingEdits).length === 0) {
-            sessionStorage.removeItem('boardEdits');
-          } else {
-            sessionStorage.setItem('boardEdits', JSON.stringify(pendingEdits));
-          }
+      const stored = sessionStorage.getItem('recentBoards');
+      return stored ? JSON.parse(stored) : [];
+    } catch { return []; }
+  });
+  const updateRecentBoards = (boards: any[]) => {
+    setRecentBoards(boards);
+    if (boards.length > 0) {
+      sessionStorage.setItem('recentBoards', JSON.stringify(boards));
+    } else {
+      sessionStorage.removeItem('recentBoards');
+    }
+  };
+
+  const { data: boards } = useQuery({
+    queryKey: ['myBoards', user?.id],
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      if (!user?.id) return { items: [] };
+      // Fetch boards where user is owner or co-owner
+      const [ownerRes, coOwnerRes] = await Promise.all([
+        boardService.getByOwner(user.id).catch(() => ({ data: null })),
+        boardService.getByOwner(undefined, user.id).catch(() => ({ data: null })),
+      ]);
+
+      const extractItems = (raw: any): any[] => {
+        if (!raw) return [];
+        if (raw?.items) return raw.items;
+        if (Array.isArray(raw)) return raw;
+        if (raw?.data?.items) return raw.data.items;
+        if (raw?.data && Array.isArray(raw.data)) return raw.data;
+        return [];
+      };
+
+      const ownerItems = extractItems(ownerRes.data);
+      const coOwnerItems = extractItems(coOwnerRes.data);
+
+      // Merge and deduplicate by id
+      const seen = new Set<string>();
+      let items: any[] = [];
+      for (const b of [...ownerItems, ...coOwnerItems]) {
+        if (b.id && !seen.has(b.id)) {
+          seen.add(b.id);
+          items.push(b);
         }
       }
-    } catch {}
 
-    const serverIds = new Set(items.map((b: any) => b.id));
-    const missing = recentBoards.filter(b => b.id && !serverIds.has(b.id));
-    // Clean up recentBoards once backend returns them
-    if (recentBoards.length > 0 && missing.length === 0) {
-      updateRecentBoards([]);
-    }
-    return { items: [...missing, ...items] };
-  }),
-});
+      // Apply pending board edits from sessionStorage (survives refresh + refetch race conditions)
+      try {
+        const pendingEdits = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
+        if (Object.keys(pendingEdits).length > 0) {
+          let changed = false;
+          items = items.map((b: any) => {
+            const edit = pendingEdits[b.id];
+            if (edit) {
+              // If backend has caught up (name matches), remove the pending edit
+              if (b.name === edit.name) {
+                delete pendingEdits[b.id];
+                changed = true;
+                return b;
+              }
+              return { ...b, ...edit };
+            }
+            return b;
+          });
+          if (changed) {
+            if (Object.keys(pendingEdits).length === 0) {
+              sessionStorage.removeItem('boardEdits');
+            } else {
+              sessionStorage.setItem('boardEdits', JSON.stringify(pendingEdits));
+            }
+          }
+        }
+      } catch {}
+
+      const serverIds = new Set(items.map((b: any) => b.id));
+      const missing = recentBoards.filter(b => b.id && !serverIds.has(b.id));
+      // Clean up recentBoards once backend returns them
+      if (recentBoards.length > 0 && missing.length === 0) {
+        updateRecentBoards([]);
+      }
+      return { items: [...missing, ...items] };
+    },
+  });
 
 
   const { data: feed } = useQuery({
@@ -629,8 +647,14 @@ const { data: boards } = useQuery({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {boards.items.map((b: any) => {
                     const boardTypeLabel = b.boardType === 1 || b.boardType === 'Team' ? 'Team' : b.boardType === 2 || b.boardType === 'League' ? 'League' : b.boardType;
+                    const ownerDisplay = b.owner
+                      ? `${b.owner.firstName || ''} ${b.owner.lastName || ''}`.trim() || b.owner.email || b.owner.userName || 'Unknown'
+                      : b.ownerName || '';
+                    const coOwnerDisplay = b.coOwner
+                      ? `${b.coOwner.firstName || ''} ${b.coOwner.lastName || ''}`.trim() || b.coOwner.email || b.coOwner.userName || ''
+                      : '';
                     return (
-                    <Link key={b.id} to={`/boards/${b.id}`} className="card hover:shadow-lg transition-shadow">
+                    <Link key={b.id} to={boardTypeLabel === 'League' ? `/league/${b.id}` : `/boards/${b.id}`} className="card hover:shadow-lg transition-shadow">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-brand-green/10 rounded-xl flex items-center justify-center">
                           <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = '🏟️'; }} />
@@ -638,6 +662,16 @@ const { data: boards } = useQuery({
                         <div className="flex-1">
                           <p className="font-semibold text-gray-800">{b.name}</p>
                           <p className="text-sm text-gray-500">{boardTypeLabel} Board</p>
+                          {ownerDisplay && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              <span className="font-medium text-gray-600">Owner:</span> {ownerDisplay}
+                            </p>
+                          )}
+                          {coOwnerDisplay && (
+                            <p className="text-xs text-gray-500">
+                              <span className="font-medium text-gray-600">Co-Owner:</span> {coOwnerDisplay}
+                            </p>
+                          )}
                           <div className="flex gap-4 mt-1 text-xs text-gray-400">
                             <span>{b.rosterCount} teams</span>
                             <span>{b.fanCount} fans</span>
@@ -648,10 +682,10 @@ const { data: boards } = useQuery({
                         </svg>
                       </div>
                       {boardTypeLabel === 'League' && (
-                        <button onClick={e => { e.preventDefault(); e.stopPropagation(); navigate(`/boards/${b.id}`); }}
+                        <div
                           className="mt-3 block w-full text-center bg-brand-green/10 text-brand-green text-sm font-medium py-2 rounded-lg hover:bg-brand-green/20 transition-colors">
                           ⚙️ Manage Your League
-                        </button>
+                        </div>
                       )}
                     </Link>
                   );

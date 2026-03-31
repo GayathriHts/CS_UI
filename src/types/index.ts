@@ -68,6 +68,26 @@ export interface PlayerStats {
   highestScore: number;
   bestBowling?: string;
 }
+// ── Board Owner ──
+export interface BoardOwner {
+  id: string;
+  userName?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  profileImageUrl?: string;
+  city?: string;
+  country?: string;
+  battingStyle?: string;
+  bowlingStyle?: string;
+  playerRole?: string;
+}
+
 // ── Board ──
 export interface Board {
   id: string;
@@ -85,6 +105,8 @@ export interface Board {
   websiteAddress?: string;
   ownerId: string;
   coOwnerId?: string;
+  owner?: BoardOwner;
+  coOwner?: BoardOwner;
   ownerName: string;
   fanCount: number;
   rosterCount: number;
@@ -335,8 +357,15 @@ export interface RosterMemberDetail {
 export interface Umpire {
   id: string;
   name: string;
-  contactNumber?: string;
+  addressLine1?: string;
+  addressLine2?: string;
   city?: string;
+  state?: string;
+  country?: string;
+  zipCode?: string;
+  contactNumber?: string;
+  countryCode?: string;
+  email?: string;
   rating: number;
   totalMatches: number;
   createdByBoardId: string;

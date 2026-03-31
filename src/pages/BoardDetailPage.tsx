@@ -21,6 +21,8 @@ const tabs: { id: BoardTab; label: string; icon: string }[] = [
 
 const visibleTabs = tabs.filter((tab) => tab.id === 'info' || tab.id === 'squad');
 
+const isLeagueBoard = (boardType: any) => boardType === 2 || boardType === 'League';
+
 export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
@@ -40,6 +42,13 @@ export default function BoardDetailPage() {
     enabled: !!id,
     retry: false,
   });
+
+  // Redirect League boards directly to the League Management page
+  useEffect(() => {
+    if (board && isLeagueBoard(board.boardType)) {
+      navigate(`/league/${id}`, { replace: true });
+    }
+  }, [board, id, navigate]);
 
   if (isError) {
     return (
@@ -72,14 +81,24 @@ export default function BoardDetailPage() {
               <span className="text-xs bg-white/20 px-3 py-1 rounded-full">{board.boardType} Board</span>
               <h1 className="text-3xl font-bold mt-2">{board.name}</h1>
               <p className="text-green-200 mt-1">{board.city && `${board.city}, `}{board.country} · {board.fanCount} fans · {board.rosterCount} teams</p>
+              {board.owner && (
+                <p className="text-green-200 text-sm mt-1">
+                  Owner: {`${board.owner.firstName || ''} ${board.owner.lastName || ''}`.trim() || board.owner.email || board.owner.userName || 'Unknown'}
+                  {board.coOwner && (
+                    <> · Co-Owner: {`${board.coOwner.firstName || ''} ${board.coOwner.lastName || ''}`.trim() || board.coOwner.email || board.coOwner.userName}</>
+                  )}
+                </p>
+              )}
             </div>
-            <button
-              onClick={() => setShowEditBoard(true)}
-              className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-              Edit Board
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowEditBoard(true)}
+                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                Edit Board
+              </button>
+            </div>
           </div>
           {board.description && <p className="mt-4 text-green-100 max-w-2xl">{board.description}</p>}
           <div className="flex gap-1 mt-6 -mb-px overflow-x-auto">
