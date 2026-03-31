@@ -372,10 +372,10 @@ export default function DashboardPage() {
                 className={activeMenu === item.id ? 'sidebar-item-active w-full text-left' : 'sidebar-item w-full text-left'}
               >
                 {item.iconImg ? (
-                  <img src={item.iconImg} alt="" className="w-5 h-5 object-contain" 
+                  <img src={item.iconImg} alt="" className="w-8 h-8 object-contain" 
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 ) : (
-                  <span className="text-lg">{item.icon}</span>
+                  <span className="text-2xl">{item.icon}</span>
                 )}
                 <span className="text-sm font-medium">{item.label}</span>
               </button>
@@ -522,7 +522,7 @@ export default function DashboardPage() {
             <div className="animate-fade-in">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-800">My Board</h2>
-                <button onClick={() => setShowCreateBoard(!showCreateBoard)} className="btn-primary text-sm">{showCreateBoard ? 'Cancel' : '+ Create Board'}</button>
+                <button onClick={() => setShowCreateBoard(!showCreateBoard)} className="btn-primary text-sm flex items-center gap-2">{showCreateBoard ? 'Cancel' : <><span className="text-xl font-bold leading-none">+</span> Create Board</>}</button>
               </div>
               {showCreateBoard && (
                 <div className="card mb-6">
