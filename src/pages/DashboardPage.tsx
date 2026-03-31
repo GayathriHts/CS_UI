@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/slices/authStore';
 import { boardService, tournamentService, userService, feedService } from '../services/cricketSocialService';
-import { getCountries, getStates, getCities } from '../services/locationService';
+import { fetchCountries, fetchStates, fetchCities } from '../services/locationService';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 type MenuSection = 'score' | 'pitch' | 'events' | 'fans' | 'fanof' | 'board' | 'buddies' | 'compare' | 'book' | 'invoices';
@@ -148,6 +148,37 @@ export default function DashboardPage() {
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
   const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
   const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+
+  // Location async state
+  const [countryList, setCountryList] = useState<string[]>([]);
+  const [stateList, setStateList] = useState<string[]>([]);
+  const [cityList, setCityList] = useState<string[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  // Fetch countries on mount
+  useEffect(() => {
+    setCountriesLoading(true);
+    fetchCountries().then(setCountryList).catch(() => setCountryList([])).finally(() => setCountriesLoading(false));
+  }, []);
+
+  // Fetch states when country changes
+  useEffect(() => {
+    setStateList([]);
+    setCityList([]);
+    if (!newBoardCountry) return;
+    setStatesLoading(true);
+    fetchStates(newBoardCountry).then(setStateList).catch(() => setStateList([])).finally(() => setStatesLoading(false));
+  }, [newBoardCountry]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    setCityList([]);
+    if (!newBoardCountry || !newBoardState) return;
+    setCitiesLoading(true);
+    fetchCities(newBoardCountry, newBoardState).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
+  }, [newBoardCountry, newBoardState]);
 
   const { data: coOwnerUserList, isLoading: coOwnerLoading } = useQuery({
     queryKey: ['usersList'],
@@ -587,21 +618,21 @@ export default function DashboardPage() {
                       <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as '' | 'Team' | 'League')} className="input-field"><option value="" disabled>Select Type</option><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-                      <select value={newBoardCountry} onChange={e => { setNewBoardCountry(e.target.value); setNewBoardState(''); setNewBoardCity(''); }} className="input-field">
-                        <option value="">Select Country</option>
-                        {getCountries().map(c => <option key={c} value={c}>{c}</option>)}
+                      <select value={newBoardCountry} onChange={e => { setNewBoardCountry(e.target.value); setNewBoardState(''); setNewBoardCity(''); }} className="input-field" disabled={countriesLoading}>
+                        <option value="">{countriesLoading ? 'Loading countries...' : 'Select Country'}</option>
+                        {countryList.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className={!newBoardCountry ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
-                      <select value={newBoardState} onChange={e => { setNewBoardState(e.target.value); setNewBoardCity(''); }} className="input-field" disabled={!newBoardCountry}>
-                        <option value="">{newBoardCountry ? 'Select State' : 'Select Country first'}</option>
-                        {getStates(newBoardCountry).map(s => <option key={s} value={s}>{s}</option>)}
+                      <select value={newBoardState} onChange={e => { setNewBoardState(e.target.value); setNewBoardCity(''); }} className="input-field" disabled={!newBoardCountry || statesLoading}>
+                        <option value="">{!newBoardCountry ? 'Select Country first' : statesLoading ? 'Loading states...' : 'Select State'}</option>
+                        {stateList.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
-                    <div className={!newBoardState ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
-                      <select value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" disabled={!newBoardState}>
-                        <option value="">{newBoardState ? 'Select City' : 'Select State first'}</option>
-                        {getCities(newBoardCountry, newBoardState).map(c => <option key={c} value={c}>{c}</option>)}
+                    <div className={!newBoardState ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
+                      <select value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" disabled={!newBoardState || citiesLoading}>
+                        <option value="">{!newBoardState ? 'Select State first' : citiesLoading ? 'Loading...' : 'Select District / City'}</option>
+                        {cityList.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     {newBoardType === 'League' && (
