@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/slices/authStore';
 import type { RegisterConfirmRequest, RegisterRequest, RegisterStartRequest } from '../types';
 import { getPasswordValidationError } from '../utils/passwordValidation';
 import ResendOtpButton from '../components/ResendOtpButton';
+import OtpInput from '../components/OtpInput';
 
 type TabType = 'email' | 'mobile';
 type Step = 'details' | 'otp' | 'password';
@@ -24,7 +25,13 @@ export default function RegisterPage() {
   const [pendingEmail, setPendingEmail] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
-  const { register, getValues, trigger, formState: { isSubmitting } } = useForm<RegisterRequest>();
+  const [loading, setLoading] = useState(false);
+  const { register, watch, getValues, setValue, trigger, formState: { isSubmitting } } = useForm<RegisterRequest>();
+  const watchedFirstName = watch('firstName');
+  const watchedLastName = watch('lastName');
+  const watchedEmail = watch('email');
+  const watchedPhone = watch('phoneNumber');
+  const watchedPassword = watch('password');
 
   useEffect(() => {
     if (successMessage) {
@@ -73,7 +80,7 @@ export default function RegisterPage() {
       } else {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
         if (!emailRegex.test(email)) {
-          errs.email = 'Invalid email address';
+          errs.email = 'Please enter a valid email';
         }
       }
     }
@@ -115,6 +122,7 @@ export default function RegisterPage() {
     }
 
     try {
+      setLoading(true);
       const payload = buildRegisterStartPayload();
       if (activeTab === 'email' && !payload.email) {
         setFieldErrors({ email: 'Please enter an email address.' });
@@ -144,6 +152,8 @@ export default function RegisterPage() {
       } else {
         setError('This user already has an account. Please login.');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -157,6 +167,7 @@ export default function RegisterPage() {
     }
 
     try {
+      setLoading(true);
       const email = activeTab === 'email' ? getValues('email') : '';
       await authService.verifyRegisterOtp(email || '', otpValue);
       setStep('password');
@@ -169,6 +180,8 @@ export default function RegisterPage() {
       } else {
         setFieldErrors({ otp: 'Invalid OTP or verification failed.' });
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -197,6 +210,7 @@ export default function RegisterPage() {
     }
 
     try {
+      setLoading(true);
       const res = await authService.confirmRegister(buildRegisterConfirmPayload(data));
       loginStore(res.data.data.accessToken, res.data.data.user);
       navigate('/dashboard');
@@ -211,6 +225,8 @@ export default function RegisterPage() {
       } else {
         setError('Registration failed. Please try again.');
       }
+    } finally {
+      setLoading(false);
     }
   };
   return (
@@ -228,7 +244,7 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-brand-green py-4 text-center">
-             <h1 className="text-xl font-bold text-white">Create Account</h1>
+             <h1 className="text-xl font-bold text-white">Register Account</h1>
             <p className="text-green-200 text-sm mt-1">
               {step === 'details' && ''}
               {step === 'otp' && (activeTab === 'email' ? 'Verify your email address' : 'Verify your mobile number')}
@@ -286,6 +302,7 @@ export default function RegisterPage() {
                             value = value.charAt(0).toUpperCase() + value.slice(1);
                           }
                           input.value = value;
+                          setValue('firstName', value, { shouldValidate: true });
                         }}
                       />
                       {fieldErrors.firstName && (
@@ -305,6 +322,7 @@ export default function RegisterPage() {
                             value = value.charAt(0).toUpperCase() + value.slice(1);
                           }
                           input.value = value;
+                          setValue('lastName', value, { shouldValidate: true });
                         }}
                       />
                       {fieldErrors.lastName && (
@@ -353,9 +371,10 @@ export default function RegisterPage() {
                   <button
                     type="button"
                     onClick={handleContinue}
-                    className="w-full btn-primary py-3 text-lg"
+                    disabled={!watchedFirstName?.trim() || !watchedLastName?.trim() || (activeTab === 'email' ? !watchedEmail?.trim() || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/.test(watchedEmail?.trim() || '') : !watchedPhone?.trim()) || loading}
+                    className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    SEND OTP
+                    {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Sending...</span> : 'SEND OTP'}
                   </button>
                 </form>
               </>
@@ -364,16 +383,8 @@ export default function RegisterPage() {
             {step === 'otp' && (
               <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter 6 digit Verification Code</label>
-                  <input
-                    type="text"
-                    value={otpValue}
-                    onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="input-field w-full text-center text-base tracking-[0.2em] font-mono py-1"
-                    maxLength={6}
-                    placeholder="------"
-                    autoFocus
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter the 6-digit code sent to your email</label>
+                  <OtpInput value={otpValue} onChange={setOtpValue} />
                   {fieldErrors.otp && (
                     <div className="text-red-600 text-xs mt-1">{fieldErrors.otp}</div>
                   )}
@@ -384,8 +395,8 @@ export default function RegisterPage() {
                     resendType="register"
                   />
                 </div>
-                <button type="button" onClick={handleVerifyOtp} className="w-full btn-primary py-3 text-lg">
-                  Verify OTP
+                <button type="button" onClick={handleVerifyOtp} disabled={otpValue.length !== 6 || loading} className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Verifying...</span> : 'Verify OTP'}
                 </button>
               </div>
             )}
@@ -394,46 +405,65 @@ export default function RegisterPage() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Create Password</label>
-                  <input
-                    type={showPasswords ? 'text' : 'password'}
-                    {...register('password', { required: true, minLength: 8 })}
-                    className="input-field no-select-password"
-                    onCopy={e => e.preventDefault()}
-                    onCut={e => e.preventDefault()}
-                    onInput={e => {
-                      const input = e.target as HTMLInputElement;
-                      input.value = input.value.replace(/\s/g, '');
-                    }}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPasswords ? 'text' : 'password'}
+                      {...register('password', { required: true, minLength: 8 })}
+                      className="input-field no-select-password pr-10"
+                      onCopy={e => e.preventDefault()}
+                      onCut={e => e.preventDefault()}
+                      onInput={e => {
+                        const input = e.target as HTMLInputElement;
+                        input.value = input.value.replace(/\s/g, '');
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(!showPasswords)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPasswords ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-11-7.5a11.72 11.72 0 013.168-4.477M6.343 6.343A9.97 9.97 0 0112 5c5 0 9.27 3.11 11 7.5a11.72 11.72 0 01-4.168 4.477M6.343 6.343L3 3m3.343 3.343l2.829 2.829m4.243 4.243l2.829 2.829M6.343 6.343l11.314 11.314M14.121 14.121A3 3 0 009.879 9.879" /></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
+                    </button>
+                  </div>
                   {fieldErrors.password && (
                     <div className="text-red-600 text-xs mt-1">{fieldErrors.password}</div>
                   )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Confirm Password</label>
-                  <input
-                    type={showPasswords ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
-                    className="input-field no-select-password"
-                    onCopy={e => e.preventDefault()}
-                    onCut={e => e.preventDefault()}
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPasswords ? 'text' : 'password'}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
+                      className="input-field no-select-password pr-10"
+                      onCopy={e => e.preventDefault()}
+                      onCut={e => e.preventDefault()}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(!showPasswords)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      tabIndex={-1}
+                    >
+                      {showPasswords ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-5 0-9.27-3.11-11-7.5a11.72 11.72 0 013.168-4.477M6.343 6.343A9.97 9.97 0 0112 5c5 0 9.27 3.11 11 7.5a11.72 11.72 0 01-4.168 4.477M6.343 6.343L3 3m3.343 3.343l2.829 2.829m4.243 4.243l2.829 2.829M6.343 6.343l11.314 11.314M14.121 14.121A3 3 0 009.879 9.879" /></svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
+                    </button>
+                  </div>
                   {fieldErrors.confirmPassword && (
                     <div className="text-red-600 text-xs mt-1">{fieldErrors.confirmPassword}</div>
                   )}
-                  <label className="mt-2 inline-flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showPasswords}
-                      onChange={(e) => setShowPasswords(e.target.checked)}
-                      className="w-4 h-4 text-brand-green rounded"
-                    />
-                    Show password
-                  </label>
                 </div>
-                <button type="button" onClick={handleCreateAccount} className="w-full btn-primary py-3 text-lg">
-                  Create Account
+                <button type="button" onClick={handleCreateAccount} disabled={!watchedPassword || !confirmPassword || loading} className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Registering...</span> : 'Register Account'}
                 </button>
               </div>
             )}
@@ -442,7 +472,7 @@ export default function RegisterPage() {
               <p className="text-sm text-gray-500">
                 Already have an account?{' '}
                 <Link to="/login" className="text-brand-green font-semibold hover:underline">
-                  Sign In
+                  Login
                 </Link>
               </p>
             </div>
