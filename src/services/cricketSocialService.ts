@@ -330,7 +330,14 @@ export const leagueService = {
     api.put<Umpire>(`/league/umpires/${umpireId}`, data),
   deleteUmpire: (umpireId: string) => api.delete(`/league/umpires/${umpireId}`),
   // Grounds
-  createGround: (data: { name: string; address?: string; city?: string; state?: string }) =>
+  createGround: (data: {
+    name: string; placeOfGround?: string; addressLine1?: string;
+    city?: string; state?: string; country?: string; zipCode?: string;
+    landmark?: string; homeTeam?: string; additionalDirection?: string;
+    groundFacilities?: string; pitchDescription?: string; wicketType?: string;
+    permitTimeHour?: string; permitTimeMinute?: string; permitTimePeriod?: string;
+    permitTimeZone?: string;
+  }) =>
     api.post<Ground>('/league/grounds', data),
   getGrounds: () => api.get<Ground[]>('/league/grounds'),
   deleteGround: (groundId: string) => api.delete(`/league/grounds/${groundId}`),

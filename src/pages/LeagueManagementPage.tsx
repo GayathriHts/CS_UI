@@ -446,11 +446,54 @@ function UmpireListTab({ boardId }: { boardId: string }) {
 
 // ── CREATE GROUND TAB ──
 function CreateGroundTab() {
-  const [name, setName] = useState(''); const [address, setAddress] = useState(''); const [city, setCity] = useState(''); const [state, setState] = useState('');
+  const [name, setName] = useState('');
+  const [placeOfGround, setPlaceOfGround] = useState('');
+  const [addressLine1, setAddressLine1] = useState('');
+  const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [country, setCountry] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [landmark, setLandmark] = useState('');
+  const [homeTeam, setHomeTeam] = useState('');
+  const [additionalDirection, setAdditionalDirection] = useState('');
+  const [groundFacilities, setGroundFacilities] = useState('');
+  const [pitchDescription, setPitchDescription] = useState('');
+  const [wicketType, setWicketType] = useState('Regular Turf');
+  const [permitHour, setPermitHour] = useState('');
+  const [permitMinute, setPermitMinute] = useState('');
+  const [permitPeriod, setPermitPeriod] = useState('AM');
+  const [permitZone, setPermitZone] = useState('EST');
   const qc = useQueryClient();
+
+  const resetForm = () => {
+    setName(''); setPlaceOfGround(''); setAddressLine1('');
+    setCity(''); setState(''); setCountry(''); setZipCode('');
+    setLandmark(''); setHomeTeam(''); setAdditionalDirection('');
+    setGroundFacilities(''); setPitchDescription(''); setWicketType('Regular Turf');
+    setPermitHour(''); setPermitMinute(''); setPermitPeriod('AM'); setPermitZone('EST');
+  };
+
   const createMutation = useMutation({
-    mutationFn: () => leagueService.createGround({ name, address, city, state }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grounds'] }); setName(''); setAddress(''); setCity(''); setState(''); },
+    mutationFn: () => leagueService.createGround({
+      name,
+      placeOfGround: placeOfGround || undefined,
+      addressLine1: addressLine1 || undefined,
+      city: city || undefined,
+      state: state || undefined,
+      country: country || undefined,
+      zipCode: zipCode || undefined,
+      landmark: landmark || undefined,
+      homeTeam: homeTeam || undefined,
+      additionalDirection: additionalDirection || undefined,
+      groundFacilities: groundFacilities || undefined,
+      pitchDescription: pitchDescription || undefined,
+      wicketType: wicketType || undefined,
+      permitTimeHour: permitHour || undefined,
+      permitTimeMinute: permitMinute || undefined,
+      permitTimePeriod: permitPeriod || undefined,
+      permitTimeZone: permitZone || undefined,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['grounds'] }); resetForm(); },
   });
 
   return (
@@ -460,15 +503,105 @@ function CreateGroundTab() {
           <h2 className="text-base font-bold text-gray-800 uppercase">Create Ground</h2>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Name</label><input value={name} onChange={e => setName(e.target.value)} className="input-field" placeholder="Ground name" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Address</label><input value={address} onChange={e => setAddress(e.target.value)} className="input-field" placeholder="Address" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label><input value={city} onChange={e => setCity(e.target.value)} className="input-field" placeholder="City" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">State</label><input value={state} onChange={e => setState(e.target.value)} className="input-field" placeholder="State" /></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+            {/* Row 1 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Ground Name</label>
+              <input value={name} onChange={e => setName(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Place of Ground</label>
+              <input value={placeOfGround} onChange={e => setPlaceOfGround(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+              <input value={addressLine1} onChange={e => setAddressLine1(e.target.value)} className="input-field" />
+            </div>
+
+            {/* Row 2 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>City</label>
+              <input value={city} onChange={e => setCity(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>State</label>
+              <input value={state} onChange={e => setState(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Country</label>
+              <input value={country} onChange={e => setCountry(e.target.value)} className="input-field" />
+            </div>
+
+            {/* Row 3 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Zip Code</label>
+              <input value={zipCode} onChange={e => setZipCode(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
+              <input value={landmark} onChange={e => setLandmark(e.target.value)} className="input-field" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
+              <input value={homeTeam} onChange={e => setHomeTeam(e.target.value)} className="input-field" />
+            </div>
+
+            {/* Row 4 — textareas */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Additional Direction</label>
+              <textarea value={additionalDirection} onChange={e => setAdditionalDirection(e.target.value)} className="input-field min-h-[80px] resize-y" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Facilities</label>
+              <textarea value={groundFacilities} onChange={e => setGroundFacilities(e.target.value)} className="input-field min-h-[80px] resize-y" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pitch Description</label>
+              <textarea value={pitchDescription} onChange={e => setPitchDescription(e.target.value)} className="input-field min-h-[80px] resize-y" />
+            </div>
           </div>
-          <div className="flex justify-end mt-4">
-            <button onClick={() => name && createMutation.mutate()} disabled={!name || createMutation.isPending}
-              className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors">
+
+          {/* Row 5 — Wicket Type + Permit Time */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5 mt-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Wicket Type</label>
+              <select value={wicketType} onChange={e => setWicketType(e.target.value)} className="input-field">
+                <option>Regular Turf</option>
+                <option>Artificial Turf</option>
+                <option>Matting</option>
+                <option>Drop-in</option>
+                <option>Cement</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Permit Time</label>
+              <div className="flex gap-2">
+                <input type="number" min="1" max="12" placeholder="Hour" value={permitHour} onChange={e => setPermitHour(e.target.value)} className="input-field w-20" />
+                <input type="number" min="0" max="59" placeholder="Minutes" value={permitMinute} onChange={e => setPermitMinute(e.target.value)} className="input-field w-24" />
+                <select value={permitPeriod} onChange={e => setPermitPeriod(e.target.value)} className="input-field w-20">
+                  <option>AM</option>
+                  <option>PM</option>
+                </select>
+                <select value={permitZone} onChange={e => setPermitZone(e.target.value)} className="input-field w-20">
+                  <option>EST</option>
+                  <option>CST</option>
+                  <option>MST</option>
+                  <option>PST</option>
+                  <option>IST</option>
+                  <option>GMT</option>
+                  <option>AEST</option>
+                  <option>NZST</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end mt-6">
+            <button
+              onClick={() => name && placeOfGround && city && state && country && zipCode && createMutation.mutate()}
+              disabled={!name || !placeOfGround || !city || !state || !country || !zipCode || createMutation.isPending}
+              className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
             </button>
           </div>
@@ -496,7 +629,7 @@ function GroundListTab() {
                   <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-xl">🏟️</div>
                   <div><p className="font-semibold">{g.name}</p>{g.city && <p className="text-xs text-gray-500">{g.city}{g.state ? `, ${g.state}` : ''}</p>}</div>
                 </div>
-                {g.address && <p className="text-sm text-gray-600">{g.address}</p>}
+                {g.addressLine1 && <p className="text-sm text-gray-600">{g.addressLine1}</p>}
               </div>
             ))}
             {(!grounds?.length) && <div className="col-span-full text-center py-8 text-gray-400">No grounds created yet.</div>}
