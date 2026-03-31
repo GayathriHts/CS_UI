@@ -78,8 +78,7 @@ export default function BoardDetailPage() {
               {board.logoUrl ? <img src={board.logoUrl} alt="" className="w-16 h-16 rounded-lg object-cover" /> : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />}
             </div>
             <div className="flex-1">
-              <span className="text-xs bg-white/20 px-3 py-1 rounded-full">{board.boardType} Board</span>
-              <h1 className="text-3xl font-bold mt-2">{board.name}</h1>
+              <h1 className="text-3xl font-bold">{board.name}</h1>
               <p className="text-green-200 mt-1">{board.city && `${board.city}, `}{board.country} · {board.fanCount} fans · {board.rosterCount} teams</p>
               {board.owner && (
                 <p className="text-green-200 text-sm mt-1">

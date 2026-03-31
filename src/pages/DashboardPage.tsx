@@ -143,6 +143,8 @@ export default function DashboardPage() {
   const [newBoardCity, setNewBoardCity] = useState('');
   const [newBoardState, setNewBoardState] = useState('');
   const [newBoardCountry, setNewBoardCountry] = useState('');
+  const [newBoardLogo, setNewBoardLogo] = useState<File | null>(null);
+  const [newBoardLogoPreview, setNewBoardLogoPreview] = useState<string>('');
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
   const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
   const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -230,7 +232,7 @@ export default function DashboardPage() {
         state: newBoardState,
         country: newBoardCountry,
         ownerId: resolvedOwnerId,
-        logoUrl: '',
+        logoUrl: newBoardLogoPreview || '',
         ...(newBoardType === 'League' && selectedCoOwner
           ? { coOwnerId: selectedCoOwner.id }
           : {}),
@@ -255,6 +257,8 @@ export default function DashboardPage() {
       setNewBoardCity('');
       setNewBoardState('');
       setNewBoardCountry('');
+      setNewBoardLogo(null);
+      setNewBoardLogoPreview('');
       setSelectedCoOwner(null);
       setCoOwnerSearch('');
       setShowCoOwnerDropdown(false);
@@ -542,6 +546,41 @@ export default function DashboardPage() {
               {showCreateBoard && (
                 <div className="card mb-6">
                   <h3 className="font-semibold mb-4">Create Your Board</h3>
+                  {/* Logo Upload */}
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
+                      onClick={() => document.getElementById('board-logo-input')?.click()}>
+                      {newBoardLogoPreview ? (
+                        <img src={newBoardLogoPreview} alt="Board logo" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors">
+                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                      )}
+                      {newBoardLogoPreview && (
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                        </div>
+                      )}
+                    </div>
+                    <input id="board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
+                        setNewBoardLogo(file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => setNewBoardLogoPreview(reader.result as string);
+                        reader.readAsDataURL(file);
+                      }
+                    }} />
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Board Logo</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Click to upload (max 2MB)</p>
+                      {newBoardLogoPreview && (
+                        <button className="text-xs text-red-500 hover:text-red-600 mt-1" onClick={(e) => { e.stopPropagation(); setNewBoardLogo(null); setNewBoardLogoPreview(''); }}>Remove</button>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label><input value={newBoardName} onChange={e => { let val = e.target.value; if (val.length === 0 || (val.length > 0 && val[0] !== ' ' && /^[a-zA-Z0-9 ]*$/.test(val))) { val = val.charAt(0).toUpperCase() + val.slice(1); setNewBoardName(val); setBoardNameError(''); } }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Enter board name" />{boardNameError && <p className="text-red-500 text-xs mt-1">{boardNameError}</p>}</div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
@@ -675,8 +714,12 @@ export default function DashboardPage() {
                     return (
                     <Link key={b.id} to={boardTypeLabel === 'League' ? `/league/${b.id}` : `/boards/${b.id}`} className="card hover:shadow-lg transition-shadow">
                       <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-brand-green/10 rounded-xl flex items-center justify-center">
-                          <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = '🏟️'; }} />
+                        <div className="w-14 h-14 bg-brand-green/10 rounded-xl flex items-center justify-center overflow-hidden">
+                          {b.logoUrl ? (
+                            <img src={b.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                          ) : (
+                            <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = '🏟️'; }} />
+                          )}
                         </div>
                         <div className="flex-1">
                           <p className="font-semibold text-gray-800">{b.name}</p>
