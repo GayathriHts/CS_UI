@@ -245,15 +245,14 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
 
   const createMutation = useMutation({
     mutationFn: () => leagueService.createUmpire(boardId, {
-      name,
-      addressLine1: addressLine1 || undefined,
-      addressLine2: addressLine2 || undefined,
+      umpireName: name,
+      address1: addressLine1 || undefined,
+      address2: addressLine2 || undefined,
       city: city || undefined,
       state: state || undefined,
       country: country || undefined,
-      zipCode: zipCode || undefined,
-      countryCode: countryCode || undefined,
-      contactNumber: contactNo || undefined,
+      zipcode: zipCode || undefined,
+      mobile: contactNo ? `${countryCode}${contactNo}` : undefined,
       email: email || undefined,
     }),
     onSuccess: () => {
@@ -482,23 +481,15 @@ function CreateGroundTab() {
 
   const createMutation = useMutation({
     mutationFn: () => leagueService.createGround({
-      name,
-      placeOfGround: placeOfGround || undefined,
-      addressLine1: addressLine1 || undefined,
+      groundName: name,
+      address1: placeOfGround || undefined,
+      address2: addressLine1 || undefined,
       city: city || undefined,
       state: state || undefined,
       country: country || undefined,
-      zipCode: zipCode || undefined,
+      zipcode: zipCode || undefined,
       landmark: landmark || undefined,
       homeTeam: homeTeam || undefined,
-      additionalDirection: additionalDirection || undefined,
-      groundFacilities: groundFacilities || undefined,
-      pitchDescription: pitchDescription || undefined,
-      wicketType: wicketType || undefined,
-      permitTimeHour: permitHour || undefined,
-      permitTimeMinute: permitMinute || undefined,
-      permitTimePeriod: permitPeriod || undefined,
-      permitTimeZone: permitZone || undefined,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['grounds'] }); resetForm(); },
   });
@@ -667,8 +658,17 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => tournamentService.create({
-      name, boardId, format: 'T20', oversPerInning: 20, maxPlayersPerTeam: 11,
+    mutationFn: () => tournamentService.createTournament({
+      tournamentName: name,
+      winPoint: Number(winPoints) || 0,
+      umpireCheck: umpireOption === 'list' ? 1 : 0,
+      active: 1,
+      scheduleCoordinator: true,
+      groupList: groups.map(g => ({
+        tournamentGroupName: g.name,
+        active: 1,
+        teamBoardId: g.teamIds,
+      })),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
@@ -1073,6 +1073,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [newUmpireId, setNewUmpireId] = useState('');
   const [newScorerId, setNewScorerId] = useState('');
   const [newScheduledAt, setNewScheduledAt] = useState('');
+  const [newGameType, setNewGameType] = useState('');
   
   const qc = useQueryClient();
   const { data: matches } = useQuery({
@@ -1107,14 +1108,16 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   });
 
   const createMatchMutation = useMutation({
-    mutationFn: () => tournamentService.createMatch({
+    mutationFn: () => tournamentService.createSchedule({
       tournamentId: newTournamentId,
-      homeTeamId: newHomeTeamId,
-      awayTeamId: newAwayTeamId,
+      gameType: newGameType || undefined,
+      homeTeamBoardId: newHomeTeamId,
+      awayTeamBoardId: newAwayTeamId,
       groundId: newGroundId || undefined,
+      startAtUtc: new Date(newScheduledAt).toISOString(),
       umpireId: newUmpireId || undefined,
-      scorerId: newScorerId || undefined,
-      scheduledAt: new Date(newScheduledAt).toISOString(),
+      appScorerId: newScorerId || undefined,
+      active: true,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
@@ -1138,6 +1141,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     setNewUmpireId('');
     setNewScorerId('');
     setNewScheduledAt('');
+    setNewGameType('');
   };
 
   const statusColor = (s: string) => s === 'Scheduled' ? 'bg-blue-100 text-blue-700' : s === 'Live' ? 'bg-green-100 text-green-700' : s === 'Completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700';
@@ -1160,6 +1164,15 @@ function ScheduleTab({ boardId }: { boardId: string }) {
               <select value={newTournamentId} onChange={e => setNewTournamentId(e.target.value)} className="input-field">
                 <option value="">Select Tournament</option>
                 {tournaments?.items.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Game Type</label>
+              <select value={newGameType} onChange={e => setNewGameType(e.target.value)} className="input-field">
+                <option value="">Select Game Type</option>
+                <option value="T20">T20</option>
+                <option value="ODI">ODI</option>
+                <option value="Test">Test</option>
               </select>
             </div>
             <div>

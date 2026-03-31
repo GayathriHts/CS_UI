@@ -1,4 +1,4 @@
-import api, { boardApi } from './api';
+import api, { boardApi, umpireApi } from './api';
 import type {
   AuthResponse, LoginRequest, RegisterConfirmRequest, RegisterRequest, RegisterStartRequest,
   User, PlayerStats, Board, Roster, RosterMember,
@@ -179,6 +179,24 @@ export const rosterService = {
 export const tournamentService = {
   create: (data: { name: string; boardId: string; format?: string; oversPerInning?: number; maxPlayersPerTeam?: number; startDate?: Date; endDate?: Date }) =>
     api.post<Tournament>('/tournaments', data),
+  createTournament: (data: {
+    tournamentName: string;
+    winPoint: number;
+    umpireCheck: number;
+    active?: number;
+    scheduleCoordinator?: boolean;
+    startNode?: number;
+    endNode?: number;
+    recordCount?: number;
+    matchType?: string;
+    groupList: {
+      tournamentGroupName: string;
+      active?: number;
+      teamBoardId: string[];
+    }[];
+    createdBy?: string;
+  }) =>
+    umpireApi.post('/Tournament', data),
   getById: (id: string) => api.get<Tournament>(`/tournaments/${id}`),
   getByBoard: (boardId: string, page = 1, pageSize = 20) =>
     api.get<PagedResponse<Tournament>>(`/tournaments/board/${boardId}`, { params: { page, pageSize } }),
@@ -187,6 +205,19 @@ export const tournamentService = {
   cancel: (id: string) => api.delete(`/tournaments/${id}`),
   createMatch: (data: { tournamentId: string; homeTeamId: string; awayTeamId: string; groundId?: string; umpireId?: string; scorerId?: string; scheduledAt: string }) =>
     api.post<Match>('/tournaments/matches', data),
+  createSchedule: (data: {
+    tournamentId: string;
+    gameType?: string;
+    homeTeamBoardId: string;
+    awayTeamBoardId: string;
+    groundId?: string;
+    startAtUtc: string;
+    umpireId?: string;
+    appScorerId?: string;
+    portalScorerId?: string;
+    active?: boolean;
+  }) =>
+    umpireApi.post('/Schedules', data),
   updateMatch: (id: string, data: { groundId?: string; umpireId?: string; scorerId?: string; scheduledAt?: string }) =>
     api.put<Match>(`/tournaments/matches/${id}`, data),
   getMatches: (tournamentId: string) => api.get<Match[]>(`/tournaments/${tournamentId}/matches`),
@@ -319,26 +350,23 @@ export const boardDetailService = {
 // ── League Management ──
 export const leagueService = {
   // Umpires
-  createUmpire: (boardId: string, data: {
-    name: string; email?: string; contactNumber?: string; countryCode?: string;
-    addressLine1?: string; addressLine2?: string; city?: string; state?: string;
-    country?: string; zipCode?: string;
+  createUmpire: (_boardId: string, data: {
+    umpireName: string; address1?: string; address2?: string;
+    city?: string; state?: string; country?: string; zipcode?: string;
+    homePhone?: string; workPhone?: string; mobile?: string; email?: string;
   }) =>
-    api.post<Umpire>(`/league/boards/${boardId}/umpires`, data),
+    umpireApi.post('/Umpire', data),
   getUmpires: (boardId: string) => api.get<Umpire[]>(`/league/boards/${boardId}/umpires`),
   updateUmpire: (umpireId: string, data: { name?: string; contactNumber?: string; city?: string }) =>
     api.put<Umpire>(`/league/umpires/${umpireId}`, data),
   deleteUmpire: (umpireId: string) => api.delete(`/league/umpires/${umpireId}`),
   // Grounds
   createGround: (data: {
-    name: string; placeOfGround?: string; addressLine1?: string;
-    city?: string; state?: string; country?: string; zipCode?: string;
-    landmark?: string; homeTeam?: string; additionalDirection?: string;
-    groundFacilities?: string; pitchDescription?: string; wicketType?: string;
-    permitTimeHour?: string; permitTimeMinute?: string; permitTimePeriod?: string;
-    permitTimeZone?: string;
+    groundName: string; address1?: string; address2?: string;
+    city?: string; state?: string; country?: string; zipcode?: string;
+    landmark?: string; homeTeam?: string;
   }) =>
-    api.post<Ground>('/league/grounds', data),
+    umpireApi.post('/Ground', data),
   getGrounds: () => api.get<Ground[]>('/league/grounds'),
   deleteGround: (groundId: string) => api.delete(`/league/grounds/${groundId}`),
   // Tournament Management

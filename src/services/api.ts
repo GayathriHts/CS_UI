@@ -5,6 +5,8 @@ const API_BASE_URL = 'http://10.10.20.24:9002/api/v1';
 
 const BOARD_API_BASE_URL = 'http://10.10.20.24:9003/api/v1';
 
+const UMPIRE_API_BASE_URL = 'http://10.10.20.24:9004/api/v1';
+
 const getBoardToken = () => {
   return sessionStorage.getItem('token') || localStorage.getItem('token');
 };
@@ -75,7 +77,31 @@ const boardApi = {
   },
 };
 
-export { boardApi };
+const umpireApi = {
+  post: (url: string, data: any, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+    return axios.post(UMPIRE_API_BASE_URL + url, data, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+  get: (url: string, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+    return axios.get(UMPIRE_API_BASE_URL + url, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
+      },
+    });
+  },
+};
+
+export { boardApi, umpireApi };
 
 const isAuthRequest = (url?: string) => !!url && /\/auth\//.test(url);
 
