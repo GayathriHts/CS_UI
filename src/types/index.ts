@@ -78,10 +78,17 @@ export interface Board {
   city?: string;
   state?: string;
   country?: string;
+  address1?: string;
+  address2?: string;
+  contactNumber?: string;
+  contactEmail?: string;
+  websiteAddress?: string;
   ownerId: string;
+  coOwnerId?: string;
   ownerName: string;
   fanCount: number;
   rosterCount: number;
+  isActive?: boolean;
 }
 
 // ── Roster ──

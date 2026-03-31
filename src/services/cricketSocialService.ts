@@ -79,10 +79,21 @@ export const boardService = {
     city: string;
     state: string;
     country: string;
+    address1?: string;
+    address2?: string;
+    contactNumber?: string;
+    contactEmail?: string;
+    websiteAddress?: string;
     ownerId: string;
+    coOwnerId?: string;
     logoUrl: string;
-    coOwnerIds?: string[];
-  }) => boardApi.post('/Boards', data),
+  }) => {
+    // Strip undefined/empty optional fields so the API won't reject invalid blanks
+    const cleaned = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== undefined && v !== '')
+    );
+    return boardApi.post('/Boards', cleaned);
+  },
 
   // Get all boards (with optional pagination)
   // getAll: (page = 1, pageSize = 20, version = 1) =>
@@ -102,7 +113,12 @@ export const boardService = {
   }),
 
   // Update a board by ID (PUT /api/v1/Boards/{id})
-  update: (id: string, data: any) => boardApi.put(`/Boards/${id}`, data),
+  update: (id: string, data: any) => {
+    const cleaned = Object.fromEntries(
+      Object.entries(data).filter(([_, v]) => v !== undefined && v !== '')
+    );
+    return boardApi.put(`/Boards/${id}`, cleaned);
+  },
 
   // Delete a board by ID
   delete: (id: string) => boardApi.delete(`/Boards/${id}`),

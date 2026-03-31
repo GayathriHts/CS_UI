@@ -199,7 +199,7 @@ const { data: boards } = useQuery({
       // Only set ownerId for League boards; use co-owner's ID when selected
       const resolvedOwnerId = newBoardType === 'League'
         ? (selectedCoOwner ? selectedCoOwner.id : user.id)
-        : '';
+        : user.id;
       console.log('Creating board - selectedCoOwner:', selectedCoOwner, 'resolvedOwnerId:', resolvedOwnerId, 'loggedInUserId:', user.id);
       // The API returns the created board in res.data.data
       const res = await boardService.create({
@@ -212,7 +212,7 @@ const { data: boards } = useQuery({
         ownerId: resolvedOwnerId,
         logoUrl: '',
         ...(newBoardType === 'League' && selectedCoOwner
-          ? { coOwnerIds: [selectedCoOwner.id] }
+          ? { coOwnerId: selectedCoOwner.id }
           : {}),
       });
       // Support both .data and .data.data (API response wrapper)
@@ -250,7 +250,9 @@ const { data: boards } = useQuery({
         alert('Session expired. Please login again.');
         window.location.href = '/login';
       } else {
-        alert('Failed to create board.');
+        const detail = error?.response?.data?.title || error?.response?.data?.message || error?.response?.data?.errors ? JSON.stringify(error.response.data.errors) : '';
+        console.error('Create board error:', error?.response?.status, error?.response?.data);
+        alert(`Failed to create board.${detail ? ' ' + detail : ''}`);
       }
     },
   });

@@ -202,21 +202,24 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         || '';
       const resolvedOwnerId = isLeague
         ? (selectedCoOwner ? selectedCoOwner.id : existingOwnerId)
-        : '';
+        : existingOwnerId;
       console.log('Edit board - selectedCoOwner:', selectedCoOwner, 'resolvedOwnerId:', resolvedOwnerId, 'existingOwnerId:', existingOwnerId);
       const payload: any = {
         id: boardId,
         name,
         description,
-        boardType: board.boardType ?? board.BoardType ?? 1,
         isActive: board.isActive ?? board.IsActive ?? true,
         city: city || '',
         state: state || '',
         country: country || '',
+        ...(board.address1 ? { address1: board.address1 } : {}),
+        ...(board.address2 ? { address2: board.address2 } : {}),
+        ...(board.contactNumber ? { contactNumber: board.contactNumber } : {}),
+        ...(board.contactEmail ? { contactEmail: board.contactEmail } : {}),
+        ...(board.websiteAddress ? { websiteAddress: board.websiteAddress } : {}),
         ownerId: resolvedOwnerId,
         logoUrl: board.logoUrl || board.LogoUrl || board.logourl || '',
-        createdAt: board.createdAt || board.CreatedAt || undefined,
-        ...(isLeague && selectedCoOwner ? { coOwnerIds: [selectedCoOwner.id] } : {}),
+        ...(isLeague && selectedCoOwner ? { coOwnerId: selectedCoOwner.id } : {}),
       };
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
       return boardService.update(boardId, payload).then((r) => {
