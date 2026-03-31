@@ -13,7 +13,7 @@ const menuItems: { id: MenuSection; label: string; icon: string; iconImg?: strin
   { id: 'events', label: 'My Events & Fixtures', icon: '📅', iconImg: '/images/MyEvents.png' },
   { id: 'fans', label: 'My Fans', icon: '👥', iconImg: '/images/MyFans.png' },
   { id: 'fanof', label: 'I Am Fan Of', icon: '⭐', iconImg: '/images/IAmFanOf.png' },
-  { id: 'board', label: 'My Board', icon: '🏟️', iconImg: '/images/MyBoard.png' },
+  { id: 'board', label: 'My Boards', icon: '🏟️', iconImg: '/images/MyBoard.png' },
   { id: 'buddies', label: 'My Buddies', icon: '🤝', iconImg: '/images/MyBuddyList.png' },
   { id: 'compare', label: 'Player Compare', icon: '⚖️', iconImg: '/images/PlayerCompare.png' },
   { id: 'book', label: 'Cricket Book', icon: '📖', iconImg: '/images/CricketBook.png' },
@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCommentsPostId, setActiveCommentsPostId] = useState<string | null>(null);
   const [commentText, setCommentText] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Track recently created boards to prevent them vanishing on refetch or reload
   const [recentBoards, setRecentBoards] = useState<any[]>(() => {
@@ -134,9 +135,10 @@ export default function DashboardPage() {
   const qc = useQueryClient();
   const [pitchContent, setPitchContent] = useState('');
   const [showCreateBoard, setShowCreateBoard] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [boardNameError, setBoardNameError] = useState('');
-  const [newBoardType, setNewBoardType] = useState<'Team' | 'League'>('Team');
+  const [newBoardType, setNewBoardType] = useState<'' | 'Team' | 'League'>('');
   const [newBoardDescription, setNewBoardDescription] = useState('');
   const [newBoardCity, setNewBoardCity] = useState('');
   const [newBoardState, setNewBoardState] = useState('');
@@ -256,10 +258,8 @@ export default function DashboardPage() {
       setSelectedCoOwner(null);
       setCoOwnerSearch('');
       setShowCoOwnerDropdown(false);
-      // Navigate to the newly created board
-      if (newBoard?.id) {
-        navigate(`/boards/${newBoard.id}`);
-      }
+      // Stay on the boards dashboard
+      qc.invalidateQueries({ queryKey: ['myBoards'] });
     },
     onError: (error: any) => {
       if (error?.message === 'Board name already exists. Please create a different name.') {
@@ -343,48 +343,59 @@ export default function DashboardPage() {
 
       <div className="flex pt-14">
         {/* Left Sidebar */}
-        <aside className="fixed left-0 top-14 bottom-0 w-64 bg-white shadow-lg overflow-y-auto">
+        <aside className={`fixed left-0 top-14 bottom-0 bg-white shadow-lg overflow-y-auto transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+          {/* Collapse/Expand Toggle */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="absolute -right-3 top-6 z-10 w-6 h-6 bg-brand-green text-white rounded-full flex items-center justify-center shadow-md hover:bg-brand-dark transition-colors"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          </button>
+
           {/* User Profile Card */}
           <Link to="/profile" className="block p-4 border-b bg-gradient-to-b from-brand-green/10 to-white hover:from-brand-green/20 transition-colors">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-14 h-14 bg-brand-green rounded-full flex items-center justify-center text-white font-bold text-xl shadow-md">
+            <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} mb-3`}>
+              <div className={`${sidebarCollapsed ? 'w-10 h-10 text-sm' : 'w-14 h-14 text-xl'} bg-brand-green rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0 transition-all duration-300`}>
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
                   <>{user?.firstName?.[0]}{user?.lastName?.[0]}</>
                 )}
               </div>
-              <div>
-                <p className="font-semibold text-gray-800">{user?.firstName} {user?.lastName}</p>
-                <p className="text-xs text-gray-500">{user?.playerRole || 'Cricket Player'}</p>
-                <p className="text-xs text-brand-green font-medium mt-0.5">View Profile →</p>
-              </div>
+              {!sidebarCollapsed && (
+                <div>
+                  <p className="font-semibold text-gray-800">{user?.firstName} {user?.lastName}</p>
+                  <p className="text-xs text-gray-500">{user?.playerRole || 'Cricket Player'}</p>
+                  <p className="text-xs text-brand-green font-medium mt-0.5">View Profile →</p>
+                </div>
+              )}
             </div>
-            {/* Removed stats quick summary */}
           </Link>
 
           {/* Navigation Menu */}
-          <nav className="p-3">
+          <nav className={sidebarCollapsed ? 'p-2' : 'p-3'}>
             {visibleMenuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveMenu(item.id)}
-                className={activeMenu === item.id ? 'sidebar-item-active w-full text-left' : 'sidebar-item w-full text-left'}
+                className={`${activeMenu === item.id ? 'sidebar-item-active' : 'sidebar-item'} w-full ${sidebarCollapsed ? 'justify-center !px-2' : 'text-left'}`}
+                title={sidebarCollapsed ? item.label : undefined}
               >
                 {item.iconImg ? (
-                  <img src={item.iconImg} alt="" className="w-8 h-8 object-contain" 
+                  <img src={item.iconImg} alt="" className="w-8 h-8 object-contain flex-shrink-0" 
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                 ) : (
-                  <span className="text-2xl">{item.icon}</span>
+                  <span className="text-2xl flex-shrink-0">{item.icon}</span>
                 )}
-                <span className="text-sm font-medium">{item.label}</span>
+                {!sidebarCollapsed && <span className="text-sm font-medium">{item.label}</span>}
               </button>
             ))}
           </nav>
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 ml-64 mr-72 p-6 min-h-[calc(100vh-56px)]">
+        <main className={`flex-1 ${sidebarCollapsed ? 'ml-16' : 'ml-64'} mr-72 p-6 min-h-[calc(100vh-56px)] transition-all duration-300`}>
           {/* My Score Section */}
           {/* Removed My Score section (stats) */}
 
@@ -517,34 +528,38 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* My Board */}
+          {/* My Boards */}
           {activeMenu === 'board' && (
             <div className="animate-fade-in">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-800">My Board</h2>
-                <button onClick={() => setShowCreateBoard(!showCreateBoard)} className="btn-primary text-sm flex items-center gap-2">{showCreateBoard ? 'Cancel' : <><span className="text-xl font-bold leading-none">+</span> Create Board</>}</button>
+                <h2 className="text-2xl font-bold text-gray-800">My Boards</h2>
+                {!showCreateBoard && (
+                  <button onClick={() => setShowCreateBoard(true)} className="btn-primary text-sm flex items-center gap-2">
+                    <span className="text-xl font-bold leading-none">+</span> Create Board
+                  </button>
+                )}
               </div>
               {showCreateBoard && (
                 <div className="card mb-6">
-                  <h3 className="font-semibold mb-4">Create New Board</h3>
+                  <h3 className="font-semibold mb-4">Create Your Board</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name</label><input value={newBoardName} onChange={e => { setNewBoardName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Enter board name" />{boardNameError && <p className="text-red-500 text-xs mt-1">{boardNameError}</p>}</div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label><input value={newBoardName} onChange={e => { let val = e.target.value; if (val.length === 0 || (val.length > 0 && val[0] !== ' ' && /^[a-zA-Z0-9 ]*$/.test(val))) { val = val.charAt(0).toUpperCase() + val.slice(1); setNewBoardName(val); setBoardNameError(''); } }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Enter board name" />{boardNameError && <p className="text-red-500 text-xs mt-1">{boardNameError}</p>}</div>
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                      <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as 'Team' | 'League')} className="input-field"><option value="Team">Team</option><option value="League">League</option></select></div>
+                      <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as '' | 'Team' | 'League')} className="input-field"><option value="" disabled>Select Type</option><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
                       <select value={newBoardCountry} onChange={e => { setNewBoardCountry(e.target.value); setNewBoardState(''); setNewBoardCity(''); }} className="input-field">
                         <option value="">Select Country</option>
                         {getCountries().map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                    <div className={!newBoardCountry ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
                       <select value={newBoardState} onChange={e => { setNewBoardState(e.target.value); setNewBoardCity(''); }} className="input-field" disabled={!newBoardCountry}>
                         <option value="">{newBoardCountry ? 'Select State' : 'Select Country first'}</option>
                         {getStates(newBoardCountry).map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                    <div className={!newBoardState ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
                       <select value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" disabled={!newBoardState}>
                         <option value="">{newBoardState ? 'Select City' : 'Select State first'}</option>
                         {getCities(newBoardCountry, newBoardState).map(c => <option key={c} value={c}>{c}</option>)}
@@ -638,8 +653,12 @@ export default function DashboardPage() {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => newBoardName && createBoardMutation.mutate()} disabled={!newBoardName || createBoardMutation.isPending}
-                    className="btn-primary text-sm px-6 mt-4">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
+                  <div className="flex justify-end gap-3 mt-4">
+                    <button onClick={() => setShowCancelConfirm(true)}
+                      className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
+                    <button onClick={() => newBoardName && createBoardMutation.mutate()} disabled={!newBoardName || !newBoardCountry || !newBoardState || !newBoardCity || createBoardMutation.isPending}
+                      className="btn-primary text-sm px-6">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
+                  </div>
                 </div>
               )}
               {(() => { console.log('Boards rendered:', boards?.items); return null; })()}
@@ -812,6 +831,29 @@ export default function DashboardPage() {
           </div>
         </aside>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+                >No, Keep Editing</button>
+                <button
+                  onClick={() => { setShowCancelConfirm(false); setShowCreateBoard(false); }}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
+                >Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
