@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, leagueService, rosterService, tournamentService } from '../services/cricketSocialService';
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
+import Navbar from '../components/Navbar';
 
 type LeagueTab = 'dashboard' | 'umpires' | 'grounds' | 'schedule' | 'tournaments' | 'applications' | 'invoices';
 
@@ -25,17 +26,7 @@ export default function LeagueManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-brand-dark shadow-lg">
-        <div className="max-w-full mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard" className="text-white/80 hover:text-white"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg></Link>
-              <Link to="/" className="flex items-center gap-2"><img src="/images/cs-logo.png" alt="" className="h-8" /><span className="text-white font-bold text-lg">CricketSocial</span></Link>
-            </div>
-            <div className="text-white font-semibold">League Management — {board.name}</div>
-          </div>
-        </div>
-      </nav>
+      <Navbar title={`League Management — ${board.name}`} backTo="/dashboard" />
 
       <div className="pt-14 flex">
         {/* Sidebar */}

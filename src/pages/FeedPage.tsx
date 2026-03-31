@@ -4,6 +4,7 @@ import { feedService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
 
 export default function FeedPage() {
   const user = useAuthStore((s) => s.user);
@@ -45,25 +46,7 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Top Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-brand-dark shadow-lg">
-        <div className="max-w-full mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard" className="text-white/80 hover:text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/images/cs-logo.png" alt="CricketSocial" className="h-8" />
-                <span className="text-white font-bold text-lg">CricketSocial</span>
-              </Link>
-            </div>
-            <h2 className="text-white font-semibold">Social Feed</h2>
-            <div className="w-20" />
-          </div>
-        </div>
-      </nav>
+      <Navbar title="Social Feed" backTo="/dashboard" />
 
       <div className="max-w-2xl mx-auto pt-20 px-4 pb-8">
         {/* New Post */}

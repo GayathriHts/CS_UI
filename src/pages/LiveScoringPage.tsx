@@ -1,5 +1,6 @@
 import { useParams, Link } from 'react-router-dom';
 import { useLiveScoring } from '../hooks/useLiveScoring';
+import Navbar from '../components/Navbar';
 
 export default function LiveScoringPage() {
   const { matchId } = useParams<{ matchId: string }>();
@@ -8,29 +9,16 @@ export default function LiveScoringPage() {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       {/* Top Nav */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-sm">
-        <div className="max-w-full mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard" className="text-white/80 hover:text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </Link>
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/images/cs-logo.png" alt="CricketSocial" className="h-8" />
-              </Link>
-            </div>
-            <h2 className="font-bold flex items-center gap-2">
-              <img src="/images/live-icon.png" alt="" className="w-5 h-5" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              Live Scoring
-            </h2>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-600' : 'bg-red-600'}`}>
-              {isConnected ? '● Connected' : '○ Disconnected'}
-            </span>
-          </div>
-        </div>
-      </nav>
+      <Navbar
+        title="Live Scoring"
+        backTo="/dashboard"
+        variant="dark"
+        rightContent={
+          <span className={`px-3 py-1 rounded-full text-xs font-medium ${isConnected ? 'bg-green-600' : 'bg-red-600'}`}>
+            {isConnected ? '● Connected' : '○ Disconnected'}
+          </span>
+        }
+      />
 
       <div className="max-w-4xl mx-auto pt-20 px-4 pb-8">
         {liveScore ? (

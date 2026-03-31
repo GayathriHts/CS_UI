@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
 import { useAuthStore } from '../store/slices/authStore';
+import Navbar from '../components/Navbar';
 import type { BoardInfo, BoardDirector, BoardSponsor, BoardFan, BoardFeedItem, BoardScore, RosterDetail, BoardFollowing, BoardEvent } from '../types';
 
 type BoardTab = 'info' | 'pitch' | 'score' | 'fans' | 'squad' | 'invite' | 'events';
@@ -59,20 +60,7 @@ export default function BoardDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-brand-dark shadow-lg">
-        <div className="max-w-full mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
-            <div className="flex items-center gap-4">
-              <Link to="/dashboard?tab=board" className="text-white/80 hover:text-white">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-              </Link>
-              <Link to="/" className="flex items-center gap-2">
-                <img src="/images/cs-logo.png" alt="CricketSocial" className="h-8" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar backTo="/dashboard?tab=board" />
 
       <div className="pt-14 bg-gradient-to-r from-brand-green to-brand-dark text-white">
         <div className="max-w-6xl mx-auto px-6 py-8">
