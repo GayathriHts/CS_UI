@@ -5,9 +5,9 @@ import { boardService, leagueService, rosterService, tournamentService } from '.
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
 import Navbar from '../components/Navbar';
 
-type LeagueTab = 'dashboard' | 'create-umpire' | 'umpire-list' | 'create-ground' | 'ground-list' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game';
+type LeagueTab = 'dashboard' | 'create-umpire' | 'umpire-list' | 'create-ground' | 'ground-list' | 'create-trophy' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game';
 
-type SidebarSection = 'umpires' | 'grounds' | 'schedules';
+type SidebarSection = 'umpires' | 'grounds' | 'trophy' | 'schedules';
 
 const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueTab; label: string }[] }[] = [
   {
@@ -22,6 +22,12 @@ const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueT
     items: [
       { id: 'create-ground', label: 'Create Ground' },
       { id: 'ground-list', label: 'Ground List' },
+    ],
+  },
+  {
+    id: 'trophy', label: 'TROPHY',
+    items: [
+      { id: 'create-trophy', label: 'Create Trophy' },
     ],
   },
   {
@@ -123,6 +129,7 @@ export default function LeagueManagementPage() {
           {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} />}
           {activeTab === 'create-ground' && <CreateGroundTab />}
           {activeTab === 'ground-list' && <GroundListTab />}
+          {activeTab === 'create-trophy' && <CreateTrophyTab boardId={boardId!} />}
           {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} />}
           {activeTab === 'schedule' && <ScheduleTab boardId={boardId!} />}
           {activeTab === 'cancel-game' && <CancelGameTab boardId={boardId!} />}
@@ -634,6 +641,264 @@ function GroundListTab() {
             ))}
             {(!grounds?.length) && <div className="col-span-full text-center py-8 text-gray-400">No grounds created yet.</div>}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── CREATE TROPHY TAB ──
+interface TrophyGroup {
+  name: string;
+  teamIds: string[];
+}
+
+function CreateTrophyTab({ boardId }: { boardId: string }) {
+  const [name, setName] = useState('');
+  const [winPoints, setWinPoints] = useState('2');
+  const [umpireOption, setUmpireOption] = useState<'list' | 'buddy'>('list');
+  const [groups, setGroups] = useState<TrophyGroup[]>([{ name: 'group A', teamIds: [] }]);
+  const [teamSearches, setTeamSearches] = useState<string[]>(['']);
+  const qc = useQueryClient();
+
+  const { data: rosters } = useQuery({
+    queryKey: ['rosters', boardId],
+    queryFn: () => rosterService.getByBoard(boardId).then(r => r.data),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: () => tournamentService.create({
+      name, boardId, format: 'T20', oversPerInning: 20, maxPlayersPerTeam: 11,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
+      setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']);
+    },
+  });
+
+  const addGroup = () => {
+    const letter = String.fromCharCode(65 + groups.length);
+    setGroups([...groups, { name: `group ${letter}`, teamIds: [] }]);
+    setTeamSearches([...teamSearches, '']);
+  };
+
+  const removeGroup = (idx: number) => {
+    setGroups(groups.filter((_, i) => i !== idx));
+    setTeamSearches(teamSearches.filter((_, i) => i !== idx));
+  };
+
+  const updateGroupName = (idx: number, val: string) => {
+    const updated = [...groups];
+    updated[idx] = { ...updated[idx], name: val };
+    setGroups(updated);
+  };
+
+  const addTeamToGroup = (groupIdx: number, teamId: string) => {
+    const updated = [...groups];
+    if (!updated[groupIdx].teamIds.includes(teamId)) {
+      updated[groupIdx] = { ...updated[groupIdx], teamIds: [...updated[groupIdx].teamIds, teamId] };
+      setGroups(updated);
+    }
+    const searches = [...teamSearches];
+    searches[groupIdx] = '';
+    setTeamSearches(searches);
+  };
+
+  const removeTeamFromGroup = (groupIdx: number, teamId: string) => {
+    const updated = [...groups];
+    updated[groupIdx] = { ...updated[groupIdx], teamIds: updated[groupIdx].teamIds.filter(t => t !== teamId) };
+    setGroups(updated);
+  };
+
+  const getFilteredRosters = (groupIdx: number) => {
+    const search = teamSearches[groupIdx]?.toLowerCase() || '';
+    if (!search) return [];
+    return (rosters || []).filter(r => r.name.toLowerCase().includes(search));
+  };
+
+  return (
+    <div className="animate-fade-in">
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Group Tournament</h2>
+        </div>
+
+        <div className="p-6 space-y-6">
+          {/* Tournament Name + Win Points */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>Create Tournament / Trophy
+              </label>
+              <input
+                value={name}
+                onChange={e => setName(e.target.value)}
+                className="input-field"
+                placeholder="Tournament name"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <span className="text-red-500">*</span>Win Points for the Match
+              </label>
+              <input
+                type="number"
+                value={winPoints}
+                onChange={e => setWinPoints(e.target.value)}
+                className="input-field"
+                placeholder="2"
+              />
+            </div>
+          </div>
+
+          {/* Umpire Assignment Options */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="umpireOption"
+                checked={umpireOption === 'list'}
+                onChange={() => setUmpireOption('list')}
+                className="w-4 h-4 text-red-600 accent-red-600"
+              />
+              <span className="text-sm text-gray-700">Assign Umpire from Umpire list</span>
+            </label>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="radio"
+                name="umpireOption"
+                checked={umpireOption === 'buddy'}
+                onChange={() => setUmpireOption('buddy')}
+                className="w-4 h-4 text-red-600 accent-red-600"
+              />
+              <span className="text-sm text-gray-700">Assign any CricketSocial Buddy as umpire</span>
+            </label>
+          </div>
+
+          {/* Groups */}
+          <div className="space-y-4">
+            {groups.map((group, gIdx) => (
+              <div key={gIdx} className="border-2 border-red-500 rounded-lg overflow-hidden">
+                <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between">
+                  <span className="font-bold text-sm uppercase">Group {String.fromCharCode(65 + gIdx)}</span>
+                  <div className="flex items-center gap-2">
+                    {groups.length > 1 && (
+                      <button onClick={() => removeGroup(gIdx)} className="text-white hover:text-red-200 text-lg" title="Remove group">🗑️</button>
+                    )}
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <span className="text-red-500">*</span>Group Name
+                    </label>
+                    <input
+                      value={group.name}
+                      onChange={e => updateGroupName(gIdx, e.target.value)}
+                      className="input-field max-w-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <span className="text-red-500">*</span>Team Board
+                    </label>
+                    <div className="flex gap-3 items-start">
+                      <div className="relative flex-1 max-w-xs">
+                        <input
+                          value={teamSearches[gIdx] || ''}
+                          onChange={e => {
+                            const searches = [...teamSearches];
+                            searches[gIdx] = e.target.value;
+                            setTeamSearches(searches);
+                          }}
+                          className="input-field"
+                          placeholder="Search team..."
+                        />
+                        {teamSearches[gIdx] && getFilteredRosters(gIdx).length > 0 && (
+                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                            {getFilteredRosters(gIdx).map(r => (
+                              <button
+                                key={r.id}
+                                onClick={() => addTeamToGroup(gIdx, r.id)}
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                {r.logoUrl
+                                  ? <img src={r.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                  : <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs">🏏</div>
+                                }
+                                {r.name}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => {
+                          const search = teamSearches[gIdx]?.toLowerCase() || '';
+                          const match = rosters?.find(r => r.name.toLowerCase().includes(search));
+                          if (match) addTeamToGroup(gIdx, match.id);
+                        }}
+                        className="px-6 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {group.teamIds.length > 0 && (
+                    <div className="space-y-2">
+                      {group.teamIds.map(tid => {
+                        const team = rosters?.find(r => r.id === tid);
+                        return team ? (
+                          <div key={tid} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
+                            <div className="flex items-center gap-3">
+                              {team.logoUrl
+                                ? <img src={team.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
+                              }
+                              <span className="text-sm font-medium">{team.name}</span>
+                            </div>
+                            <button onClick={() => removeTeamFromGroup(gIdx, tid)} className="text-red-500 hover:text-red-700 text-xs font-medium">Remove</button>
+                          </div>
+                        ) : null;
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            <button
+              onClick={addGroup}
+              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+            >
+              + Add Group
+            </button>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4">
+            <button
+              onClick={() => name && createMutation.mutate()}
+              disabled={!name || createMutation.isPending}
+              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
+            </button>
+            <button
+              onClick={() => { setName(''); setGroups([{ name: 'group A', teamIds: [] }]); }}
+              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+
+
         </div>
       </div>
     </div>
