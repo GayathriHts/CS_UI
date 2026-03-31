@@ -187,7 +187,7 @@ export default function LoginPage() {
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
              <div className="bg-brand-green py-4 text-center">
   
-  <h1 className="text-xl font-bold text-white">Sign In</h1>
+  <h1 className="text-xl font-bold text-white">Login</h1>
   
    
 
@@ -260,7 +260,7 @@ export default function LoginPage() {
                       <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
                       Signing in...
                     </span>
-                  ) : 'Sign In'}
+                  ) : 'Login'}
                 </button>
               </form>
 
@@ -380,9 +380,9 @@ export default function LoginPage() {
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                     <svg className="w-8 h-8 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   </div>
-                  <p className="text-gray-600">You can now sign in with your new password.</p>
+                  <p className="text-gray-600">You can now login with your new password.</p>
                   <button onClick={() => { setShowForgotPassword(false); setForgotStep('email'); }} className="w-full btn-primary py-3">
-                    Back to Sign In
+                    Back to Login
                   </button>
                 </div>
               )}
@@ -395,7 +395,7 @@ export default function LoginPage() {
                       setError('');
                     }}
                     className="text-sm text-gray-500 hover:text-brand-green">
-                    ← Back to Sign In
+                    ← Back to Login
                   </button>
                 </div>
               )}
