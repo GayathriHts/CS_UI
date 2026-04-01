@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { boardService, leagueService, rosterService, tournamentService } from '../services/cricketSocialService';
+import { boardService, leagueService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
 import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
@@ -1822,6 +1822,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
 // ── SCHEDULE TAB ──
 function ScheduleTab({ boardId }: { boardId: string }) {
   const today = new Date();
+  const user = useAuthStore((s) => s.user);
   const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
   const [to, setTo] = useState(new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().split('T')[0]);
   const [editMatchId, setEditMatchId] = useState<string | null>(null);
@@ -1841,7 +1842,26 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  
+
+  // User search state for Umpire, App Scorer, Portal Scorer
+  const [umpireSearch, setUmpireSearch] = useState('');
+  const [appScorerSearch, setAppScorerSearch] = useState('');
+  const [portalScorerSearch, setPortalScorerSearch] = useState('');
+  const [showUmpireDropdown, setShowUmpireDropdown] = useState(false);
+  const [showAppScorerDropdown, setShowAppScorerDropdown] = useState(false);
+  const [showPortalScorerDropdown, setShowPortalScorerDropdown] = useState(false);
+  const [selectedUmpire, setSelectedUmpire] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [selectedAppScorer, setSelectedAppScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [selectedPortalScorer, setSelectedPortalScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+
+  // Team board search state for Home/Away
+  const [homeTeamSearch, setHomeTeamSearch] = useState('');
+  const [awayTeamSearch, setAwayTeamSearch] = useState('');
+  const [showHomeTeamDropdown, setShowHomeTeamDropdown] = useState(false);
+  const [showAwayTeamDropdown, setShowAwayTeamDropdown] = useState(false);
+  const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ id: string; name: string } | null>(null);
+  const [selectedAwayTeam, setSelectedAwayTeam] = useState<{ id: string; name: string } | null>(null);
+
   const qc = useQueryClient();
   const { data: matches } = useQuery({
     queryKey: ['schedule', boardId, from, to],
@@ -1851,18 +1871,86 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     }),
     enabled: !!from && !!to,
   });
-  const { data: tournaments } = useQuery({
-    queryKey: ['tournaments', boardId],
-    queryFn: () => tournamentService.getByBoard(boardId).then(r => {
-      const d = r.data;
-      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-    }),
+
+  // Fetch tournaments from umpire API (has groupList with teamBoardId)
+  const { data: umpireTournaments } = useQuery({
+    queryKey: ['umpireTournaments'],
+    queryFn: async () => {
+      const r = await tournamentService.getTournaments(1, 100);
+      const d = r.data as any;
+      return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
+    },
   });
-  const { data: rosters } = useQuery({
-    queryKey: ['rosters', boardId],
-    queryFn: () => rosterService.getByBoard(boardId).then(r => {
+  const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
+
+  // Extract team board IDs from the selected tournament's groupList
+  const selectedTournament = tournamentList.find((t: any) => t.id === newTournamentId);
+  const tournamentTeamBoardIds: string[] = [];
+  if (selectedTournament && Array.isArray(selectedTournament.groupList)) {
+    for (const g of selectedTournament.groupList) {
+      if (Array.isArray(g.teamBoardId)) {
+        for (const tid of g.teamBoardId) {
+          if (tid && !tournamentTeamBoardIds.includes(tid)) tournamentTeamBoardIds.push(tid);
+        }
+      }
+    }
+  }
+
+  // Fetch board details for the team board IDs in the selected tournament
+  const { data: tournamentTeamBoards } = useQuery({
+    queryKey: ['tournamentTeamBoards', tournamentTeamBoardIds.sort().join(',')],
+    queryFn: async () => {
+      const results: { id: string; name: string }[] = [];
+      for (const tid of tournamentTeamBoardIds) {
+        try {
+          const r = await boardService.getById(tid);
+          const b = r.data as any;
+          results.push({ id: b.id || tid, name: b.name || b.boardName || tid });
+        } catch {
+          results.push({ id: tid, name: tid });
+        }
+      }
+      return results;
+    },
+    enabled: tournamentTeamBoardIds.length > 0,
+    staleTime: 60000,
+  });
+  const teamBoardList = Array.isArray(tournamentTeamBoards) ? tournamentTeamBoards : [];
+
+  // Fetch user list for Umpire / App Scorer / Portal Scorer search
+  const shouldFetchUsers = showUmpireDropdown || showAppScorerDropdown || showPortalScorerDropdown;
+  const { data: userList } = useQuery({
+    queryKey: ['usersListSchedule'],
+    queryFn: async () => {
+      const r = await userService.list();
+      const raw = r.data as any;
+      const list = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.data) ? raw.data
+        : Array.isArray(raw?.items) ? raw.items
+        : Array.isArray(raw?.users) ? raw.users
+        : Array.isArray(raw?.result) ? raw.result
+        : raw ? [raw] : [];
+      return list.map((u: any) => {
+        const first = u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '';
+        const last = u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '';
+        const email = u.email || u.emailAddress || '';
+        return {
+          id: u.id || u.Id || u.userId || u.UserId,
+          firstName: first || email.split('@')[0] || email,
+          lastName: last,
+          email,
+        };
+      });
+    },
+    enabled: shouldFetchUsers,
+  });
+  const normalizedUsers = Array.isArray(userList) ? userList : [];
+
+  const { data: grounds } = useQuery({
+    queryKey: ['grounds'],
+    queryFn: () => leagueService.getGrounds().then(r => {
       const d = r.data;
-      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
     }),
   });
   const { data: umpires } = useQuery({
@@ -1873,22 +1961,39 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     }),
     enabled: !!boardId,
   });
-  const { data: grounds } = useQuery({
-    queryKey: ['grounds'],
-    queryFn: () => leagueService.getGrounds().then(r => {
-      const d = r.data;
-      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
-    }),
-  });
 
-  // Normalize arrays safely
-  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
-  const rosterList = Array.isArray(rosters) ? rosters : [];
   const umpireList = Array.isArray(umpires) ? umpires : [];
   const groundList = Array.isArray(grounds) ? grounds : [];
   const matchList = Array.isArray(matches) ? matches : [];
 
-  // Auto-fill defaults when form is open and data loads
+  // Filter users based on search text
+  const filterUsers = (search: string) => {
+    const q = search.toLowerCase();
+    return normalizedUsers.filter((u: any) =>
+      !q || `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+    );
+  };
+
+  // Filter team boards based on search text
+  const filterTeamBoards = (search: string, excludeId?: string) => {
+    const q = search.toLowerCase();
+    return teamBoardList.filter((b: any) =>
+      (!excludeId || b.id !== excludeId) &&
+      (!q || b.name.toLowerCase().includes(q))
+    );
+  };
+
+  // Reset teams when tournament changes
+  useEffect(() => {
+    setNewHomeTeamId('');
+    setNewAwayTeamId('');
+    setSelectedHomeTeam(null);
+    setSelectedAwayTeam(null);
+    setHomeTeamSearch('');
+    setAwayTeamSearch('');
+  }, [newTournamentId]);
+
+  // Auto-fill defaults when form opens
   useEffect(() => {
     if (!showCreate) return;
     if (tournamentList.length > 0 && !newTournamentId) {
@@ -1897,19 +2002,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     if (!newGameType) {
       setNewGameType('T20');
     }
-    if (rosterList.length > 0 && !newHomeTeamId) {
-      setNewHomeTeamId(rosterList[0].id);
-    }
-  }, [showCreate, tournamentList.length, rosterList.length]);
-
-  // Auto-select first available away team when home team changes
-  useEffect(() => {
-    if (!showCreate || rosterList.length < 2 || !newHomeTeamId) return;
-    if (!newAwayTeamId || newAwayTeamId === newHomeTeamId) {
-      const first = rosterList.find((r: any) => r.id !== newHomeTeamId);
-      if (first) setNewAwayTeamId(first.id);
-    }
-  }, [showCreate, newHomeTeamId, rosterList.length]);
+  }, [showCreate, tournamentList.length]);
 
   const updateMatchMutation = useMutation({
     mutationFn: () => tournamentService.updateMatch(editMatchId!, {
@@ -1963,13 +2056,23 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const resetCreateForm = () => {
     setNewTournamentId(tournamentList.length > 0 ? tournamentList[0].id : '');
     setNewGameType('T20');
-    setNewHomeTeamId(rosterList.length > 0 ? rosterList[0].id : '');
-    setNewAwayTeamId(rosterList.length > 1 ? rosterList[1].id : '');
+    setNewHomeTeamId('');
+    setNewAwayTeamId('');
     setNewGroundId('');
     setNewUmpireId('');
     setNewAppScorerId('');
     setNewPortalScorerId('');
     setNewScheduledAt('');
+    setSelectedHomeTeam(null);
+    setSelectedAwayTeam(null);
+    setSelectedUmpire(null);
+    setSelectedAppScorer(null);
+    setSelectedPortalScorer(null);
+    setHomeTeamSearch('');
+    setAwayTeamSearch('');
+    setUmpireSearch('');
+    setAppScorerSearch('');
+    setPortalScorerSearch('');
     setFormErrors({});
   };
 
@@ -1981,6 +2084,106 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   };
 
   const statusColor = (s: string) => s === 'Scheduled' ? 'bg-blue-100 text-blue-700' : s === 'Live' ? 'bg-green-100 text-green-700' : s === 'Completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700';
+
+  // Reusable searchable user dropdown
+  const renderUserSearchDropdown = (
+    label: string,
+    search: string,
+    setSearch: (v: string) => void,
+    showDropdown: boolean,
+    setShowDropdown: (v: boolean) => void,
+    selected: { id: string; firstName: string; lastName: string; email: string } | null,
+    onSelect: (u: { id: string; firstName: string; lastName: string; email: string }) => void,
+    onClear: () => void,
+  ) => (
+    <div className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {selected ? (
+        <div className="flex items-center gap-2 input-field bg-gray-50">
+          <span className="flex-1 text-sm truncate">{`${selected.firstName} ${selected.lastName}`.trim() || selected.email}</span>
+          <button type="button" onClick={onClear} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            placeholder={`Search ${label.toLowerCase()}...`}
+            value={search}
+            onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
+            onFocus={() => setShowDropdown(true)}
+            className="input-field"
+          />
+          {showDropdown && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {filterUsers(search).length > 0 ? filterUsers(search).slice(0, 20).map((u: any) => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onClick={() => { onSelect(u); setShowDropdown(false); setSearch(''); }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-green/10 border-b last:border-b-0"
+                >
+                  <span className="font-medium">{`${u.firstName} ${u.lastName}`.trim()}</span>
+                  {u.email && <span className="text-gray-400 ml-2 text-xs">{u.email}</span>}
+                </button>
+              )) : (
+                <div className="px-3 py-2 text-sm text-gray-400">No users found</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
+  // Reusable searchable team board dropdown
+  const renderTeamBoardDropdown = (
+    label: string,
+    search: string,
+    setSearch: (v: string) => void,
+    showDropdown: boolean,
+    setShowDropdown: (v: boolean) => void,
+    selected: { id: string; name: string } | null,
+    onSelect: (b: { id: string; name: string }) => void,
+    onClear: () => void,
+    excludeId?: string,
+  ) => (
+    <div className="relative">
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      {selected ? (
+        <div className="flex items-center gap-2 input-field bg-gray-50">
+          <span className="flex-1 text-sm truncate">{selected.name}</span>
+          <button type="button" onClick={onClear} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+        </div>
+      ) : (
+        <>
+          <input
+            type="text"
+            placeholder={`Search ${label.toLowerCase()}...`}
+            value={search}
+            onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
+            onFocus={() => setShowDropdown(true)}
+            className="input-field"
+          />
+          {showDropdown && (
+            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+              {filterTeamBoards(search, excludeId).length > 0 ? filterTeamBoards(search, excludeId).map((b: any) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  onClick={() => { onSelect(b); setShowDropdown(false); setSearch(''); }}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-green/10 border-b last:border-b-0"
+                >
+                  <span className="font-medium">{b.name}</span>
+                </button>
+              )) : (
+                <div className="px-3 py-2 text-sm text-gray-400">{tournamentTeamBoardIds.length === 0 ? 'Select a tournament first' : 'No teams found'}</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 
   return (
     <div className="animate-fade-in">
@@ -2001,7 +2204,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament</label>
               <select value={newTournamentId} onChange={e => setNewTournamentId(e.target.value)} className="input-field">
                 <option value="">Select Tournament</option>
-                {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
             </div>
             <div>
@@ -2014,20 +2217,22 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <option value="League">League</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
-              <select value={newHomeTeamId} onChange={e => { setNewHomeTeamId(e.target.value); if (e.target.value === newAwayTeamId) setNewAwayTeamId(''); }} className="input-field">
-                <option value="">Select Home Team</option>
-                {rosterList.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Away Team</label>
-              <select value={newAwayTeamId} onChange={e => setNewAwayTeamId(e.target.value)} className="input-field">
-                <option value="">Select Away Team</option>
-                {rosterList.filter((r: any) => r.id !== newHomeTeamId).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </div>
+            {renderTeamBoardDropdown(
+              'Home Team', homeTeamSearch, setHomeTeamSearch,
+              showHomeTeamDropdown, setShowHomeTeamDropdown,
+              selectedHomeTeam,
+              (b) => { setSelectedHomeTeam(b); setNewHomeTeamId(b.id); if (b.id === newAwayTeamId) { setNewAwayTeamId(''); setSelectedAwayTeam(null); } },
+              () => { setSelectedHomeTeam(null); setNewHomeTeamId(''); setHomeTeamSearch(''); },
+              newAwayTeamId,
+            )}
+            {renderTeamBoardDropdown(
+              'Away Team', awayTeamSearch, setAwayTeamSearch,
+              showAwayTeamDropdown, setShowAwayTeamDropdown,
+              selectedAwayTeam,
+              (b) => { setSelectedAwayTeam(b); setNewAwayTeamId(b.id); },
+              () => { setSelectedAwayTeam(null); setNewAwayTeamId(''); setAwayTeamSearch(''); },
+              newHomeTeamId,
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
               <select value={newGroundId} onChange={e => setNewGroundId(e.target.value)} className="input-field">
@@ -2035,27 +2240,27 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
-              <select value={newUmpireId} onChange={e => setNewUmpireId(e.target.value)} className="input-field">
-                <option value="">Select Umpire</option>
-                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">App Scorer</label>
-              <select value={newAppScorerId} onChange={e => setNewAppScorerId(e.target.value)} className="input-field">
-                <option value="">Select App Scorer</option>
-                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Portal Scorer</label>
-              <select value={newPortalScorerId} onChange={e => setNewPortalScorerId(e.target.value)} className="input-field">
-                <option value="">Select Portal Scorer</option>
-                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
+            {renderUserSearchDropdown(
+              'Umpire', umpireSearch, setUmpireSearch,
+              showUmpireDropdown, setShowUmpireDropdown,
+              selectedUmpire,
+              (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); },
+              () => { setSelectedUmpire(null); setNewUmpireId(''); setUmpireSearch(''); },
+            )}
+            {renderUserSearchDropdown(
+              'App Scorer', appScorerSearch, setAppScorerSearch,
+              showAppScorerDropdown, setShowAppScorerDropdown,
+              selectedAppScorer,
+              (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); },
+              () => { setSelectedAppScorer(null); setNewAppScorerId(''); setAppScorerSearch(''); },
+            )}
+            {renderUserSearchDropdown(
+              'Portal Scorer', portalScorerSearch, setPortalScorerSearch,
+              showPortalScorerDropdown, setShowPortalScorerDropdown,
+              selectedPortalScorer,
+              (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); },
+              () => { setSelectedPortalScorer(null); setNewPortalScorerId(''); setPortalScorerSearch(''); },
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
               <input type="datetime-local" value={newScheduledAt} onChange={e => setNewScheduledAt(e.target.value)} className="input-field" />
