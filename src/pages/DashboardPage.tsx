@@ -738,18 +738,7 @@ export default function DashboardPage() {
                               )}
                             </div>
                             {showCoOwnerDropdown && (
-                              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                                <div className="p-2 border-b border-gray-100">
-                                  <input
-                                    type="text"
-                                    value={coOwnerSearch}
-                                    onChange={e => setCoOwnerSearch(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                                    placeholder="Search users..."
-                                    autoFocus
-                                    onClick={e => e.stopPropagation()}
-                                  />
-                                </div>
+                              <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                                 <div className="max-h-48 overflow-y-auto">
                                   {coOwnerLoading ? (
                                     <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
@@ -782,6 +771,17 @@ export default function DashboardPage() {
                                       ))
                                     );
                                   })()}
+                                </div>
+                                <div className="p-2 border-t border-gray-100">
+                                  <input
+                                    type="text"
+                                    value={coOwnerSearch}
+                                    onChange={e => setCoOwnerSearch(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                                    placeholder="Search users..."
+                                    autoFocus
+                                    onClick={e => e.stopPropagation()}
+                                  />
                                 </div>
                               </div>
                             )}
