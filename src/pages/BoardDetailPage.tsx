@@ -28,6 +28,8 @@ export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
   const [showEditBoard, setShowEditBoard] = useState(false);
+  const [rosterFormDirty, setRosterFormDirty] = useState(false);
+  const [pendingTab, setPendingTab] = useState<BoardTab | null>(null);
   const qc = useQueryClient();
   const navigate = useNavigate();
 
@@ -107,7 +109,13 @@ export default function BoardDetailPage() {
           {board.description && <p className="mt-4 text-green-100 max-w-2xl">{board.description}</p>}
           <div className="flex gap-1 mt-6 -mb-px overflow-x-auto">
             {visibleTabs.map((tab) => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              <button key={tab.id} onClick={() => {
+                if (activeTab === 'squad' && tab.id !== 'squad' && rosterFormDirty) {
+                  setPendingTab(tab.id);
+                } else {
+                  setActiveTab(tab.id);
+                }
+              }}
                 className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-gray-100 text-brand-green' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
                 {tab.icon} {tab.label}
               </button>
@@ -121,7 +129,7 @@ export default function BoardDetailPage() {
         {activeTab === 'pitch' && <PitchTab boardId={id!} />}
         {activeTab === 'score' && <ScoreTab boardId={id!} />}
         {activeTab === 'fans' && <FansTab boardId={id!} />}
-        {activeTab === 'squad' && <SquadTab boardId={id!} />}
+        {activeTab === 'squad' && <SquadTab boardId={id!} onDirtyChange={setRosterFormDirty} />}
         {activeTab === 'invite' && <InviteTab boardId={id!} />}
         {activeTab === 'events' && <EventsTab boardId={id!} />}
       </div>
@@ -138,11 +146,31 @@ export default function BoardDetailPage() {
           }}
         />
       )}
+      {/* Tab Switch Confirmation */}
+      {pendingTab && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPendingTab(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved roster data. Are you sure you want to leave?</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setPendingTab(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+                >No, Keep Editing</button>
+                <button
+                  onClick={() => { setActiveTab(pendingTab); setPendingTab(null); setRosterFormDirty(false); }}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
+                >Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ── EDIT BOARD MODAL ──
 function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
   console.log('EditBoardModal board object:', board, 'boardId:', boardId);
   const [name, setName] = useState(board.name || '');
@@ -809,7 +837,7 @@ interface RosterFormData {
   members: string[];
 }
 
-function SquadTab({ boardId }: { boardId: string }) {
+function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RosterFormData>({
@@ -950,6 +978,7 @@ function SquadTab({ boardId }: { boardId: string }) {
     setRosterFieldSearch('');
     setActiveSearchField(null);
     setErrors({});
+    onDirtyChange?.(false);
   };
 
   const startEdit = (roster: any) => {
@@ -999,6 +1028,7 @@ function SquadTab({ boardId }: { boardId: string }) {
       setNewMember('');
       setSearchTerm('');
       setActiveSearchField(null);
+      onDirtyChange?.(true);
     }
   };
 
@@ -1010,6 +1040,7 @@ function SquadTab({ boardId }: { boardId: string }) {
     setFormData(prev => ({ ...prev, [field]: userId }));
     setSearchTerm('');
     setActiveSearchField(null);
+    onDirtyChange?.(true);
   };
 
   const handleFieldSearch = (value: string, field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
@@ -1102,7 +1133,7 @@ function SquadTab({ boardId }: { boardId: string }) {
       {/* Create Roster Button */}
       {!showCreateForm && (
         <div className="mb-6">
-          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); }} className="btn-primary flex items-center gap-2">
+          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); onDirtyChange?.(true); }} className="btn-primary flex items-center gap-2">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
@@ -1125,8 +1156,15 @@ function SquadTab({ boardId }: { boardId: string }) {
               <input
                 type="text"
                 value={formData.rosterName}
-                onChange={(e) => setFormData(prev => ({ ...prev, rosterName: e.target.value }))}
-                placeholder="e.g., Chennai Super Kings"
+                onChange={(e) => {
+                  let val = e.target.value;
+                  // No leading spaces, only alphanumeric and spaces allowed
+                  if (val.length > 0 && val[0] === ' ') return;
+                  if (!/^[a-zA-Z0-9 ]*$/.test(val)) return;
+                  setFormData(prev => ({ ...prev, rosterName: val }));
+                  onDirtyChange?.(true);
+                }}
+                placeholder=""
                 className={`flex-1 px-4 py-2.5 border border-l-0 rounded-r-lg focus:ring-2 focus:ring-brand-green focus:border-transparent ${errors.rosterName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
               />
             </div>
@@ -1143,7 +1181,7 @@ function SquadTab({ boardId }: { boardId: string }) {
               {/* Captain */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-blue-600 mb-1 italic">Captain</label>
-                <div className="relative">
+                <div className="relative max-w-sm">
                   <input
                     type="text"
                     value={formData.captain}
@@ -1159,7 +1197,7 @@ function SquadTab({ boardId }: { boardId: string }) {
               {/* Vice Captain */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-blue-600 mb-1 italic">Vice Captain</label>
-                <div className="relative">
+                <div className="relative max-w-sm">
                   <input
                     type="text"
                     value={formData.viceCaptain}
@@ -1175,7 +1213,7 @@ function SquadTab({ boardId }: { boardId: string }) {
               {/* Coach */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1 italic">Coach</label>
-                <div className="relative">
+                <div className="relative max-w-sm">
                   <input
                     type="text"
                     value={formData.coach}
@@ -1191,7 +1229,7 @@ function SquadTab({ boardId }: { boardId: string }) {
               {/* Add Member */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-blue-600 mb-1 italic">Add Member</label>
-                <div className="flex gap-2">
+                <div className="flex gap-2 max-w-sm">
                   <div className="flex-1 relative">
                     <input
                       type="text"
