@@ -241,27 +241,59 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
   const [countryCode, setCountryCode] = useState('+1');
   const [contactNo, setContactNo] = useState('');
   const [email, setEmail] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const qc = useQueryClient();
+
+  const validate = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    if (!name.trim()) newErrors.name = 'Umpire Name is required';
+    if (!city.trim()) newErrors.city = 'City is required';
+    if (!state.trim()) newErrors.state = 'State is required';
+    if (!country.trim()) newErrors.country = 'Country is required';
+    if (!zipCode.trim()) newErrors.zipCode = 'Zip Code is required';
+    if (!email.trim()) {
+      newErrors.email = 'E-mail ID is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      newErrors.email = 'Enter a valid email address';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const createMutation = useMutation({
     mutationFn: () => leagueService.createUmpire(boardId, {
-      umpireName: name,
-      address1: addressLine1 || undefined,
-      address2: addressLine2 || undefined,
-      city: city || undefined,
-      state: state || undefined,
-      country: country || undefined,
-      zipcode: zipCode || undefined,
-      mobile: contactNo ? `${countryCode}${contactNo}` : undefined,
-      email: email || undefined,
+      umpireName: name.trim(),
+      address1: addressLine1.trim(),
+      address2: addressLine2.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      country: country.trim(),
+      zipcode: zipCode.trim(),
+      homePhone: '',
+      workPhone: '',
+      mobile: contactNo.trim() ? `${countryCode}${contactNo.trim()}` : '',
+      email: email.trim(),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['umpires', boardId] });
       setName(''); setAddressLine1(''); setAddressLine2('');
       setCity(''); setState(''); setCountry('');
       setZipCode(''); setContactNo(''); setEmail('');
+      setErrors({});
+      setSubmitStatus({ type: 'success', message: 'Umpire created successfully!' });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.response?.data?.title || err?.message || 'Failed to create umpire. Please try again.';
+      setSubmitStatus({ type: 'error', message: msg });
     },
   });
+
+  const handleSubmit = () => {
+    setSubmitStatus(null);
+    if (!validate()) return;
+    createMutation.mutate();
+  };
 
   return (
     <div className="animate-fade-in">
@@ -270,6 +302,13 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
           <h2 className="text-base font-bold text-gray-800 uppercase">Create Umpire</h2>
         </div>
         <div className="p-6">
+          {/* Status message */}
+          {submitStatus && (
+            <div className={`mb-4 px-4 py-3 rounded text-sm font-medium ${submitStatus.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+              {submitStatus.message}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
             {/* Row 1 */}
             <div>
@@ -278,10 +317,11 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               </label>
               <input
                 value={name}
-                onChange={e => setName(e.target.value)}
-                className="input-field"
+                onChange={e => { setName(e.target.value); if (errors.name) setErrors(prev => ({ ...prev, name: '' })); }}
+                className={`input-field ${errors.name ? 'border-red-500' : ''}`}
                 placeholder="Search by Name, Email or Mobile No"
               />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
@@ -307,9 +347,10 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               </label>
               <input
                 value={city}
-                onChange={e => setCity(e.target.value)}
-                className="input-field"
+                onChange={e => { setCity(e.target.value); if (errors.city) setErrors(prev => ({ ...prev, city: '' })); }}
+                className={`input-field ${errors.city ? 'border-red-500' : ''}`}
               />
+              {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -317,9 +358,10 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               </label>
               <input
                 value={state}
-                onChange={e => setState(e.target.value)}
-                className="input-field"
+                onChange={e => { setState(e.target.value); if (errors.state) setErrors(prev => ({ ...prev, state: '' })); }}
+                className={`input-field ${errors.state ? 'border-red-500' : ''}`}
               />
+              {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -327,9 +369,10 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               </label>
               <input
                 value={country}
-                onChange={e => setCountry(e.target.value)}
-                className="input-field"
+                onChange={e => { setCountry(e.target.value); if (errors.country) setErrors(prev => ({ ...prev, country: '' })); }}
+                className={`input-field ${errors.country ? 'border-red-500' : ''}`}
               />
+              {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country}</p>}
             </div>
 
             {/* Row 3 */}
@@ -339,9 +382,10 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               </label>
               <input
                 value={zipCode}
-                onChange={e => setZipCode(e.target.value)}
-                className="input-field"
+                onChange={e => { setZipCode(e.target.value); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
+                className={`input-field ${errors.zipCode ? 'border-red-500' : ''}`}
               />
+              {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact No</label>
@@ -376,16 +420,17 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               <input
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="input-field"
+                onChange={e => { setEmail(e.target.value); if (errors.email) setErrors(prev => ({ ...prev, email: '' })); }}
+                className={`input-field ${errors.email ? 'border-red-500' : ''}`}
               />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
           </div>
 
           <div className="flex justify-end mt-6">
             <button
-              onClick={() => name && city && state && country && zipCode && email && createMutation.mutate()}
-              disabled={!name || !city || !state || !country || !zipCode || !email || createMutation.isPending}
+              onClick={handleSubmit}
+              disabled={createMutation.isPending}
               className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -400,7 +445,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
 // ── UMPIRE LIST TAB ──
 function UmpireListTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
-  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data) });
+  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data as Umpire[]) });
   const deleteMutation = useMutation({
     mutationFn: (id: string) => leagueService.deleteUmpire(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['umpires', boardId] }),
@@ -1089,7 +1134,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     queryKey: ['rosters', boardId],
     queryFn: () => rosterService.getByBoard(boardId).then(r => r.data),
   });
-  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data), enabled: !!boardId });
+  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data as Umpire[]), enabled: !!boardId });
   const { data: grounds } = useQuery({ queryKey: ['grounds'], queryFn: () => leagueService.getGrounds().then(r => r.data) });
 
   const updateMatchMutation = useMutation({

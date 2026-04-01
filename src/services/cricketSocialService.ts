@@ -337,17 +337,17 @@ export const boardDetailService = {
 
 // ── League Management ──
 export const leagueService = {
-  // Umpires
+  // Umpires (all via umpireApi → port 9004)
   createUmpire: (_boardId: string, data: {
     umpireName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     homePhone?: string; workPhone?: string; mobile?: string; email?: string;
   }) =>
     umpireApi.post('/Umpire', data),
-  getUmpires: (boardId: string) => api.get<Umpire[]>(`/league/boards/${boardId}/umpires`),
+  getUmpires: (_boardId: string) => umpireApi.get('/Umpire'),
   updateUmpire: (umpireId: string, data: { name?: string; contactNumber?: string; city?: string }) =>
-    api.put<Umpire>(`/league/umpires/${umpireId}`, data),
-  deleteUmpire: (umpireId: string) => api.delete(`/league/umpires/${umpireId}`),
+    umpireApi.put(`/Umpire/${umpireId}`, data),
+  deleteUmpire: (umpireId: string) => umpireApi.delete(`/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
     groundName: string; address1?: string; address2?: string;

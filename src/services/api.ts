@@ -99,6 +99,28 @@ const umpireApi = {
       },
     });
   },
+  put: (url: string, data: any, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+    return axios.put(UMPIRE_API_BASE_URL + url, data, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
+  delete: (url: string, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+    return axios.delete(UMPIRE_API_BASE_URL + url, {
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
 };
 
 export { boardApi, umpireApi };
