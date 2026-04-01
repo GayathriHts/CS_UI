@@ -172,7 +172,7 @@ export const tournamentService = {
     winPoint: number;
     umpireCheck: number;
     active?: number;
-    scheduleCoordinator?: string;
+    scheduleCoordinator?: boolean;
     startNode?: number;
     endNode?: number;
     recordCount?: number;
@@ -190,7 +190,7 @@ export const tournamentService = {
       winPoint: data.winPoint,
       umpireCheck: data.umpireCheck,
       active: data.active ?? 1,
-      scheduleCoordinator: data.scheduleCoordinator ?? '',
+      scheduleCoordinator: data.scheduleCoordinator ?? true,
       startNode: data.startNode ?? 0,
       endNode: data.endNode ?? 0,
       recordCount: data.recordCount ?? 0,

@@ -1037,25 +1037,59 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
-  // Fetch boards from GET /api/v1/Boards?page=1&pageSize=100 (port 9003)
+  // Load boards from sessionStorage (stored by Dashboard) + API fallback
   const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
-    queryKey: ['allBoards'],
+    queryKey: ['boardsByOwner', user?.id],
     queryFn: async () => {
-      const r = await boardService.getMyBoards(1, 100);
-      const raw = r.data as any;
-      // Handle all possible response shapes
-      const list: any[] = Array.isArray(raw) ? raw
-        : Array.isArray(raw?.items) ? raw.items
-        : Array.isArray(raw?.data?.items) ? raw.data.items
-        : Array.isArray(raw?.data) ? raw.data
-        : Array.isArray(raw?.result) ? raw.result
-        : [];
-      return list.map((b: any) => ({
-        id: b.id || b.Id || b.boardId || '',
-        name: b.name || b.boardName || b.Name || '',
-        logoUrl: b.logoUrl || '',
-      }));
+      // 1. Try sessionStorage first (same cache Dashboard uses)
+      try {
+        const stored = sessionStorage.getItem('recentBoards');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((b: any) => ({
+              id: b.id || b.Id || b.boardId || '',
+              name: b.name || b.boardName || b.Name || '',
+              logoUrl: b.logoUrl || '',
+              description: b.description || b.city || '',
+            }));
+          }
+        }
+      } catch {}
+
+      // 2. Fallback: fetch from API
+      const [ownerRes, coOwnerRes] = await Promise.all([
+        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
+        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
+      ]);
+      const extract = (raw: any): any[] => {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (raw?.items) return raw.items;
+        if (raw?.data?.items) return raw.data.items;
+        if (Array.isArray(raw?.data)) return raw.data;
+        if (Array.isArray(raw?.result)) return raw.result;
+        return [];
+      };
+      const ownerItems = extract(ownerRes.data);
+      const coOwnerItems = extract(coOwnerRes.data);
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const b of [...ownerItems, ...coOwnerItems]) {
+        const id = b.id || b.Id || b.boardId || '';
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          merged.push({
+            id,
+            name: b.name || b.boardName || b.Name || '',
+            logoUrl: b.logoUrl || '',
+            description: b.description || b.city || '',
+          });
+        }
+      }
+      return merged;
     },
+    enabled: !!user?.id,
     staleTime: 30000,
   });
 
@@ -1065,10 +1099,10 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
       winPoint: Number(winPoints) || 0,
       umpireCheck: umpireOption === 'list' ? 1 : 0,
       active: 1,
-      scheduleCoordinator: boardId,
+      scheduleCoordinator: true,
       matchType: 'league',
       groupList: groups.map(g => ({
-        id: boardId,
+        id: crypto.randomUUID(),
         tournamentGroupName: g.name,
         active: 1,
         teamBoardId: g.teamIds,
@@ -1240,7 +1274,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                           </svg>
                         </div>
                         {openDropdown === gIdx && (
-                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                          <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
                             <div className="p-2 border-b border-gray-100">
                               <input
                                 type="text"
@@ -1256,7 +1290,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                                 onClick={e => e.stopPropagation()}
                               />
                             </div>
-                            <div className="max-h-48 overflow-y-auto">
+                            <div className="max-h-60 overflow-y-auto">
                               {boardsLoading ? (
                                 <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
                               ) : (() => {
@@ -1271,13 +1305,18 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                                         addTeamToGroup(gIdx, b.id);
                                         setOpenDropdown(null);
                                       }}
-                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 border-b last:border-0"
+                                      className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
                                     >
-                                      {b.logoUrl
-                                        ? <img src={b.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
-                                        : <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs">🏏</div>
-                                      }
-                                      <span className="font-medium text-gray-900">{b.name}</span>
+                                      <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                        {b.logoUrl
+                                          ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                          : b.name?.[0]?.toUpperCase() || '?'
+                                        }
+                                      </div>
+                                      <div className="min-w-0">
+                                        <span className="block font-medium text-gray-900">{b.name}</span>
+                                        {b.description && <span className="block text-xs text-gray-600 truncate">{b.description}</span>}
+                                      </div>
                                     </button>
                                   ))
                                 );
