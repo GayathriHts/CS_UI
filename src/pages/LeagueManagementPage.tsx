@@ -127,7 +127,7 @@ export default function LeagueManagementPage() {
           {activeTab === 'dashboard' && <LeagueLandingTab boardId={boardId!} />}
           {activeTab === 'create-umpire' && <CreateUmpireTab boardId={boardId!} />}
           {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} />}
-          {activeTab === 'create-ground' && <CreateGroundTab />}
+          {activeTab === 'create-ground' && <CreateGroundTab onCreated={() => setActiveTab('ground-list')} />}
           {activeTab === 'ground-list' && <GroundListTab />}
           {activeTab === 'create-trophy' && <CreateTrophyTab boardId={boardId!} />}
           {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} />}
@@ -496,7 +496,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
 }
 
 // ── CREATE GROUND TAB ──
-function CreateGroundTab() {
+function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
   const [name, setName] = useState('');
   const [address1, setAddress1] = useState('');
   const [address2, setAddress2] = useState('');
@@ -533,7 +533,10 @@ function CreateGroundTab() {
       resetForm();
       setSuccessMsg('Ground created successfully!');
       setErrorMsg('');
-      setTimeout(() => setSuccessMsg(''), 4000);
+      setTimeout(() => {
+        setSuccessMsg('');
+        onCreated?.();
+      }, 1500);
     },
     onError: (err: any) => {
       setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to create ground. Please try again.');
@@ -620,7 +623,13 @@ function CreateGroundTab() {
 
 // ── GROUND LIST TAB ──
 function GroundListTab() {
-  const { data: grounds } = useQuery({ queryKey: ['grounds'], queryFn: () => leagueService.getGrounds().then(r => r.data) });
+  const { data: grounds } = useQuery({
+    queryKey: ['grounds'],
+    queryFn: () => leagueService.getGrounds().then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
+    }),
+  });
 
   return (
     <div className="animate-fade-in">
@@ -1099,7 +1108,13 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     queryFn: () => rosterService.getByBoard(boardId).then(r => r.data),
   });
   const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data as Umpire[]), enabled: !!boardId });
-  const { data: grounds } = useQuery({ queryKey: ['grounds'], queryFn: () => leagueService.getGrounds().then(r => r.data) });
+  const { data: grounds } = useQuery({
+    queryKey: ['grounds'],
+    queryFn: () => leagueService.getGrounds().then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
+    }),
+  });
 
   const updateMatchMutation = useMutation({
     mutationFn: () => tournamentService.updateMatch(editMatchId!, {

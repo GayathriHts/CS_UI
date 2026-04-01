@@ -366,7 +366,7 @@ export const leagueService = {
       landmark: data.landmark ?? '',
       homeTeam: data.homeTeam ?? '',
     }),
-  getGrounds: () => umpireApi.get('/Ground'),
+  getGrounds: (page = 1, pageSize = 100) => umpireApi.get('/Ground', { params: { page, pageSize } }),
   deleteGround: (groundId: string) => umpireApi.delete(`/Ground/${groundId}`),
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
