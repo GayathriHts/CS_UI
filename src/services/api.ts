@@ -3,9 +3,10 @@ import type { AxiosRequestConfig } from 'axios';
 
 const API_BASE_URL = 'http://10.10.20.24:9002/api/v1'; 
 
-const BOARD_API_BASE_URL = 'http://10.10.20.24:9003/api/v1';
+// Use relative paths for board & umpire APIs so Vite proxy handles CORS
+const BOARD_API_BASE_URL = '/board-api/v1';
 
-const UMPIRE_API_BASE_URL = 'http://10.10.20.24:9004/api/v1';
+const UMPIRE_API_BASE_URL = '/umpire-api/v1';
 
 const getBoardToken = () => {
   return sessionStorage.getItem('token') || localStorage.getItem('token');

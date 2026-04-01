@@ -203,6 +203,49 @@ export const tournamentService = {
       })),
       createdBy: data.createdBy ?? '',
     }),
+  // GET /api/v{version}/Tournament — list all tournaments from umpire API
+  getTournaments: (page = 1, pageSize = 20) => umpireApi.get('/Tournament', { params: { page, pageSize } }),
+  // PUT /api/v{version}/Tournament/{id} — update tournament
+  updateTournament: (id: string, data: {
+    id: string;
+    tournamentName: string;
+    winPoint: number;
+    umpireCheck: number;
+    active?: number;
+    scheduleCoordinator?: boolean;
+    startNode?: number;
+    endNode?: number;
+    recordCount?: number;
+    matchType?: string;
+    groupList: {
+      id: string;
+      tournamentGroupName: string;
+      active?: number;
+      teamBoardId: string[];
+    }[];
+    modifiedBy?: string;
+  }) =>
+    umpireApi.put(`/Tournament/${id}`, {
+      id: data.id,
+      tournamentName: data.tournamentName,
+      winPoint: data.winPoint,
+      umpireCheck: data.umpireCheck,
+      active: data.active ?? 1,
+      scheduleCoordinator: data.scheduleCoordinator ?? true,
+      startNode: data.startNode ?? 0,
+      endNode: data.endNode ?? 0,
+      recordCount: data.recordCount ?? 0,
+      matchType: data.matchType ?? 'league',
+      groupList: data.groupList.map(g => ({
+        id: g.id,
+        tournamentGroupName: g.tournamentGroupName,
+        active: g.active ?? 1,
+        teamBoardId: g.teamBoardId,
+      })),
+      modifiedBy: data.modifiedBy ?? '',
+    }),
+  // DELETE tournament
+  deleteTournament: (id: string) => umpireApi.delete(`/Tournament/${id}`),
   getById: (id: string) => api.get<Tournament>(`/tournaments/${id}`),
   getByBoard: (boardId: string, page = 1, pageSize = 20) =>
     api.get<PagedResponse<Tournament>>(`/tournaments/board/${boardId}`, { params: { page, pageSize } }),

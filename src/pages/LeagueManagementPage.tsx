@@ -1111,6 +1111,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
+      qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
       setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']);
       setSuccessMsg('Tournament created successfully!');
       setErrorMsg('');
@@ -1437,121 +1438,382 @@ function CancelGameTab({ boardId }: { boardId: string }) {
 
 // ── TOURNAMENTS TAB ──
 function TournamentsTab({ boardId }: { boardId: string }) {
-  const [showForm, setShowForm] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [name, setName] = useState('');
-  const [format, setFormat] = useState('T20');
-  const [overs, setOvers] = useState('20');
-  const [maxPlayers, setMaxPlayers] = useState('11');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  
   const qc = useQueryClient();
-  const { data: tournaments } = useQuery({ queryKey: ['tournaments', boardId], queryFn: () => tournamentService.getByBoard(boardId).then(r => {
-    const d = r.data;
-    return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-  }) });
-  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
-  
-  const createMutation = useMutation({
-    mutationFn: () => tournamentService.create({
-      name, boardId, format, oversPerInning: parseInt(overs), maxPlayersPerTeam: parseInt(maxPlayers),
-      startDate: startDate ? new Date(startDate) : undefined, endDate: endDate ? new Date(endDate) : undefined
-    }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
-      setShowForm(false);
-      resetForm();
+  const user = useAuthStore((s) => s.user);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editOriginal, setEditOriginal] = useState<any>(null);
+  const [editName, setEditName] = useState('');
+  const [editWinPoint, setEditWinPoint] = useState('2');
+  const [editUmpireCheck, setEditUmpireCheck] = useState<number>(1);
+  const [editMatchType, setEditMatchType] = useState('league');
+  const [editGroups, setEditGroups] = useState<{ id: string; tournamentGroupName: string; active: number; teamBoardId: string[] }[]>([]);
+  const [editGroupSearches, setEditGroupSearches] = useState<string[]>([]);
+  const [editOpenDropdown, setEditOpenDropdown] = useState<number | null>(null);
+  const [updateError, setUpdateError] = useState('');
+  const [updateSuccess, setUpdateSuccess] = useState('');
+
+  // Fetch tournaments from GET /api/v{version}/Tournament (umpireApi)
+  const { data: tournaments, isLoading } = useQuery({
+    queryKey: ['umpireTournaments'],
+    queryFn: async () => {
+      const r = await tournamentService.getTournaments(1, 100);
+      const d = r.data as any;
+      const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
+      return list;
     },
+  });
+  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
+
+  // Fetch boards for edit dropdown (same as CreateTrophyTab)
+  const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
+    queryKey: ['boardsByOwner', user?.id],
+    queryFn: async () => {
+      try {
+        const stored = sessionStorage.getItem('recentBoards');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((b: any) => ({
+              id: b.id || b.Id || b.boardId || '',
+              name: b.name || b.boardName || b.Name || '',
+              logoUrl: b.logoUrl || '',
+            }));
+          }
+        }
+      } catch {}
+      const [ownerRes, coOwnerRes] = await Promise.all([
+        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
+        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
+      ]);
+      const extract = (raw: any): any[] => {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (raw?.items) return raw.items;
+        if (raw?.data?.items) return raw.data.items;
+        if (Array.isArray(raw?.data)) return raw.data;
+        return [];
+      };
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
+        const id = b.id || b.Id || b.boardId || '';
+        if (id && !seen.has(id)) { seen.add(id); merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' }); }
+      }
+      return merged;
+    },
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => tournamentService.deleteTournament(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
+      setUpdateSuccess('Tournament deleted successfully!');
+      setTimeout(() => setUpdateSuccess(''), 4000);
+    },
+    onError: (err: any) => setUpdateError(err?.response?.data?.message || err?.message || 'Failed to delete tournament.'),
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => tournamentService.update(editId!, {
-      name, format, oversPerInning: parseInt(overs), maxPlayersPerTeam: parseInt(maxPlayers),
-      startDate: startDate ? new Date(startDate) : undefined, endDate: endDate ? new Date(endDate) : undefined
+    mutationFn: () => tournamentService.updateTournament(editId!, {
+      id: editId!,
+      tournamentName: editName,
+      winPoint: Number(editWinPoint) || 0,
+      umpireCheck: editUmpireCheck,
+      active: editOriginal?.active ?? 1,
+      scheduleCoordinator: editOriginal?.scheduleCoordinator ?? true,
+      startNode: editOriginal?.startNode ?? 0,
+      endNode: editOriginal?.endNode ?? 0,
+      recordCount: editOriginal?.recordCount ?? 0,
+      matchType: editMatchType,
+      groupList: editGroups,
+      modifiedBy: user?.id ?? '',
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
+      qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
       setEditId(null);
-      resetForm();
+      setUpdateError('');
+      setUpdateSuccess('Tournament updated successfully!');
+      setTimeout(() => setUpdateSuccess(''), 4000);
+    },
+    onError: (err: any) => {
+      setUpdateError(err?.response?.data?.message || err?.message || 'Failed to update tournament.');
     },
   });
 
-  const cancelMutation = useMutation({
-    mutationFn: (id: string) => tournamentService.cancel(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tournaments', boardId] }),
-  });
-
-  const resetForm = () => {
-    setName('');
-    setFormat('T20');
-    setOvers('20');
-    setMaxPlayers('11');
-    setStartDate('');
-    setEndDate('');
-  };
-
-  const handleEdit = (t: Tournament) => {
+  const handleEdit = (t: any) => {
     setEditId(t.id);
-    setName(t.name);
-    setFormat(t.format || 'T20');
-    setOvers(t.oversPerInning?.toString() || '20');
-    setMaxPlayers(t.maxPlayersPerTeam?.toString() || '11');
-    setStartDate(t.startDate ? new Date(t.startDate).toISOString().split('T')[0] : '');
-    setEndDate(t.endDate ? new Date(t.endDate).toISOString().split('T')[0] : '');
+    setEditOriginal(t);
+    setEditName(t.tournamentName || t.name || '');
+    setEditWinPoint(String(t.winPoint ?? 2));
+    setEditUmpireCheck(t.umpireCheck ?? 1);
+    setEditMatchType(t.matchType || 'league');
+    const groups = Array.isArray(t.groupList) ? t.groupList.map((g: any) => ({
+      id: g.id || crypto.randomUUID(),
+      tournamentGroupName: g.tournamentGroupName || '',
+      active: g.active ?? 1,
+      teamBoardId: Array.isArray(g.teamBoardId) ? g.teamBoardId : [],
+    })) : [];
+    setEditGroups(groups);
+    setEditGroupSearches(groups.map(() => ''));
+    setEditOpenDropdown(null);
+    setUpdateError('');
+    setUpdateSuccess('');
+    refetchBoards();
   };
 
-  const isLoading = createMutation.isPending || updateMutation.isPending;
+  const cancelEdit = () => {
+    setEditId(null);
+    setUpdateError('');
+    setEditOpenDropdown(null);
+  };
+
+  const addBoardToEditGroup = (gIdx: number, boardId: string) => {
+    const updated = [...editGroups];
+    if (!updated[gIdx].teamBoardId.includes(boardId)) {
+      updated[gIdx] = { ...updated[gIdx], teamBoardId: [...updated[gIdx].teamBoardId, boardId] };
+      setEditGroups(updated);
+    }
+    const searches = [...editGroupSearches];
+    searches[gIdx] = '';
+    setEditGroupSearches(searches);
+    setEditOpenDropdown(null);
+  };
+
+  const removeBoardFromEditGroup = (gIdx: number, boardId: string) => {
+    const updated = [...editGroups];
+    updated[gIdx] = { ...updated[gIdx], teamBoardId: updated[gIdx].teamBoardId.filter(id => id !== boardId) };
+    setEditGroups(updated);
+  };
+
+  const getFilteredBoardsForEdit = (gIdx: number) => {
+    const search = editGroupSearches[gIdx]?.toLowerCase() || '';
+    const alreadySelected = editGroups[gIdx]?.teamBoardId || [];
+    return (boardsList || []).filter((b: any) =>
+      !alreadySelected.includes(b.id) &&
+      (!search || b.name.toLowerCase().includes(search))
+    );
+  };
 
   return (
     <div className="animate-fade-in">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Tournaments</h2>
-      </div>
+      {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
 
-      {showForm && (
-        <div className="card mb-6">
-          <h3 className="font-semibold mb-4">{editId ? 'Edit Tournament' : 'Create Tournament'}</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Name *</label><input value={name} onChange={e => setName(e.target.value)} className="input-field" placeholder="Tournament name" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Format</label>
-              <select value={format} onChange={e => setFormat(e.target.value)} className="input-field">
-                <option>T20</option><option>ODI</option><option>Test</option><option>Custom</option>
-              </select>
+      {/* Edit form */}
+      {editId && (
+        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400">
+          <h3 className="font-semibold mb-4 text-gray-800">Edit Tournament</h3>
+          {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" placeholder="Tournament name" />
             </div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Overs per Innings</label><input type="number" value={overs} onChange={e => setOvers(e.target.value)} className="input-field" placeholder="20" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Max Players per Team</label><input type="number" value={maxPlayers} onChange={e => setMaxPlayers(e.target.value)} className="input-field" placeholder="11" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label><input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="input-field" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">End Date</label><input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="input-field" /></div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Win Points</label>
+              <input type="number" value={editWinPoint} onChange={e => setEditWinPoint(e.target.value)} className="input-field" placeholder="2" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Match Type</label>
+              <input value={editMatchType} onChange={e => setEditMatchType(e.target.value)} className="input-field" placeholder="league" />
+            </div>
           </div>
-          <button onClick={() => editId ? updateMutation.mutate() : createMutation.mutate()} disabled={!name || isLoading} className="btn-primary text-sm px-6 mt-4">{isLoading ? 'Saving...' : editId ? 'Update' : 'Create'}</button>
+
+          {/* Edit Groups with Team Board dropdowns */}
+          {editGroups.length > 0 && (
+            <div className="mt-4 space-y-4">
+              <h4 className="text-sm font-semibold text-gray-700">Groups</h4>
+              {editGroups.map((group, gIdx) => (
+                <div key={group.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex gap-4 items-center mb-3">
+                    <div className="flex-1">
+                      <label className="block text-xs font-medium text-gray-600 mb-1">Group Name</label>
+                      <input
+                        value={group.tournamentGroupName}
+                        onChange={e => {
+                          const updated = [...editGroups];
+                          updated[gIdx] = { ...updated[gIdx], tournamentGroupName: e.target.value };
+                          setEditGroups(updated);
+                        }}
+                        className="input-field max-w-xs"
+                      />
+                    </div>
+                  </div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Team Boards</label>
+                  <div className="flex gap-3 items-start mb-2">
+                    <div className="relative flex-1 max-w-xs">
+                      {editOpenDropdown === gIdx && (
+                        <div className="fixed inset-0 z-[5]" onClick={() => { setEditOpenDropdown(null); const s = [...editGroupSearches]; s[gIdx] = ''; setEditGroupSearches(s); }} />
+                      )}
+                      <div
+                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                        onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
+                      >
+                        <span className="text-gray-400 text-sm">Search board...</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${editOpenDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
+                      {editOpenDropdown === gIdx && (
+                        <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
+                          <div className="p-2 border-b border-gray-100">
+                            <input
+                              type="text"
+                              value={editGroupSearches[gIdx] || ''}
+                              onChange={e => { const s = [...editGroupSearches]; s[gIdx] = e.target.value; setEditGroupSearches(s); }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                              placeholder="Search boards..."
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="max-h-60 overflow-y-auto">
+                            {boardsLoading ? (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
+                            ) : (() => {
+                              const filtered = getFilteredBoardsForEdit(gIdx);
+                              return filtered.length === 0 ? (
+                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                              ) : (
+                                filtered.map((b: any) => (
+                                  <button
+                                    key={b.id}
+                                    onClick={() => addBoardToEditGroup(gIdx, b.id)}
+                                    className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                                  >
+                                    <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                      {b.logoUrl ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : b.name?.[0]?.toUpperCase() || '?'}
+                                    </div>
+                                    <span className="font-medium text-gray-900">{b.name}</span>
+                                  </button>
+                                ))
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
+                      className="px-4 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {group.teamBoardId.length > 0 && (
+                    <div className="space-y-1">
+                      {group.teamBoardId.map(tid => {
+                        const b = boardsList?.find((brd: any) => brd.id === tid);
+                        return (
+                          <div key={tid} className="flex items-center justify-between bg-gray-50 rounded px-3 py-1.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                {b?.logoUrl ? <img src={b.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" /> : (b?.name?.[0]?.toUpperCase() || '?')}
+                              </div>
+                              <span className="text-sm font-medium">{b?.name || tid}</span>
+                            </div>
+                            <button onClick={() => removeBoardFromEditGroup(gIdx, tid)} className="text-red-500 hover:text-red-700 text-xs font-medium">Remove</button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-4">
+            <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="btn-primary text-sm px-6">
+              {updateMutation.isPending ? 'Updating...' : 'Update'}
+            </button>
+            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
+          </div>
         </div>
       )}
 
-      <div className="card">
-        <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Name</th><th className="pb-3">Format</th><th className="pb-3">Matches</th><th className="pb-3">Dates</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
-          <tbody>
-            {tournamentList.map((t: any) => (
-              <tr key={t.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                <td className="py-3 font-medium">{t.name}</td>
-                <td className="py-3">{t.format || '-'}</td>
-                <td className="py-3">{t.matchCount}</td>
-                <td className="py-3 text-xs">{t.startDate ? new Date(t.startDate).toLocaleDateString() : '-'} — {t.endDate ? new Date(t.endDate).toLocaleDateString() : '-'}</td>
-                <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${t.status === 'Cancelled' ? 'bg-red-100 text-red-700' : t.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{t.status}</span></td>
-                <td className="py-3 flex gap-2">
-                  {t.status !== 'Cancelled' && t.status !== 'Completed' && (
-                    <>
-                      <button onClick={() => { handleEdit(t); setShowForm(true); }} className="text-blue-500 hover:text-blue-700 text-xs">Edit</button>
-                      <button onClick={() => cancelMutation.mutate(t.id)} className="text-red-500 hover:text-red-700 text-xs">Cancel</button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {(!tournaments?.items.length) && <tr><td colSpan={6} className="py-8 text-center text-gray-400">No tournaments yet.</td></tr>}
-          </tbody>
-        </table>
+      <div className="bg-white rounded-lg shadow-sm">
+        <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
+          <h2 className="text-base font-bold text-gray-800 uppercase">Tournament List</h2>
+        </div>
+        <div className="p-4 sm:p-6">
+          {isLoading ? (
+            <div className="py-8 text-center text-gray-400">Loading tournaments...</div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-gray-500">
+                      <th className="pb-3">Tournament Name</th>
+                      <th className="pb-3">Win Points</th>
+                      <th className="pb-3">Match Type</th>
+                      <th className="pb-3">Groups</th>
+                      <th className="pb-3">Status</th>
+                      <th className="pb-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tournamentList.map((t: any) => {
+                      const tid = t.id;
+                      const groupCount = Array.isArray(t.groupList) ? t.groupList.length : 0;
+                      return (
+                        <tr key={tid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === tid ? 'bg-blue-50' : ''}`}>
+                          <td className="py-3 font-medium">{t.tournamentName || t.name || '-'}</td>
+                          <td className="py-3">{t.winPoint ?? '-'}</td>
+                          <td className="py-3">{t.matchType || '-'}</td>
+                          <td className="py-3">{groupCount} group{groupCount !== 1 ? 's' : ''}</td>
+                          <td className="py-3">
+                            <span className={`px-2 py-1 rounded-full text-xs ${t.active === 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+                              {t.active === 0 ? 'Inactive' : 'Active'}
+                            </span>
+                          </td>
+                          <td className="py-3 space-x-2">
+                            <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                            <button onClick={() => deleteMutation.mutate(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(!tournamentList.length) && (
+                      <tr><td colSpan={6} className="py-8 text-center text-gray-400">No tournaments created yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-4">
+                {tournamentList.map((t: any) => {
+                  const tid = t.id;
+                  const groupCount = Array.isArray(t.groupList) ? t.groupList.length : 0;
+                  return (
+                    <div key={tid} className={`border rounded-lg p-4 ${editId === tid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-medium text-gray-800">{t.tournamentName || t.name || '-'}</h3>
+                        <div className="space-x-2">
+                          <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                          <button onClick={() => deleteMutation.mutate(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div><span className="text-gray-400">Win Points:</span> {t.winPoint ?? '-'}</div>
+                        <div><span className="text-gray-400">Match Type:</span> {t.matchType || '-'}</div>
+                        <div><span className="text-gray-400">Groups:</span> {groupCount}</div>
+                        <div><span className="text-gray-400">Status:</span> {t.active === 0 ? 'Inactive' : 'Active'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(!tournamentList.length) && (
+                  <div className="py-8 text-center text-gray-400">No tournaments created yet.</div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
