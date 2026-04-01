@@ -172,19 +172,37 @@ export const tournamentService = {
     winPoint: number;
     umpireCheck: number;
     active?: number;
-    scheduleCoordinator?: boolean;
+    scheduleCoordinator?: string;
     startNode?: number;
     endNode?: number;
     recordCount?: number;
     matchType?: string;
     groupList: {
+      id: string;
       tournamentGroupName: string;
       active?: number;
       teamBoardId: string[];
     }[];
     createdBy?: string;
   }) =>
-    umpireApi.post('/Tournament', data),
+    umpireApi.post('/Tournament', {
+      tournamentName: data.tournamentName,
+      winPoint: data.winPoint,
+      umpireCheck: data.umpireCheck,
+      active: data.active ?? 1,
+      scheduleCoordinator: data.scheduleCoordinator ?? '',
+      startNode: data.startNode ?? 0,
+      endNode: data.endNode ?? 0,
+      recordCount: data.recordCount ?? 0,
+      matchType: data.matchType ?? 'league',
+      groupList: data.groupList.map(g => ({
+        id: g.id,
+        tournamentGroupName: g.tournamentGroupName,
+        active: g.active ?? 1,
+        teamBoardId: g.teamBoardId,
+      })),
+      createdBy: data.createdBy ?? '',
+    }),
   getById: (id: string) => api.get<Tournament>(`/tournaments/${id}`),
   getByBoard: (boardId: string, page = 1, pageSize = 20) =>
     api.get<PagedResponse<Tournament>>(`/tournaments/board/${boardId}`, { params: { page, pageSize } }),

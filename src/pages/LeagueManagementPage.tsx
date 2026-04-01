@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, leagueService, rosterService, tournamentService } from '../services/cricketSocialService';
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
+import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
 
 type LeagueTab = 'dashboard' | 'create-umpire' | 'umpire-list' | 'create-ground' | 'ground-list' | 'create-trophy' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game';
@@ -668,11 +669,32 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
   const [umpireOption, setUmpireOption] = useState<'list' | 'buddy'>('list');
   const [groups, setGroups] = useState<TrophyGroup[]>([{ name: 'group A', teamIds: [] }]);
   const [teamSearches, setTeamSearches] = useState<string[]>(['']);
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
 
-  const { data: rosters } = useQuery({
-    queryKey: ['rosters', boardId],
-    queryFn: () => rosterService.getByBoard(boardId).then(r => r.data),
+  // Fetch boards from GET /api/v1/Boards?page=1&pageSize=100 (port 9003)
+  const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
+    queryKey: ['allBoards'],
+    queryFn: async () => {
+      const r = await boardService.getMyBoards(1, 100);
+      const raw = r.data as any;
+      // Handle all possible response shapes
+      const list: any[] = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.items) ? raw.items
+        : Array.isArray(raw?.data?.items) ? raw.data.items
+        : Array.isArray(raw?.data) ? raw.data
+        : Array.isArray(raw?.result) ? raw.result
+        : [];
+      return list.map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+        logoUrl: b.logoUrl || '',
+      }));
+    },
+    staleTime: 30000,
   });
 
   const createMutation = useMutation({
@@ -681,16 +703,26 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
       winPoint: Number(winPoints) || 0,
       umpireCheck: umpireOption === 'list' ? 1 : 0,
       active: 1,
-      scheduleCoordinator: true,
+      scheduleCoordinator: boardId,
+      matchType: 'league',
       groupList: groups.map(g => ({
+        id: boardId,
         tournamentGroupName: g.name,
         active: 1,
         teamBoardId: g.teamIds,
       })),
+      createdBy: user?.id ?? '',
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
       setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']);
+      setSuccessMsg('Tournament created successfully!');
+      setErrorMsg('');
+      setTimeout(() => setSuccessMsg(''), 4000);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to create tournament. Please try again.');
+      setSuccessMsg('');
     },
   });
 
@@ -728,10 +760,13 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
     setGroups(updated);
   };
 
-  const getFilteredRosters = (groupIdx: number) => {
+  const getFilteredBoards = (groupIdx: number) => {
     const search = teamSearches[groupIdx]?.toLowerCase() || '';
-    if (!search) return [];
-    return (rosters || []).filter(r => r.name.toLowerCase().includes(search));
+    const alreadySelected = groups[groupIdx].teamIds;
+    return (boardsList || []).filter((b: any) =>
+      !alreadySelected.includes(b.id) &&
+      (!search || b.name.toLowerCase().includes(search))
+    );
   };
 
   return (
@@ -827,39 +862,72 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                     </label>
                     <div className="flex gap-3 items-start">
                       <div className="relative flex-1 max-w-xs">
-                        <input
-                          value={teamSearches[gIdx] || ''}
-                          onChange={e => {
-                            const searches = [...teamSearches];
-                            searches[gIdx] = e.target.value;
-                            setTeamSearches(searches);
+                        {openDropdown === gIdx && (
+                          <div className="fixed inset-0 z-[5]" onClick={() => { setOpenDropdown(null); const s = [...teamSearches]; s[gIdx] = ''; setTeamSearches(s); }} />
+                        )}
+                        <div
+                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                          onClick={() => {
+                            setOpenDropdown(prev => prev === gIdx ? null : gIdx);
+                            refetchBoards();
                           }}
-                          className="input-field"
-                          placeholder="Search team..."
-                        />
-                        {teamSearches[gIdx] && getFilteredRosters(gIdx).length > 0 && (
-                          <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                            {getFilteredRosters(gIdx).map(r => (
-                              <button
-                                key={r.id}
-                                onClick={() => addTeamToGroup(gIdx, r.id)}
-                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2"
-                              >
-                                {r.logoUrl
-                                  ? <img src={r.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
-                                  : <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs">🏏</div>
-                                }
-                                {r.name}
-                              </button>
-                            ))}
+                        >
+                          <span className="text-gray-400 text-sm">Search team...</span>
+                          <svg className={`w-4 h-4 text-gray-400 transition-transform ${openDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                        {openDropdown === gIdx && (
+                          <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                            <div className="p-2 border-b border-gray-100">
+                              <input
+                                type="text"
+                                value={teamSearches[gIdx] || ''}
+                                onChange={e => {
+                                  const searches = [...teamSearches];
+                                  searches[gIdx] = e.target.value;
+                                  setTeamSearches(searches);
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                                placeholder="Search boards..."
+                                autoFocus
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              {boardsLoading ? (
+                                <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
+                              ) : (() => {
+                                const filtered = getFilteredBoards(gIdx);
+                                return filtered.length === 0 ? (
+                                  <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                                ) : (
+                                  filtered.map((b: any) => (
+                                    <button
+                                      key={b.id}
+                                      onClick={() => {
+                                        addTeamToGroup(gIdx, b.id);
+                                        setOpenDropdown(null);
+                                      }}
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2 border-b last:border-0"
+                                    >
+                                      {b.logoUrl
+                                        ? <img src={b.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                        : <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center text-xs">🏏</div>
+                                      }
+                                      <span className="font-medium text-gray-900">{b.name}</span>
+                                    </button>
+                                  ))
+                                );
+                              })()}
+                            </div>
                           </div>
                         )}
                       </div>
                       <button
                         onClick={() => {
-                          const search = teamSearches[gIdx]?.toLowerCase() || '';
-                          const match = rosters?.find(r => r.name.toLowerCase().includes(search));
-                          if (match) addTeamToGroup(gIdx, match.id);
+                          setOpenDropdown(prev => prev === gIdx ? null : gIdx);
+                          refetchBoards();
                         }}
                         className="px-6 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
                       >
@@ -871,19 +939,19 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                   {group.teamIds.length > 0 && (
                     <div className="space-y-2">
                       {group.teamIds.map(tid => {
-                        const team = rosters?.find(r => r.id === tid);
-                        return team ? (
+                        const board = boardsList?.find((b: any) => b.id === tid);
+                        return (
                           <div key={tid} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
                             <div className="flex items-center gap-3">
-                              {team.logoUrl
-                                ? <img src={team.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                              {board?.logoUrl
+                                ? <img src={board.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
                                 : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
                               }
-                              <span className="text-sm font-medium">{team.name}</span>
+                              <span className="text-sm font-medium">{board?.name || tid}</span>
                             </div>
                             <button onClick={() => removeTeamFromGroup(gIdx, tid)} className="text-red-500 hover:text-red-700 text-xs font-medium">Remove</button>
                           </div>
-                        ) : null;
+                        );
                       })}
                     </div>
                   )}
@@ -900,10 +968,21 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
           </div>
 
           {/* Action Buttons */}
+          {successMsg && <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">{successMsg}</div>}
+          {errorMsg && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{errorMsg}</div>}
           <div className="flex gap-4">
             <button
-              onClick={() => name && createMutation.mutate()}
-              disabled={!name || createMutation.isPending}
+              onClick={() => {
+                setErrorMsg('');
+                if (!name.trim()) { setErrorMsg('Tournament Name is mandatory.'); return; }
+                if (groups.length === 0) { setErrorMsg('At least one group is required.'); return; }
+                for (let i = 0; i < groups.length; i++) {
+                  if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
+                  if (groups[i].teamIds.length === 0) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have at least one team.`); return; }
+                }
+                createMutation.mutate();
+              }}
+              disabled={createMutation.isPending}
               className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
