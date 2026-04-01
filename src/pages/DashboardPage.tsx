@@ -157,6 +157,14 @@ export default function DashboardPage() {
   const [statesLoading, setStatesLoading] = useState(false);
   const [citiesLoading, setCitiesLoading] = useState(false);
 
+  // Custom dropdown open/search state
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [countrySearchText, setCountrySearchText] = useState('');
+  const [stateSearchText, setStateSearchText] = useState('');
+  const [citySearchText, setCitySearchText] = useState('');
+
   // Fetch countries on mount
   useEffect(() => {
     setCountriesLoading(true);
@@ -378,16 +386,7 @@ export default function DashboardPage() {
 
       <div className="flex pt-14">
         {/* Left Sidebar */}
-        <aside className={`fixed left-0 top-14 bottom-0 bg-white shadow-lg overflow-y-auto transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
-          {/* Collapse/Expand Toggle */}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="absolute -right-3 top-6 z-10 w-6 h-6 bg-brand-green text-white rounded-full flex items-center justify-center shadow-md hover:bg-brand-dark transition-colors"
-            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-
+        <aside className={`fixed left-0 top-14 bottom-0 bg-white shadow-lg overflow-y-auto transition-all duration-300 flex flex-col ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
           {/* User Profile Card */}
           <Link to="/profile" className="block p-4 border-b bg-gradient-to-b from-brand-green/10 to-white hover:from-brand-green/20 transition-colors">
             <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} mb-3`}>
@@ -427,6 +426,21 @@ export default function DashboardPage() {
               </button>
             ))}
           </nav>
+
+          {/* Spacer to push toggle to bottom */}
+          <div className="flex-1" />
+
+          {/* Bottom Collapse/Expand Toggle */}
+          <div className="border-t border-gray-200 p-2">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between px-3'} py-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-brand-green transition-colors`}
+              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              {!sidebarCollapsed && <span className="text-xs font-medium">Collapse</span>}
+              <svg className={`w-5 h-5 transition-transform duration-300 ${sidebarCollapsed ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+          </div>
         </aside>
 
         {/* Main Content */}
@@ -584,8 +598,9 @@ export default function DashboardPage() {
                       {newBoardLogoPreview ? (
                         <img src={newBoardLogoPreview} alt="Board logo" className="w-full h-full object-cover" />
                       ) : (
-                        <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors px-1">
+                          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                          <span className="text-[9px] leading-tight text-center font-medium">Upload Logo</span>
                         </div>
                       )}
                       {newBoardLogoPreview && (
@@ -606,7 +621,7 @@ export default function DashboardPage() {
                     }} />
                     <div>
                       <p className="text-sm font-medium text-gray-700">Board Logo</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Click to upload (max 2MB)</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Max 2MB</p>
                       {newBoardLogoPreview && (
                         <button className="text-xs text-red-500 hover:text-red-600 mt-1" onClick={(e) => { e.stopPropagation(); setNewBoardLogo(null); setNewBoardLogoPreview(''); }}>Remove</button>
                       )}
@@ -617,23 +632,83 @@ export default function DashboardPage() {
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
                       <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as '' | 'Team' | 'League')} className="input-field"><option value="" disabled>Select Type</option><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-                      <select value={newBoardCountry} onChange={e => { setNewBoardCountry(e.target.value); setNewBoardState(''); setNewBoardCity(''); }} className="input-field" disabled={countriesLoading}>
-                        <option value="">{countriesLoading ? 'Loading countries...' : 'Select Country'}</option>
-                        {countryList.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                    <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+                      {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+                      <div
+                        className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
+                        onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
+                      >
+                        <span className={newBoardCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : newBoardCountry || 'Select Country'}</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                      {countryDropdownOpen && (
+                        <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                          <div className="max-h-80 overflow-y-auto">
+                            {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                              <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${newBoardCountry === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                                onClick={() => { setNewBoardCountry(c); setNewBoardState(''); setNewBoardCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                            ))}
+                            {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
+                              <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
+                            )}
+                          </div>
+                          <div className="p-2 border-t border-gray-100">
+                            <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className={!newBoardCountry ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
-                      <select value={newBoardState} onChange={e => { setNewBoardState(e.target.value); setNewBoardCity(''); }} className="input-field" disabled={!newBoardCountry || statesLoading}>
-                        <option value="">{!newBoardCountry ? 'Select Country first' : statesLoading ? 'Loading states...' : 'Select State'}</option>
-                        {stateList.map(s => <option key={s} value={s}>{s}</option>)}
-                      </select>
+                    <div className={`relative ${!newBoardCountry ? 'opacity-50' : ''}`}><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+                      {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
+                      <div
+                        className={`input-field cursor-pointer flex items-center justify-between ${!newBoardCountry || statesLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                        onClick={() => { if (newBoardCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
+                      >
+                        <span className={newBoardState ? 'text-gray-900' : 'text-gray-400'}>{!newBoardCountry ? 'Select Country first' : statesLoading ? 'Loading states...' : newBoardState || 'Select State'}</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                      {stateDropdownOpen && (
+                        <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                          <div className="max-h-80 overflow-y-auto">
+                            {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).map(s => (
+                              <button key={s} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${newBoardState === s ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                                onClick={() => { setNewBoardState(s); setNewBoardCity(''); setStateDropdownOpen(false); setStateSearchText(''); }}>{s}</button>
+                            ))}
+                            {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).length === 0 && (
+                              <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
+                            )}
+                          </div>
+                          <div className="p-2 border-t border-gray-100">
+                            <input type="text" value={stateSearchText} onChange={e => setStateSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search state..." autoFocus onClick={e => e.stopPropagation()} />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className={!newBoardState ? 'opacity-50' : ''}><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
-                      <select value={newBoardCity} onChange={e => setNewBoardCity(e.target.value)} className="input-field" disabled={!newBoardState || citiesLoading}>
-                        <option value="">{!newBoardState ? 'Select State first' : citiesLoading ? 'Loading...' : 'Select District / City'}</option>
-                        {cityList.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
+                    <div className={`relative ${!newBoardState ? 'opacity-50' : ''}`}><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
+                      {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+                      <div
+                        className={`input-field cursor-pointer flex items-center justify-between ${!newBoardState || citiesLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                        onClick={() => { if (newBoardState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
+                      >
+                        <span className={newBoardCity ? 'text-gray-900' : 'text-gray-400'}>{!newBoardState ? 'Select State first' : citiesLoading ? 'Loading...' : newBoardCity || 'Select District / City'}</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                      {cityDropdownOpen && (
+                        <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                          <div className="max-h-80 overflow-y-auto">
+                            {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                              <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${newBoardCity === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                                onClick={() => { setNewBoardCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                            ))}
+                            {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
+                              <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
+                            )}
+                          </div>
+                          <div className="p-2 border-t border-gray-100">
+                            <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search district / city..." autoFocus onClick={e => e.stopPropagation()} />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     {newBoardType === 'League' && (
                       <div>
@@ -724,7 +799,10 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="flex justify-end gap-3 mt-4">
-                    <button onClick={() => setShowCancelConfirm(true)}
+                    <button onClick={() => {
+                      const hasTextData = newBoardName || newBoardDescription || newBoardLogoPreview;
+                      if (hasTextData) { setShowCancelConfirm(true); } else { setShowCreateBoard(false); setNewBoardCountry(''); setNewBoardState(''); setNewBoardCity(''); setNewBoardType('' as any); setSelectedCoOwner(null); }
+                    }}
                       className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
                     <button onClick={() => newBoardName && createBoardMutation.mutate()} disabled={!newBoardName || !newBoardCountry || !newBoardState || !newBoardCity || createBoardMutation.isPending}
                       className="btn-primary text-sm px-6">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
@@ -789,7 +867,6 @@ export default function DashboardPage() {
                   <img src="/images/MyBoard.png" alt="" className="w-16 h-16 mx-auto mb-4 opacity-50" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   <p className="text-gray-400 text-lg">No boards yet</p>
                   <p className="text-gray-400 text-sm mt-2">Create your first team or league board!</p>
-                  <button onClick={() => setShowCreateBoard(true)} className="btn-primary mt-4">Create Board</button>
                 </div>
               ) : null}
             </div>
