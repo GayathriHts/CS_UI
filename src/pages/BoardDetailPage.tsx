@@ -691,16 +691,31 @@ function SquadTab({ boardId }: { boardId: string }) {
 
   const createRosterMutation = useMutation({
     mutationFn: async (data: RosterFormData) => {
-      const createRes = await rosterService.create(boardId, {
-        name: data.rosterName,
-        rosterName: data.rosterName,
-        boardId: boardId,
-        captain: data.captain || '',
-        viceCaptain: data.viceCaptain || '',
-        coach: data.coach || '',
-        members: data.members || [],
-      });
-      return createRes;
+      // Get current roster list before creation attempt
+      const before = await rosterService.getByBoard(boardId).then(r => {
+        const raw = r.data;
+        return Array.isArray(raw) ? raw : Array.isArray((raw as any)?.data) ? (raw as any).data : [];
+      }).catch(() => [] as any[]);
+
+      try {
+        const createRes = await rosterService.create(boardId, {
+          name: data.rosterName,
+        });
+        return createRes;
+      } catch (err: any) {
+        // Server may return 500 but still create the roster — verify by re-fetching
+        if (err?.response?.status === 500) {
+          const after = await rosterService.getByBoard(boardId).then(r => {
+            const raw = r.data;
+            return Array.isArray(raw) ? raw : Array.isArray((raw as any)?.data) ? (raw as any).data : [];
+          }).catch(() => [] as any[]);
+          if (after.length > before.length) {
+            // Roster was created despite the 500
+            return { data: after[after.length - 1] };
+          }
+        }
+        throw err;
+      }
     },
     onSuccess: () => {
       resetForm();
@@ -709,12 +724,21 @@ function SquadTab({ boardId }: { boardId: string }) {
       qc.invalidateQueries({ queryKey: ['board', boardId] });
     },
     onError: (error: any) => {
-      console.error('Create roster error:', error?.response?.status, error?.response?.data);
+      console.error('Create roster error:', error?.response?.status, JSON.stringify(error?.response?.data));
       const errData = error?.response?.data;
-      const errMsg = errData?.errors
-        ? Object.values(errData.errors).flat().join(', ')
-        : errData?.message || errData?.title || 'Failed to create roster. Please try again.';
+      let errMsg = 'Failed to create roster. Please try again.';
+      if (errData?.errors) {
+        const errs = Array.isArray(errData.errors)
+          ? errData.errors.map((e: any) => (typeof e === 'string' ? e : e?.message || e?.field || JSON.stringify(e)))
+          : Object.values(errData.errors).flat().map((e: any) => (typeof e === 'string' ? e : e?.message || JSON.stringify(e)));
+        errMsg = errs.filter(Boolean).join(', ') || errMsg;
+      } else if (errData?.message) {
+        errMsg = typeof errData.message === 'string' ? errData.message : JSON.stringify(errData.message);
+      } else if (errData?.title) {
+        errMsg = typeof errData.title === 'string' ? errData.title : JSON.stringify(errData.title);
+      }
       showError(errMsg);
+      qc.invalidateQueries({ queryKey: ['squad', boardId] });
     },
   });
 

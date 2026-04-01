@@ -146,22 +146,10 @@ export const boardService = {
 export const rosterService = {
   create: (boardId: string, data: {
     name: string;
-    boardId?: string;
-    rosterName?: string;
     logoUrl?: string;
-    captain?: string;
-    viceCaptain?: string;
-    coach?: string;
-    members?: string[];
   }) => boardApi.post(`/boards/${boardId}/Rosters`, {
     name: data.name,
-    rosterName: data.rosterName || data.name,
-    boardId: data.boardId || boardId,
-    logoUrl: data.logoUrl || '',
-    captain: data.captain || '',
-    viceCaptain: data.viceCaptain || '',
-    coach: data.coach || '',
-    members: data.members || [],
+    logoUrl: data.logoUrl || ' ',
   }) as Promise<{ data: Roster }>,
   getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
   getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
@@ -170,7 +158,7 @@ export const rosterService = {
     logoUrl?: string;
   }) => boardApi.put(`/boards/${boardId}/Rosters/${rosterId}`, {
     name: data.name,
-    logoUrl: data.logoUrl || '',
+    ...(data.logoUrl ? { logoUrl: data.logoUrl } : {}),
   }) as Promise<{ data: Roster }>,
   delete: (boardId: string, rosterId: string) => boardApi.delete(`/boards/${boardId}/Rosters/${rosterId}`),
 };
