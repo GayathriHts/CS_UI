@@ -26,19 +26,17 @@ const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueT
     ],
   },
   {
-    id: 'trophy', label: 'TROPHY',
+    id: 'trophy', label: 'TOURNAMENTS',
     items: [
-      { id: 'create-trophy', label: 'Create Trophy' },
+      { id: 'create-trophy', label: 'Create Tournament' },
+      { id: 'tournaments', label: 'Tournament List' },
     ],
   },
   {
     id: 'schedules', label: 'SCHEDULES AND RESULTS',
     items: [
       { id: 'schedule', label: 'Schedule' },
-      { id: 'tournaments', label: 'Tournaments' },
       { id: 'cancel-game', label: 'Cancel Game by Date' },
-      { id: 'applications', label: 'New Applications' },
-      { id: 'invoices', label: 'Invoicing' },
     ],
   },
 ];
@@ -1106,7 +1104,6 @@ function TournamentsTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-xl font-bold text-gray-800">Tournaments</h2>
-        <button onClick={() => { setEditId(null); resetForm(); setShowForm(!showForm); }} className="btn-primary text-sm px-4">{showForm ? 'Cancel' : '+ Create Tournament'}</button>
       </div>
 
       {showForm && (
