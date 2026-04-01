@@ -151,6 +151,9 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   const [city, setCity] = useState(board.city || '');
   const [state, setState] = useState(board.state || '');
   const [country, setCountry] = useState(board.country || '');
+  const [logo, setLogo] = useState<File | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string>(board.logoUrl || board.LogoUrl || board.logourl || '');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
   // Location async state
@@ -265,7 +268,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         ...(board.contactEmail ? { contactEmail: board.contactEmail } : {}),
         ...(board.websiteAddress ? { websiteAddress: board.websiteAddress } : {}),
         ownerId: resolvedOwnerId,
-        logoUrl: board.logoUrl || board.LogoUrl || board.logourl || '',
+        logoUrl: logoPreview || board.logoUrl || board.LogoUrl || board.logourl || '',
         ...(isLeague && selectedCoOwner ? { coOwnerId: selectedCoOwner.id } : {}),
       };
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
@@ -336,13 +339,57 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   });
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50" onClick={() => {
+      const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
+      if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); }
+    }}>
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-bold text-gray-800">Edit Board</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+          <button onClick={() => {
+            const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
+            if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); }
+          }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
         <div className="p-6 space-y-4">
+          {/* Logo Upload */}
+          <div className="flex flex-col items-start gap-1">
+            <div className="flex items-center gap-4">
+              <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
+                onClick={() => document.getElementById('edit-board-logo-input')?.click()}>
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Board logo" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors px-1">
+                    <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span className="text-[9px] leading-tight text-center font-medium">Upload Logo</span>
+                  </div>
+                )}
+                {logoPreview && (
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                  </div>
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-700">Board Logo</p>
+                {logoPreview && (
+                  <button className="text-xs text-red-500 hover:text-red-600 mt-1" onClick={(e) => { e.stopPropagation(); setLogo(null); setLogoPreview(''); }}>Remove</button>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
+            <input id="edit-board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
+              const file = e.target.files?.[0];
+              if (file) {
+                if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
+                setLogo(file);
+                const reader = new FileReader();
+                reader.onloadend = () => setLogoPreview(reader.result as string);
+                reader.readAsDataURL(file);
+              }
+            }} />
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label>
             <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
@@ -523,7 +570,10 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
           )}
         </div>
         <div className="flex items-center justify-end gap-3 p-6 border-t">
-          <button onClick={onClose} className="px-5 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+          <button onClick={() => {
+            const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
+            if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); }
+          }} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">
             Cancel
           </button>
           <button
@@ -535,6 +585,28 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
           </button>
         </div>
       </div>
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowCancelConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+                >No, Keep Editing</button>
+                <button
+                  onClick={() => { setShowCancelConfirm(false); onClose(); }}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
+                >Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
