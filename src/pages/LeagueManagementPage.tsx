@@ -444,50 +444,228 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
 // ── UMPIRE LIST TAB ──
 function UmpireListTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
-  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data as Umpire[]) });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAddress1, setEditAddress1] = useState('');
+  const [editAddress2, setEditAddress2] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editZipcode, setEditZipcode] = useState('');
+  const [editHomePhone, setEditHomePhone] = useState('');
+  const [editWorkPhone, setEditWorkPhone] = useState('');
+  const [editMobile, setEditMobile] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [updateError, setUpdateError] = useState('');
+  const [updateSuccess, setUpdateSuccess] = useState('');
+
+  const { data: umpires, isLoading } = useQuery({
+    queryKey: ['umpires', boardId],
+    queryFn: () => leagueService.getUmpires(boardId).then(r => {
+      const d = r.data;
+      return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Umpire[];
+    }),
+    enabled: !!boardId,
+  });
+  const umpireList = Array.isArray(umpires) ? umpires : [];
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => leagueService.deleteUmpire(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['umpires', boardId] }),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: () => leagueService.updateUmpire(editId!, {
+      id: editId!,
+      umpireName: editName,
+      address1: editAddress1,
+      address2: editAddress2,
+      city: editCity,
+      state: editState,
+      country: editCountry,
+      zipcode: editZipcode,
+      homePhone: editHomePhone,
+      workPhone: editWorkPhone,
+      mobile: editMobile,
+      email: editEmail,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['umpires', boardId] });
+      setEditId(null);
+      setUpdateError('');
+      setUpdateSuccess('Umpire updated successfully!');
+      setTimeout(() => setUpdateSuccess(''), 4000);
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error?.response?.data?.title || error?.message || 'Failed to update umpire.';
+      setUpdateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    },
+  });
+
+  const handleEdit = (u: any) => {
+    const uid = u.id || u.umpireId;
+    setEditId(uid);
+    setEditName(u.umpireName || u.name || '');
+    setEditAddress1(u.address1 || u.addressLine1 || '');
+    setEditAddress2(u.address2 || u.addressLine2 || '');
+    setEditCity(u.city || '');
+    setEditState(u.state || '');
+    setEditCountry(u.country || '');
+    setEditZipcode(u.zipcode || u.zipCode || '');
+    setEditHomePhone(u.homePhone || '');
+    setEditWorkPhone(u.workPhone || '');
+    setEditMobile(u.mobile || u.contactNumber || '');
+    setEditEmail(u.email || '');
+    setUpdateError('');
+    setUpdateSuccess('');
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setUpdateError('');
+  };
+
   return (
     <div className="animate-fade-in">
+      {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
+
+      {/* Edit form */}
+      {editId && (
+        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400">
+          <h3 className="font-semibold mb-4 text-gray-800">Edit Umpire</h3>
+          {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" placeholder="Umpire name" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="input-field" placeholder="Email" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
+              <input value={editMobile} onChange={e => setEditMobile(e.target.value)} className="input-field" placeholder="Mobile" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Phone</label>
+              <input value={editHomePhone} onChange={e => setEditHomePhone(e.target.value)} className="input-field" placeholder="Home phone" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Work Phone</label>
+              <input value={editWorkPhone} onChange={e => setEditWorkPhone(e.target.value)} className="input-field" placeholder="Work phone" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address 1</label>
+              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" placeholder="Address line 1" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address 2</label>
+              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" placeholder="Address line 2" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input value={editCity} onChange={e => setEditCity(e.target.value)} className="input-field" placeholder="City" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input value={editState} onChange={e => setEditState(e.target.value)} className="input-field" placeholder="State" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <input value={editCountry} onChange={e => setEditCountry(e.target.value)} className="input-field" placeholder="Country" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
+              <input value={editZipcode} onChange={e => setEditZipcode(e.target.value)} className="input-field" placeholder="Zipcode" />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="btn-primary text-sm px-6">
+              {updateMutation.isPending ? 'Updating...' : 'Update'}
+            </button>
+            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-sm">
-        <div className="bg-gray-100 px-6 py-3 border-b">
+        <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
           <h2 className="text-base font-bold text-gray-800 uppercase">Umpire List</h2>
         </div>
-        <div className="p-6">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b text-left text-gray-500">
-                <th className="pb-3">Name</th>
-                <th className="pb-3">Email</th>
-                <th className="pb-3">Phone</th>
-                <th className="pb-3">City</th>
-                <th className="pb-3">Rating</th>
-                <th className="pb-3">Matches</th>
-                <th className="pb-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {umpires?.map(u => (
-                <tr key={u.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                  <td className="py-3 font-medium">{u.name}</td>
-                  <td className="py-3">{u.email || '-'}</td>
-                  <td className="py-3">{u.contactNumber ? `${u.countryCode || ''} ${u.contactNumber}` : '-'}</td>
-                  <td className="py-3">{u.city || '-'}</td>
-                  <td className="py-3">{'⭐'.repeat(Math.round(u.rating))} ({u.rating.toFixed(1)})</td>
-                  <td className="py-3">{u.totalMatches}</td>
-                  <td className="py-3">
-                    <button onClick={() => deleteMutation.mutate(u.id)} className="text-red-500 hover:text-red-700 text-xs">Delete</button>
-                  </td>
-                </tr>
-              ))}
-              {(!umpires?.length) && (
-                <tr><td colSpan={7} className="py-8 text-center text-gray-400">No umpires created yet.</td></tr>
-              )}
-            </tbody>
-          </table>
+        <div className="p-4 sm:p-6">
+          {isLoading ? (
+            <div className="py-8 text-center text-gray-400">Loading umpires...</div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-gray-500">
+                      <th className="pb-3">Name</th>
+                      <th className="pb-3">Email</th>
+                      <th className="pb-3">Phone</th>
+                      <th className="pb-3">City</th>
+                      <th className="pb-3">Rating</th>
+                      <th className="pb-3">Matches</th>
+                      <th className="pb-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {umpireList.map((u: any) => {
+                      const uid = u.id || u.umpireId;
+                      return (
+                        <tr key={uid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === uid ? 'bg-blue-50' : ''}`}>
+                          <td className="py-3 font-medium">{u.umpireName || u.name || '-'}</td>
+                          <td className="py-3">{u.email || '-'}</td>
+                          <td className="py-3">{u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}` : '-'}</td>
+                          <td className="py-3">{u.city || '-'}</td>
+                          <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
+                          <td className="py-3">{u.totalMatches ?? '-'}</td>
+                          <td className="py-3 space-x-2">
+                            <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                            <button onClick={() => deleteMutation.mutate(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(!umpireList.length) && (
+                      <tr><td colSpan={7} className="py-8 text-center text-gray-400">No umpires created yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-4">
+                {umpireList.map((u: any) => {
+                  const uid = u.id || u.umpireId;
+                  return (
+                    <div key={uid} className={`border rounded-lg p-4 ${editId === uid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-medium text-gray-800">{u.umpireName || u.name || '-'}</h3>
+                        <div className="space-x-2">
+                          <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                          <button onClick={() => deleteMutation.mutate(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                        <div><span className="text-gray-400">Email:</span> {u.email || '-'}</div>
+                        <div><span className="text-gray-400">Phone:</span> {u.mobile || u.contactNumber || '-'}</div>
+                        <div><span className="text-gray-400">City:</span> {u.city || '-'}</div>
+                        <div><span className="text-gray-400">Rating:</span> {u.rating != null ? Number(u.rating).toFixed(1) : '-'}</div>
+                        <div><span className="text-gray-400">Matches:</span> {u.totalMatches ?? '-'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {(!umpireList.length) && (
+                  <div className="py-8 text-center text-gray-400">No umpires created yet.</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

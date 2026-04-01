@@ -363,7 +363,11 @@ export const leagueService = {
   }) =>
     umpireApi.post('/Umpire', data),
   getUmpires: (_boardId: string) => umpireApi.get('/Umpire'),
-  updateUmpire: (umpireId: string, data: { name?: string; contactNumber?: string; city?: string }) =>
+  updateUmpire: (umpireId: string, data: {
+    id: string; umpireName: string; address1: string; address2: string;
+    city: string; state: string; country: string; zipcode: string;
+    homePhone: string; workPhone: string; mobile: string; email: string;
+  }) =>
     umpireApi.put(`/Umpire/${umpireId}`, data),
   deleteUmpire: (umpireId: string) => umpireApi.delete(`/Umpire/${umpireId}`),
   // Grounds
