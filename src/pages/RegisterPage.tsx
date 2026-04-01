@@ -243,12 +243,7 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-brand-green py-4 text-center">
-             <h1 className="text-xl font-bold text-white">Register Account</h1>
-            <p className="text-green-200 text-sm mt-1">
-              {step === 'details' && ''}
-              {step === 'otp' && (activeTab === 'email' ? 'Verify your email address' : 'Verify your mobile number')}
-              {step === 'password' && 'Create a new password'}
-            </p>
+             <h1 className="text-lg font-semibold text-white">Register Account</h1>
           </div>
 
           <div className="p-8">

@@ -64,7 +64,7 @@ const ResendOtpButton: React.FC<ResendOtpButtonProps> = ({ email, registrationPa
     <div className="mt-2 text-right">
       <button
         type="button"
-        className="text-brand-green font-medium underline"
+        className="text-brand-green text-xs hover:underline"
         onClick={handleResendOtp}
         disabled={timer > 0 || loading}
       >

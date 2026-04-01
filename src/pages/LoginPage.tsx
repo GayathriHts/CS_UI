@@ -202,7 +202,7 @@ export default function LoginPage() {
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
              <div className="bg-brand-green py-4 text-center">
   
-  <h1 className="text-xl font-bold text-white">Login</h1>
+  <h1 className="text-lg font-semibold text-white">Login</h1>
   
    
 
@@ -283,16 +283,10 @@ export default function LoginPage() {
         ) : (
           /* Forgot Password Flow */
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-brand-green p-6 text-center">
-              <h1 className="text-2xl font-bold text-white">
+            <div className="bg-brand-green py-4 text-center">
+              <h1 className="text-lg font-semibold text-white">
                 {forgotStep === 'done' ? 'Password Reset!' : 'Forgot Password'}
               </h1>
-              <p className="text-green-200 text-sm mt-1">
-                {forgotStep === 'email' && 'Enter your email to receive an OTP'}
-                {forgotStep === 'otp' && 'Enter the OTP sent to your email'}
-                {forgotStep === 'reset' && 'Create a new password'}
-                {forgotStep === 'done' && 'Your password has been reset successfully'}
-              </p>
             </div>
 
             <div className="p-8">
