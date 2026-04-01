@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ResendOtpButton from '../components/ResendOtpButton';
@@ -78,7 +78,7 @@ export default function LoginPage() {
         console.log('User stored in localStorage:', localStorage.getItem('user'));
         login(token, user);
       } else {
-        setError('Login response missing user information.');
+        setError('Sign in response missing user information.');
         return;
       }
       navigate('/dashboard');
@@ -115,7 +115,7 @@ export default function LoginPage() {
           if (typeof msg === 'string' && msg.length > 0) {
             setError(msg);
           } else {
-            setError('Account has not been registered. Please register your account.');
+            setError('Account has not been registered. Please sign up.');
           }
           return;
         }
@@ -125,7 +125,7 @@ export default function LoginPage() {
         const msg = resp?.error?.message || resp?.message || (typeof resp?.error === 'string' ? resp.error : '');
         if (typeof msg === 'string' && msg.length > 0) {
           if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no user') || msg.toLowerCase().includes('does not exist')) {
-            setError('Account has not been registered. Please register your account.');
+            setError('Account has not been registered. Please sign up.');
           } else {
             setError(msg);
           }
@@ -202,7 +202,7 @@ export default function LoginPage() {
           <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
              <div className="bg-brand-green py-4 text-center">
   
-  <h1 className="text-lg font-semibold text-white">Login</h1>
+  <h1 className="text-lg font-semibold text-white">Sign In</h1>
   
    
 
@@ -256,25 +256,27 @@ export default function LoginPage() {
                     Forgot Password?
                   </button>
                 </div>
+                <div className="flex justify-center">
                 <button
                   type="submit"
                   disabled={!watchedEmail?.trim() || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/.test(watchedEmail?.trim() || '') || !watchedPassword || isSubmitting}
-                  className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="btn-primary rounded-full py-2.5 px-16 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? (
                     <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-                      Logging in...
+                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                    Signing in...
                     </span>
-                  ) : 'Login'}
+                  ) : 'Sign In'}
                 </button>
+                </div>
               </form>
 
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-500">
                   Don't have an account?{' '}
                   <Link to="/register" className="text-brand-green font-semibold hover:underline">
-                    Register Now
+                    Sign Up
                   </Link>
                 </p>
               </div>
@@ -312,24 +314,30 @@ export default function LoginPage() {
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.email}</div>
                     )}
                   </div>
-                  <button type="button" onClick={handleForgotPassword} disabled={!forgotEmail.trim() || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/.test(forgotEmail.trim()) || loading} className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Sending...</span> : 'Send OTP'}</button>
+                  <div className="flex justify-center"><button type="button" onClick={handleForgotPassword} disabled={!forgotEmail.trim() || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/.test(forgotEmail.trim()) || loading} className="btn-primary rounded-full py-2.5 px-16 text-sm disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Sending...</span> : 'Send OTP'}</button></div>
                 </div>
               )}
               {forgotStep === 'otp' && (
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter the 6-digit code sent to your email</label>
-                    <OtpInput value={otp} onChange={setOtp} />
-                    {forgotFieldErrors.otp && (
-                      <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.otp}</div>
-                    )}
-                    <ResendOtpButton
-                      email={forgotEmail}
-                      setError={setError}
-                      setSuccessMessage={(msg: string) => { setError(''); setSuccessMessage(msg); }}
-                    />
+                    <div className="flex flex-col items-center">
+                      <div>
+                        <OtpInput value={otp} onChange={setOtp} />
+                        {forgotFieldErrors.otp && (
+                          <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.otp}</div>
+                        )}
+                        <div className="text-right mt-1">
+                          <ResendOtpButton
+                            email={forgotEmail}
+                            setError={setError}
+                            setSuccessMessage={(msg: string) => { setError(''); setSuccessMessage(msg); }}
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <button type="button" onClick={handleForgotPassword} disabled={otp.length !== 6 || loading} className="w-full btn-primary py-3 disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Verifying...</span> : 'Verify OTP'}</button>
+                  <div className="flex justify-center"><button type="button" onClick={handleForgotPassword} disabled={otp.length !== 6 || loading} className="btn-primary rounded-full py-2.5 px-16 text-sm disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Verifying...</span> : 'Verify OTP'}</button></div>
                 </div>
               )}
               {forgotStep === 'reset' && (
@@ -362,7 +370,7 @@ export default function LoginPage() {
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.confirmPassword}</div>
                     )}
                   </div>
-                  <button type="button" onClick={handleForgotPassword} disabled={loading} className="w-full btn-primary py-3">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Resetting...</span> : 'Reset Password'}</button>
+                  <div className="flex justify-center"><button type="button" onClick={handleForgotPassword} disabled={loading} className="btn-primary rounded-full py-2.5 px-16 text-sm">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Resetting...</span> : 'Reset Password'}</button></div>
                 </div>
               )}
               {forgotStep === 'done' && (
@@ -370,10 +378,10 @@ export default function LoginPage() {
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                     <svg className="w-8 h-8 text-brand-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   </div>
-                  <p className="text-gray-600">You can now login with your new password.</p>
-                  <button onClick={() => { setShowForgotPassword(false); setForgotStep('email'); setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmPassword(''); setForgotFieldErrors({}); setError(''); setSuccessMessage(''); setShowResetPassword(false); setShowResetConfirmPassword(false); }} className="w-full btn-primary py-3">
-                    Back to Login
-                  </button>
+                  <p className="text-gray-600">You can now sign in with your new password.</p>
+                  <div className="flex justify-center"><button onClick={() => { setShowForgotPassword(false); setForgotStep('email'); setForgotEmail(''); setOtp(''); setNewPassword(''); setConfirmPassword(''); setForgotFieldErrors({}); setError(''); setSuccessMessage(''); setShowResetPassword(false); setShowResetConfirmPassword(false); }} className="btn-primary rounded-full py-2.5 px-16 text-sm">
+                    Back to Sign In
+                  </button></div>
                 </div>
               )}
 
@@ -393,7 +401,7 @@ export default function LoginPage() {
                       setShowResetConfirmPassword(false);
                     }}
                     className="text-sm text-gray-500 hover:text-brand-green">
-                    ← Back to Login
+                    ← Back to Sign In
                   </button>
                 </div>
               )}

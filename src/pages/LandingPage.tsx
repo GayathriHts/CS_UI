@@ -39,10 +39,10 @@ export default function LandingPage() {
             </Link>
             <div className="flex items-center gap-3">
               <Link to="/login" className="text-white hover:text-brand-light px-4 py-2 text-sm font-medium transition-colors">
-                LOGIN
+                SIGN IN
               </Link>
               <Link to="/register" className="bg-brand-green text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-brand-dark transition-colors">
-                REGISTER
+                SIGN UP
               </Link>
             </div>
           </div>

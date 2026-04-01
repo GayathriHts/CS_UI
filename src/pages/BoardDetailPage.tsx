@@ -290,7 +290,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
       if (error?.message === 'Board name already exists. Please create a different name.') {
         setBoardNameError(error.message);
       } else if (error?.response?.status === 401) {
-        alert('Session expired. Please login again.');
+        alert('Session expired. Please sign in again.');
         window.location.href = '/login';
       } else {
         alert(`Failed to update board. ${error?.response?.data?.title || error?.response?.data?.message || ''}`);

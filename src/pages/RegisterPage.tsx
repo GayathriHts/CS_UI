@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { authService } from '../services/cricketSocialService';
@@ -147,12 +147,12 @@ export default function RegisterPage() {
       }
       if (typeof errorMsg === 'string' && errorMsg.length > 0) {
         if (errorMsg.toLowerCase().includes('already') && errorMsg.toLowerCase().includes('email')) {
-          setError('This user already has an account. Please login.');
+          setError('This user already has an account. Please sign in.');
         } else {
           setError(errorMsg);
         }
       } else {
-        setError('This user already has an account. Please login.');
+        setError('This user already has an account. Please sign in.');
       }
     } finally {
       setLoading(false);
@@ -243,7 +243,7 @@ export default function RegisterPage() {
         <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
           {/* Header */}
           <div className="bg-brand-green py-4 text-center">
-             <h1 className="text-lg font-semibold text-white">Register Account</h1>
+             <h1 className="text-lg font-semibold text-white">Sign Up</h1>
           </div>
 
           <div className="p-8">
@@ -362,14 +362,16 @@ export default function RegisterPage() {
                     </div>
                   )}
 
+                  <div className="flex justify-center">
                   <button
                     type="button"
                     onClick={handleContinue}
                     disabled={!watchedFirstName?.trim() || !watchedLastName?.trim() || (activeTab === 'email' ? !watchedEmail?.trim() || !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/.test(watchedEmail?.trim() || '') : !watchedPhone?.trim()) || loading}
-                    className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-primary rounded-full py-2.5 px-16 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Sending...</span> : 'SEND OTP'}
+                    {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Sending...</span> : 'SEND OTP'}
                   </button>
+                  </div>
                 </form>
               </>
             )}
@@ -378,20 +380,28 @@ export default function RegisterPage() {
               <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5 text-center">Enter the 6-digit code sent to your email</label>
-                  <OtpInput value={otpValue} onChange={setOtpValue} />
-                  {fieldErrors.otp && (
-                    <div className="text-red-600 text-xs mt-1">{fieldErrors.otp}</div>
-                  )}
-                  <ResendOtpButton
-                    registrationPayload={buildRegisterStartPayload()}
-                    setError={setError}
-                    setSuccessMessage={(msg: string) => { setError(''); setSuccessMessage(msg); }}
-                    resendType="register"
-                  />
+                  <div className="flex flex-col items-center">
+                    <div>
+                      <OtpInput value={otpValue} onChange={setOtpValue} />
+                      {fieldErrors.otp && (
+                        <div className="text-red-600 text-xs mt-1">{fieldErrors.otp}</div>
+                      )}
+                      <div className="text-right mt-1">
+                        <ResendOtpButton
+                          registrationPayload={buildRegisterStartPayload()}
+                          setError={setError}
+                          setSuccessMessage={(msg: string) => { setError(''); setSuccessMessage(msg); }}
+                          resendType="register"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <button type="button" onClick={handleVerifyOtp} disabled={otpValue.length !== 6 || loading} className="w-full btn-primary py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Verifying...</span> : 'Verify OTP'}
+                <div className="flex justify-center">
+                <button type="button" onClick={handleVerifyOtp} disabled={otpValue.length !== 6 || loading} className="btn-primary rounded-full py-2.5 px-16 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Verifying...</span> : 'Verify OTP'}
                 </button>
+                </div>
               </div>
             )}
 
@@ -428,9 +438,11 @@ export default function RegisterPage() {
                     <div className="text-red-600 text-xs mt-1">{fieldErrors.confirmPassword}</div>
                   )}
                 </div>
-                <button type="button" onClick={handleCreateAccount} disabled={loading} className="w-full btn-primary py-3 text-lg">
-                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Registering...</span> : 'Register Account'}
+                <div className="flex justify-center">
+                <button type="button" onClick={handleCreateAccount} disabled={loading} className="btn-primary rounded-full py-2.5 px-16 text-sm">
+                  {loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Signing up...</span> : 'Sign Up'}
                 </button>
+                </div>
               </div>
             )}
 
@@ -438,7 +450,7 @@ export default function RegisterPage() {
               <p className="text-sm text-gray-500">
                 Already have an account?{' '}
                 <Link to="/login" className="text-brand-green font-semibold hover:underline">
-                  Login
+                  Sign In
                 </Link>
               </p>
             </div>
