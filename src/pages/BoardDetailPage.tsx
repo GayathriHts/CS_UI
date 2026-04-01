@@ -567,12 +567,6 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
           )}
         </div>
         <div className="flex items-center justify-end gap-3 p-6 border-t">
-          <button onClick={() => {
-            const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
-            if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); }
-          }} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">
-            Cancel
-          </button>
           <button
             onClick={() => name.trim() && updateMutation.mutate()}
             disabled={!name.trim() || updateMutation.isPending}
