@@ -800,33 +800,212 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
 
 // ── GROUND LIST TAB ──
 function GroundListTab() {
-  const { data: grounds } = useQuery({
+  const qc = useQueryClient();
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editAddress1, setEditAddress1] = useState('');
+  const [editAddress2, setEditAddress2] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editZipcode, setEditZipcode] = useState('');
+  const [editLandmark, setEditLandmark] = useState('');
+  const [editHomeTeam, setEditHomeTeam] = useState('');
+  const [updateError, setUpdateError] = useState('');
+  const [updateSuccess, setUpdateSuccess] = useState('');
+
+  const { data: grounds, isLoading } = useQuery({
     queryKey: ['grounds'],
     queryFn: () => leagueService.getGrounds().then(r => {
       const d = r.data;
       return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
     }),
   });
+  const groundList = Array.isArray(grounds) ? grounds : [];
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => leagueService.deleteGround(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['grounds'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: () => leagueService.updateGround(editId!, {
+      groundId: editId!,
+      groundName: editName,
+      address1: editAddress1,
+      address2: editAddress2,
+      city: editCity,
+      state: editState,
+      country: editCountry,
+      zipcode: editZipcode,
+      landmark: editLandmark,
+      homeTeam: editHomeTeam,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['grounds'] });
+      setEditId(null);
+      setUpdateError('');
+      setUpdateSuccess('Ground updated successfully!');
+      setTimeout(() => setUpdateSuccess(''), 4000);
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error?.response?.data?.title || error?.message || 'Failed to update ground.';
+      setUpdateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+    },
+  });
+
+  const handleEdit = (g: any) => {
+    setEditId(g.groundId);
+    setEditName(g.groundName || '');
+    setEditAddress1(g.address1 || '');
+    setEditAddress2(g.address2 || '');
+    setEditCity(g.city || '');
+    setEditState(g.state || '');
+    setEditCountry(g.country || '');
+    setEditZipcode(g.zipcode || '');
+    setEditLandmark(g.landmark || '');
+    setEditHomeTeam(g.homeTeam || '');
+    setUpdateError('');
+    setUpdateSuccess('');
+  };
+
+  const cancelEdit = () => {
+    setEditId(null);
+    setUpdateError('');
+  };
 
   return (
     <div className="animate-fade-in">
+      {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
+
+      {/* Edit form */}
+      {editId && (
+        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400">
+          <h3 className="font-semibold mb-4 text-gray-800">Edit Ground</h3>
+          {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" placeholder="Ground name" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address 1</label>
+              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" placeholder="Address line 1" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address 2</label>
+              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" placeholder="Address line 2" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <input value={editCity} onChange={e => setEditCity(e.target.value)} className="input-field" placeholder="City" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <input value={editState} onChange={e => setEditState(e.target.value)} className="input-field" placeholder="State" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <input value={editCountry} onChange={e => setEditCountry(e.target.value)} className="input-field" placeholder="Country" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
+              <input value={editZipcode} onChange={e => setEditZipcode(e.target.value)} className="input-field" placeholder="Zipcode" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
+              <input value={editLandmark} onChange={e => setEditLandmark(e.target.value)} className="input-field" placeholder="Landmark" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
+              <input value={editHomeTeam} onChange={e => setEditHomeTeam(e.target.value)} className="input-field" placeholder="Home team" />
+            </div>
+          </div>
+          <div className="flex gap-2 mt-4">
+            <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="btn-primary text-sm px-6">
+              {updateMutation.isPending ? 'Updating...' : 'Update'}
+            </button>
+            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-lg shadow-sm">
-        <div className="bg-gray-100 px-6 py-3 border-b">
+        <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
           <h2 className="text-base font-bold text-gray-800 uppercase">Ground List</h2>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {grounds?.map((g: any) => (
-              <div key={g.groundId} className="border rounded-lg p-4">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-xl">🏟️</div>
-                  <div><p className="font-semibold">{g.groundName}</p>{g.city && <p className="text-xs text-gray-500">{g.city}{g.state ? `, ${g.state}` : ''}</p>}</div>
-                </div>
-                {g.address1 && <p className="text-sm text-gray-600">{g.address1}</p>}
+        <div className="p-4 sm:p-6">
+          {isLoading ? (
+            <div className="py-8 text-center text-gray-400">Loading grounds...</div>
+          ) : (
+            <>
+              {/* Desktop table */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left text-gray-500">
+                      <th className="pb-3">Ground Name</th>
+                      <th className="pb-3">City</th>
+                      <th className="pb-3">State</th>
+                      <th className="pb-3">Country</th>
+                      <th className="pb-3">Address</th>
+                      <th className="pb-3">Home Team</th>
+                      <th className="pb-3">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groundList.map((g: any) => (
+                      <tr key={g.groundId} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === g.groundId ? 'bg-blue-50' : ''}`}>
+                        <td className="py-3 font-medium">{g.groundName || '-'}</td>
+                        <td className="py-3">{g.city || '-'}</td>
+                        <td className="py-3">{g.state || '-'}</td>
+                        <td className="py-3">{g.country || '-'}</td>
+                        <td className="py-3 text-xs">{g.address1 || '-'}</td>
+                        <td className="py-3">{g.homeTeam || '-'}</td>
+                        <td className="py-3 space-x-2">
+                          <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                          <button onClick={() => deleteMutation.mutate(g.groundId)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        </td>
+                      </tr>
+                    ))}
+                    {(!groundList.length) && (
+                      <tr><td colSpan={7} className="py-8 text-center text-gray-400">No grounds created yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
-            ))}
-            {(!grounds?.length) && <div className="col-span-full text-center py-8 text-gray-400">No grounds created yet.</div>}
-          </div>
+
+              {/* Mobile card view */}
+              <div className="md:hidden space-y-4">
+                {groundList.map((g: any) => (
+                  <div key={g.groundId} className={`border rounded-lg p-4 ${editId === g.groundId ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">🏟️</span>
+                        <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
+                      </div>
+                      <div className="space-x-2">
+                        <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                        <button onClick={() => deleteMutation.mutate(g.groundId)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                      <div><span className="text-gray-400">City:</span> {g.city || '-'}</div>
+                      <div><span className="text-gray-400">State:</span> {g.state || '-'}</div>
+                      <div><span className="text-gray-400">Country:</span> {g.country || '-'}</div>
+                      <div><span className="text-gray-400">Address:</span> {g.address1 || '-'}</div>
+                      <div><span className="text-gray-400">Home Team:</span> {g.homeTeam || '-'}</div>
+                    </div>
+                  </div>
+                ))}
+                {(!groundList.length) && (
+                  <div className="py-8 text-center text-gray-400">No grounds created yet.</div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

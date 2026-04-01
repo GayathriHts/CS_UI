@@ -372,12 +372,12 @@ export const leagueService = {
   deleteUmpire: (umpireId: string) => umpireApi.delete(`/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
-    groundId?: string; groundName: string; address1?: string; address2?: string;
+    groundName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     landmark?: string; homeTeam?: string;
   }) =>
     umpireApi.post('/Ground', {
-      groundId: data.groundId ?? '',
+      groundId: crypto.randomUUID(),
       groundName: data.groundName,
       address1: data.address1 ?? '',
       address2: data.address2 ?? '',
@@ -389,6 +389,12 @@ export const leagueService = {
       homeTeam: data.homeTeam ?? '',
     }),
   getGrounds: (page = 1, pageSize = 100) => umpireApi.get('/Ground', { params: { page, pageSize } }),
+  updateGround: (groundId: string, data: {
+    groundId: string; groundName: string; address1: string; address2: string;
+    city: string; state: string; country: string; zipcode: string;
+    landmark: string; homeTeam: string;
+  }) =>
+    umpireApi.put(`/Ground/${groundId}`, data),
   deleteGround: (groundId: string) => umpireApi.delete(`/Ground/${groundId}`),
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
