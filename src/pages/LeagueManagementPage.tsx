@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, leagueService, rosterService, tournamentService } from '../services/cricketSocialService';
@@ -1046,7 +1046,11 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   const [endDate, setEndDate] = useState('');
   
   const qc = useQueryClient();
-  const { data: tournaments } = useQuery({ queryKey: ['tournaments', boardId], queryFn: () => tournamentService.getByBoard(boardId).then(r => r.data) });
+  const { data: tournaments } = useQuery({ queryKey: ['tournaments', boardId], queryFn: () => tournamentService.getByBoard(boardId).then(r => {
+    const d = r.data;
+    return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+  }) });
+  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
   
   const createMutation = useMutation({
     mutationFn: () => tournamentService.create({
@@ -1128,7 +1132,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Name</th><th className="pb-3">Format</th><th className="pb-3">Matches</th><th className="pb-3">Dates</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
           <tbody>
-            {tournaments?.items.map(t => (
+            {tournamentList.map((t: any) => (
               <tr key={t.id} className="border-b last:border-b-0 hover:bg-gray-50">
                 <td className="py-3 font-medium">{t.name}</td>
                 <td className="py-3">{t.format || '-'}</td>
@@ -1168,25 +1172,45 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [newAwayTeamId, setNewAwayTeamId] = useState('');
   const [newGroundId, setNewGroundId] = useState('');
   const [newUmpireId, setNewUmpireId] = useState('');
-  const [newScorerId, setNewScorerId] = useState('');
+  const [newAppScorerId, setNewAppScorerId] = useState('');
+  const [newPortalScorerId, setNewPortalScorerId] = useState('');
   const [newScheduledAt, setNewScheduledAt] = useState('');
   const [newGameType, setNewGameType] = useState('');
+  const [createError, setCreateError] = useState('');
+  const [createSuccess, setCreateSuccess] = useState('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   
   const qc = useQueryClient();
   const { data: matches } = useQuery({
     queryKey: ['schedule', boardId, from, to],
-    queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => r.data),
+    queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+    }),
     enabled: !!from && !!to,
   });
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments', boardId],
-    queryFn: () => tournamentService.getByBoard(boardId).then(r => r.data),
+    queryFn: () => tournamentService.getByBoard(boardId).then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+    }),
   });
   const { data: rosters } = useQuery({
     queryKey: ['rosters', boardId],
-    queryFn: () => rosterService.getByBoard(boardId).then(r => r.data),
+    queryFn: () => rosterService.getByBoard(boardId).then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+    }),
   });
-  const { data: umpires } = useQuery({ queryKey: ['umpires', boardId], queryFn: () => leagueService.getUmpires(boardId).then(r => r.data as Umpire[]), enabled: !!boardId });
+  const { data: umpires } = useQuery({
+    queryKey: ['umpires', boardId],
+    queryFn: () => leagueService.getUmpires(boardId).then(r => {
+      const d = r.data;
+      return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Umpire[];
+    }),
+    enabled: !!boardId,
+  });
   const { data: grounds } = useQuery({
     queryKey: ['grounds'],
     queryFn: () => leagueService.getGrounds().then(r => {
@@ -1194,6 +1218,36 @@ function ScheduleTab({ boardId }: { boardId: string }) {
       return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
     }),
   });
+
+  // Normalize arrays safely
+  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
+  const rosterList = Array.isArray(rosters) ? rosters : [];
+  const umpireList = Array.isArray(umpires) ? umpires : [];
+  const groundList = Array.isArray(grounds) ? grounds : [];
+  const matchList = Array.isArray(matches) ? matches : [];
+
+  // Auto-fill defaults when form is open and data loads
+  useEffect(() => {
+    if (!showCreate) return;
+    if (tournamentList.length > 0 && !newTournamentId) {
+      setNewTournamentId(tournamentList[0].id);
+    }
+    if (!newGameType) {
+      setNewGameType('T20');
+    }
+    if (rosterList.length > 0 && !newHomeTeamId) {
+      setNewHomeTeamId(rosterList[0].id);
+    }
+  }, [showCreate, tournamentList.length, rosterList.length]);
+
+  // Auto-select first available away team when home team changes
+  useEffect(() => {
+    if (!showCreate || rosterList.length < 2 || !newHomeTeamId) return;
+    if (!newAwayTeamId || newAwayTeamId === newHomeTeamId) {
+      const first = rosterList.find((r: any) => r.id !== newHomeTeamId);
+      if (first) setNewAwayTeamId(first.id);
+    }
+  }, [showCreate, newHomeTeamId, rosterList.length]);
 
   const updateMatchMutation = useMutation({
     mutationFn: () => tournamentService.updateMatch(editMatchId!, {
@@ -1212,20 +1266,28 @@ function ScheduleTab({ boardId }: { boardId: string }) {
 
   const createMatchMutation = useMutation({
     mutationFn: () => tournamentService.createSchedule({
-      tournamentId: newTournamentId,
+      tournamentId: newTournamentId || undefined,
       gameType: newGameType || undefined,
-      homeTeamBoardId: newHomeTeamId,
-      awayTeamBoardId: newAwayTeamId,
+      homeTeamBoardId: newHomeTeamId || undefined,
+      awayTeamBoardId: newAwayTeamId || undefined,
       groundId: newGroundId || undefined,
-      startAtUtc: new Date(newScheduledAt).toISOString(),
+      startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : undefined,
       umpireId: newUmpireId || undefined,
-      appScorerId: newScorerId || undefined,
+      appScorerId: newAppScorerId || undefined,
+      portalScorerId: newPortalScorerId || undefined,
       active: true,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
-      setShowCreate(false);
+      setCreateError('');
+      setCreateSuccess('Schedule created successfully!');
       resetCreateForm();
+      setTimeout(() => setCreateSuccess(''), 4000);
+    },
+    onError: (error: any) => {
+      const msg = error?.response?.data?.message || error?.response?.data?.title || error?.response?.data?.error || error?.message || 'Failed to create schedule.';
+      setCreateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setCreateSuccess('');
     },
   });
 
@@ -1237,14 +1299,23 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   };
 
   const resetCreateForm = () => {
-    setNewTournamentId('');
-    setNewHomeTeamId('');
-    setNewAwayTeamId('');
+    setNewTournamentId(tournamentList.length > 0 ? tournamentList[0].id : '');
+    setNewGameType('T20');
+    setNewHomeTeamId(rosterList.length > 0 ? rosterList[0].id : '');
+    setNewAwayTeamId(rosterList.length > 1 ? rosterList[1].id : '');
     setNewGroundId('');
     setNewUmpireId('');
-    setNewScorerId('');
+    setNewAppScorerId('');
+    setNewPortalScorerId('');
     setNewScheduledAt('');
-    setNewGameType('');
+    setFormErrors({});
+  };
+
+  const validateAndCreate = () => {
+    setFormErrors({});
+    setCreateError('');
+    setCreateSuccess('');
+    createMatchMutation.mutate();
   };
 
   const statusColor = (s: string) => s === 'Scheduled' ? 'bg-blue-100 text-blue-700' : s === 'Live' ? 'bg-green-100 text-green-700' : s === 'Completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700';
@@ -1253,7 +1324,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Schedule</h2>
-        <button onClick={() => { setShowCreate(!showCreate); if (!showCreate) resetCreateForm(); }} className="btn-primary text-sm px-4">
+        <button onClick={() => { setShowCreate(!showCreate); if (!showCreate) { resetCreateForm(); setCreateError(''); setCreateSuccess(''); } }} className="btn-primary text-sm px-4">
           {showCreate ? 'Cancel' : '+ Create Match'}
         </button>
       </div>
@@ -1261,12 +1332,14 @@ function ScheduleTab({ boardId }: { boardId: string }) {
       {showCreate && (
         <div className="card mb-6">
           <h3 className="font-semibold mb-4">Create Match Schedule</h3>
+          {createError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{createError}</div>}
+          {createSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{createSuccess}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament</label>
               <select value={newTournamentId} onChange={e => setNewTournamentId(e.target.value)} className="input-field">
                 <option value="">Select Tournament</option>
-                {tournaments?.items.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </div>
             <div>
@@ -1276,51 +1349,59 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <option value="T20">T20</option>
                 <option value="ODI">ODI</option>
                 <option value="Test">Test</option>
+                <option value="League">League</option>
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
               <select value={newHomeTeamId} onChange={e => { setNewHomeTeamId(e.target.value); if (e.target.value === newAwayTeamId) setNewAwayTeamId(''); }} className="input-field">
                 <option value="">Select Home Team</option>
-                {rosters?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {rosterList.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Away Team *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Away Team</label>
               <select value={newAwayTeamId} onChange={e => setNewAwayTeamId(e.target.value)} className="input-field">
                 <option value="">Select Away Team</option>
-                {rosters?.filter(r => r.id !== newHomeTeamId).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {rosterList.filter((r: any) => r.id !== newHomeTeamId).map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
               <select value={newGroundId} onChange={e => setNewGroundId(e.target.value)} className="input-field">
                 <option value="">Select Ground</option>
-                {grounds?.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
+                {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
               <select value={newUmpireId} onChange={e => setNewUmpireId(e.target.value)} className="input-field">
                 <option value="">Select Umpire</option>
-                {umpires?.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Scorer</label>
-              <select value={newScorerId} onChange={e => setNewScorerId(e.target.value)} className="input-field">
-                <option value="">Select Scorer</option>
-                {umpires?.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+              <label className="block text-sm font-medium text-gray-700 mb-1">App Scorer</label>
+              <select value={newAppScorerId} onChange={e => setNewAppScorerId(e.target.value)} className="input-field">
+                <option value="">Select App Scorer</option>
+                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time *</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Portal Scorer</label>
+              <select value={newPortalScorerId} onChange={e => setNewPortalScorerId(e.target.value)} className="input-field">
+                <option value="">Select Portal Scorer</option>
+                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
               <input type="datetime-local" value={newScheduledAt} onChange={e => setNewScheduledAt(e.target.value)} className="input-field" />
             </div>
           </div>
           <button
-            onClick={() => createMatchMutation.mutate()}
-            disabled={!newTournamentId || !newHomeTeamId || !newAwayTeamId || !newScheduledAt || createMatchMutation.isPending}
+            onClick={validateAndCreate}
+            disabled={createMatchMutation.isPending}
             className="btn-primary text-sm px-6 mt-4"
           >
             {createMatchMutation.isPending ? 'Creating...' : 'Create Match'}
@@ -1343,21 +1424,21 @@ function ScheduleTab({ boardId }: { boardId: string }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
               <select value={editGround} onChange={e => setEditGround(e.target.value)} className="input-field">
                 <option value="">Select Ground</option>
-                {grounds?.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
+                {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
               <select value={editUmpire} onChange={e => setEditUmpire(e.target.value)} className="input-field">
                 <option value="">Select Umpire</option>
-                {umpires?.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Scorer</label>
               <select value={editScorer} onChange={e => setEditScorer(e.target.value)} className="input-field">
                 <option value="">Select Scorer</option>
-                {umpires?.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                {umpireList.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
             </div>
           </div>
@@ -1372,7 +1453,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
           <tbody>
-            {matches?.map(m => (
+            {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
                 <td className="py-3 text-xs">{m.tournamentName}</td><td className="py-3 font-medium text-sm">{m.homeTeamName}</td><td className="py-3 font-medium text-sm">{m.awayTeamName}</td>
                 <td className="py-3 text-xs">{m.groundName || '-'}</td><td className="py-3 text-xs">{m.umpireName || '-'}</td><td className="py-3 text-xs">{m.scorerName || '-'}</td><td className="py-3 text-xs">{new Date(m.scheduledAt).toLocaleString()}</td>
@@ -1380,7 +1461,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <td className="py-3 text-xs">{m.status === 'Scheduled' && <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700">Assign</button>}</td>
               </tr>
             ))}
-            {(!matches?.length) && <tr><td colSpan={9} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
+            {(!matchList.length) && <tr><td colSpan={9} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -1392,7 +1473,11 @@ function ScheduleTab({ boardId }: { boardId: string }) {
 function ApplicationsTab({ boardId }: { boardId: string }) {
   const [selectedTournament, setSelectedTournament] = useState('');
   const qc = useQueryClient();
-  const { data: tournaments } = useQuery({ queryKey: ['tournaments', boardId], queryFn: () => tournamentService.getByBoard(boardId).then(r => r.data) });
+  const { data: tournaments } = useQuery({ queryKey: ['tournaments', boardId], queryFn: () => tournamentService.getByBoard(boardId).then(r => {
+    const d = r.data;
+    return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+  }) });
+  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
   const { data: apps } = useQuery({
     queryKey: ['applications', selectedTournament],
     queryFn: () => leagueService.getApplications(selectedTournament).then(r => r.data),
@@ -1410,7 +1495,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Tournament</label>
         <select value={selectedTournament} onChange={e => setSelectedTournament(e.target.value)} className="input-field max-w-md">
           <option value="">Choose a tournament...</option>
-          {tournaments?.items.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       </div>
       {selectedTournament && (

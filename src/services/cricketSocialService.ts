@@ -212,12 +212,12 @@ export const tournamentService = {
   createMatch: (data: { tournamentId: string; homeTeamId: string; awayTeamId: string; groundId?: string; umpireId?: string; scorerId?: string; scheduledAt: string }) =>
     api.post<Match>('/tournaments/matches', data),
   createSchedule: (data: {
-    tournamentId: string;
+    tournamentId?: string;
     gameType?: string;
-    homeTeamBoardId: string;
-    awayTeamBoardId: string;
+    homeTeamBoardId?: string;
+    awayTeamBoardId?: string;
     groundId?: string;
-    startAtUtc: string;
+    startAtUtc?: string;
     umpireId?: string;
     appScorerId?: string;
     portalScorerId?: string;
