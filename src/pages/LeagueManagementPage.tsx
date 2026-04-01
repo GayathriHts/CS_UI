@@ -832,6 +832,7 @@ function GroundListTab() {
 
   const updateMutation = useMutation({
     mutationFn: () => leagueService.updateGround(editId!, {
+      id: editId!,
       groundId: editId!,
       groundName: editName,
       address1: editAddress1,
@@ -857,7 +858,7 @@ function GroundListTab() {
   });
 
   const handleEdit = (g: any) => {
-    setEditId(g.groundId);
+    setEditId(g.id || g.groundId);
     setEditName(g.groundName || '');
     setEditAddress1(g.address1 || '');
     setEditAddress2(g.address2 || '');
@@ -956,20 +957,23 @@ function GroundListTab() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groundList.map((g: any) => (
-                      <tr key={g.groundId} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === g.groundId ? 'bg-blue-50' : ''}`}>
-                        <td className="py-3 font-medium">{g.groundName || '-'}</td>
-                        <td className="py-3">{g.city || '-'}</td>
-                        <td className="py-3">{g.state || '-'}</td>
-                        <td className="py-3">{g.country || '-'}</td>
-                        <td className="py-3 text-xs">{g.address1 || '-'}</td>
-                        <td className="py-3">{g.homeTeam || '-'}</td>
-                        <td className="py-3 space-x-2">
-                          <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => deleteMutation.mutate(g.groundId)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
-                        </td>
-                      </tr>
-                    ))}
+                    {groundList.map((g: any) => {
+                      const gid = g.id || g.groundId;
+                      return (
+                        <tr key={gid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === gid ? 'bg-blue-50' : ''}`}>
+                          <td className="py-3 font-medium">{g.groundName || '-'}</td>
+                          <td className="py-3">{g.city || '-'}</td>
+                          <td className="py-3">{g.state || '-'}</td>
+                          <td className="py-3">{g.country || '-'}</td>
+                          <td className="py-3 text-xs">{g.address1 || '-'}</td>
+                          <td className="py-3">{g.homeTeam || '-'}</td>
+                          <td className="py-3 space-x-2">
+                            <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                            <button onClick={() => deleteMutation.mutate(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {(!groundList.length) && (
                       <tr><td colSpan={7} className="py-8 text-center text-gray-400">No grounds created yet.</td></tr>
                     )}
@@ -979,18 +983,20 @@ function GroundListTab() {
 
               {/* Mobile card view */}
               <div className="md:hidden space-y-4">
-                {groundList.map((g: any) => (
-                  <div key={g.groundId} className={`border rounded-lg p-4 ${editId === g.groundId ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">🏟️</span>
-                        <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
+                {groundList.map((g: any) => {
+                  const gid = g.id || g.groundId;
+                  return (
+                    <div key={gid} className={`border rounded-lg p-4 ${editId === gid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">🏟️</span>
+                          <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
+                        </div>
+                        <div className="space-x-2">
+                          <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
+                          <button onClick={() => deleteMutation.mutate(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        </div>
                       </div>
-                      <div className="space-x-2">
-                        <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                        <button onClick={() => deleteMutation.mutate(g.groundId)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
-                      </div>
-                    </div>
                     <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                       <div><span className="text-gray-400">City:</span> {g.city || '-'}</div>
                       <div><span className="text-gray-400">State:</span> {g.state || '-'}</div>
@@ -999,7 +1005,8 @@ function GroundListTab() {
                       <div><span className="text-gray-400">Home Team:</span> {g.homeTeam || '-'}</div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {(!groundList.length) && (
                   <div className="py-8 text-center text-gray-400">No grounds created yet.</div>
                 )}

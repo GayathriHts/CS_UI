@@ -390,7 +390,7 @@ export const leagueService = {
     }),
   getGrounds: (page = 1, pageSize = 100) => umpireApi.get('/Ground', { params: { page, pageSize } }),
   updateGround: (groundId: string, data: {
-    groundId: string; groundName: string; address1: string; address2: string;
+    id: string; groundId: string; groundName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     landmark: string; homeTeam: string;
   }) =>
