@@ -572,7 +572,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
             disabled={!name.trim() || updateMutation.isPending}
             className="btn-primary text-sm px-6"
           >
-            {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+            {updateMutation.isPending ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
