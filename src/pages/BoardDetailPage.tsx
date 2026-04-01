@@ -79,7 +79,11 @@ export default function BoardDetailPage() {
             </div>
             <div className="flex-1">
               <h1 className="text-3xl font-bold">{board.name}</h1>
-              <p className="text-green-200 mt-1">{board.city && `${board.city}, `}{board.country} · {board.fanCount} fans · {board.rosterCount} teams</p>
+              <p className="text-green-200 mt-1">
+                {board.city && `${board.city}, `}{board.country}
+                {board.fanCount > 0 && ` · ${board.fanCount} fans`}
+                {board.rosterCount > 0 && ` · ${board.rosterCount} teams`}
+              </p>
               {board.owner && (
                 <p className="text-green-200 text-sm mt-1">
                   Owner: {`${board.owner.firstName || ''} ${board.owner.lastName || ''}`.trim() || board.owner.email || board.owner.userName || 'Unknown'}
