@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
+import { fetchCountries, fetchStates, fetchCities } from '../services/locationService';
 import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
 import type { BoardInfo, BoardDirector, BoardSponsor, BoardFan, BoardFeedItem, BoardScore, RosterDetail, BoardFollowing, BoardEvent } from '../types';
@@ -151,6 +152,42 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   const [state, setState] = useState(board.state || '');
   const [country, setCountry] = useState(board.country || '');
   const qc = useQueryClient();
+
+  // Location async state
+  const [countryList, setCountryList] = useState<string[]>([]);
+  const [stateList, setStateList] = useState<string[]>([]);
+  const [cityList, setCityList] = useState<string[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(false);
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [citiesLoading, setCitiesLoading] = useState(false);
+
+  // Custom dropdown open/search state
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
+  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
+  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
+  const [countrySearchText, setCountrySearchText] = useState('');
+  const [stateSearchText, setStateSearchText] = useState('');
+  const [citySearchText, setCitySearchText] = useState('');
+
+  // Fetch countries on mount
+  useEffect(() => {
+    setCountriesLoading(true);
+    fetchCountries().then(setCountryList).catch(() => setCountryList([])).finally(() => setCountriesLoading(false));
+  }, []);
+
+  // Fetch states when country changes
+  useEffect(() => {
+    if (!country) { setStateList([]); setCityList([]); return; }
+    setStatesLoading(true);
+    fetchStates(country).then(setStateList).catch(() => setStateList([])).finally(() => setStatesLoading(false));
+  }, [country]);
+
+  // Fetch cities when state changes
+  useEffect(() => {
+    if (!country || !state) { setCityList([]); return; }
+    setCitiesLoading(true);
+    fetchCities(country, state).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
+  }, [country, state]);
 
   const isLeague = (board.boardType === 2 || board.boardType === 'League' || board.BoardType === 2);
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
@@ -314,30 +351,96 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
             <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} placeholder="Board description" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              <input value={city} onChange={(e) => setCity(e.target.value)} className="input-field" placeholder="City" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+              <div
+                className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
+                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
+              >
+                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {countryDropdownOpen && (
+                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="max-h-80 overflow-y-auto">
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                    ))}
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-gray-100">
+                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
-              <input value={state} onChange={(e) => setState(e.target.value)} className="input-field" placeholder="State" />
+            <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+              {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
+              <div
+                className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`}
+                onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
+              >
+                <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {stateDropdownOpen && (
+                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="max-h-80 overflow-y-auto">
+                    {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).map(s => (
+                      <button key={s} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${state === s ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setState(s); setCity(''); setStateDropdownOpen(false); setStateSearchText(''); }}>{s}</button>
+                    ))}
+                    {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-gray-100">
+                    <input type="text" value={stateSearchText} onChange={e => setStateSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search state..." autoFocus onClick={e => e.stopPropagation()} />
+                  </div>
+                </div>
+              )}
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-              <input value={country} onChange={(e) => setCountry(e.target.value)} className="input-field" placeholder="Country" />
+            <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
+              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+              <div
+                className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`}
+                onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
+              >
+                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select District / City'}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {cityDropdownOpen && (
+                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="max-h-80 overflow-y-auto">
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                    ))}
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
+                    )}
+                  </div>
+                  <div className="p-2 border-t border-gray-100">
+                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search district / city..." autoFocus onClick={e => e.stopPropagation()} />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           {isLeague && (
             <div>
-              <label className="block text-sm font-medium text-blue-600 mb-1 italic">Co-Owner</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Co-Owner</label>
               <div className="flex gap-2">
                 <div className="flex-1 relative">
                   {showCoOwnerDropdown && (
                     <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
                   )}
                   <div
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                    className="input-field cursor-pointer flex items-center justify-between"
                     onClick={() => setShowCoOwnerDropdown(prev => !prev)}
                   >
                     {selectedCoOwner ? (
@@ -354,18 +457,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
                     )}
                   </div>
                   {showCoOwnerDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                      <div className="p-2 border-b border-gray-100">
-                        <input
-                          type="text"
-                          value={coOwnerSearch}
-                          onChange={e => setCoOwnerSearch(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                          placeholder="Search users..."
-                          autoFocus
-                          onClick={e => e.stopPropagation()}
-                        />
-                      </div>
+                    <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                       <div className="max-h-48 overflow-y-auto">
                         {coOwnerLoading ? (
                           <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
@@ -401,6 +493,17 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
                             ))
                           );
                         })()}
+                      </div>
+                      <div className="p-2 border-t border-gray-100">
+                        <input
+                          type="text"
+                          value={coOwnerSearch}
+                          onChange={e => setCoOwnerSearch(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                          placeholder="Search users..."
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
                       </div>
                     </div>
                   )}
