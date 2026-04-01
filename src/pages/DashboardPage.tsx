@@ -592,23 +592,32 @@ export default function DashboardPage() {
                 <div className="card mb-6">
                   <h3 className="font-semibold mb-4">Create Your Board</h3>
                   {/* Logo Upload */}
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
-                      onClick={() => document.getElementById('board-logo-input')?.click()}>
-                      {newBoardLogoPreview ? (
-                        <img src={newBoardLogoPreview} alt="Board logo" className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors px-1">
-                          <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                          <span className="text-[9px] leading-tight text-center font-medium">Upload Logo</span>
-                        </div>
-                      )}
-                      {newBoardLogoPreview && (
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                        </div>
-                      )}
+                  <div className="flex flex-col items-start gap-1 mb-4">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
+                        onClick={() => document.getElementById('board-logo-input')?.click()}>
+                        {newBoardLogoPreview ? (
+                          <img src={newBoardLogoPreview} alt="Board logo" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors px-1">
+                            <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <span className="text-[9px] leading-tight text-center font-medium">Upload Logo</span>
+                          </div>
+                        )}
+                        {newBoardLogoPreview && (
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-700">Board Logo</p>
+                        {newBoardLogoPreview && (
+                          <button className="text-xs text-red-500 hover:text-red-600 mt-1" onClick={(e) => { e.stopPropagation(); setNewBoardLogo(null); setNewBoardLogoPreview(''); }}>Remove</button>
+                        )}
+                      </div>
                     </div>
+                    <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
                     <input id="board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -619,13 +628,6 @@ export default function DashboardPage() {
                         reader.readAsDataURL(file);
                       }
                     }} />
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Board Logo</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Max 2MB</p>
-                      {newBoardLogoPreview && (
-                        <button className="text-xs text-red-500 hover:text-red-600 mt-1" onClick={(e) => { e.stopPropagation(); setNewBoardLogo(null); setNewBoardLogoPreview(''); }}>Remove</button>
-                      )}
-                    </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label><input value={newBoardName} maxLength={50} onChange={e => { let val = e.target.value; if (val.length === 0 || (val.length > 0 && val[0] !== ' ' && /^[a-zA-Z0-9 ]*$/.test(val))) { val = val.charAt(0).toUpperCase() + val.slice(1); setNewBoardName(val); setBoardNameError(''); } }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Enter board name" /></div>
@@ -658,10 +660,10 @@ export default function DashboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className={`relative ${!newBoardCountry ? 'opacity-50' : ''}`}><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+                    <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
                       {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
                       <div
-                        className={`input-field cursor-pointer flex items-center justify-between ${!newBoardCountry || statesLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                        className={`input-field cursor-pointer flex items-center justify-between ${!newBoardCountry || statesLoading ? 'pointer-events-none' : ''}`}
                         onClick={() => { if (newBoardCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
                       >
                         <span className={newBoardState ? 'text-gray-900' : 'text-gray-400'}>{!newBoardCountry ? 'Select Country first' : statesLoading ? 'Loading states...' : newBoardState || 'Select State'}</span>
@@ -684,10 +686,10 @@ export default function DashboardPage() {
                         </div>
                       )}
                     </div>
-                    <div className={`relative ${!newBoardState ? 'opacity-50' : ''}`}><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
+                    <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
                       {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
                       <div
-                        className={`input-field cursor-pointer flex items-center justify-between ${!newBoardState || citiesLoading ? 'opacity-50 pointer-events-none' : ''}`}
+                        className={`input-field cursor-pointer flex items-center justify-between ${!newBoardState || citiesLoading ? 'pointer-events-none' : ''}`}
                         onClick={() => { if (newBoardState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
                       >
                         <span className={newBoardCity ? 'text-gray-900' : 'text-gray-400'}>{!newBoardState ? 'Select State first' : citiesLoading ? 'Loading...' : newBoardCity || 'Select District / City'}</span>
@@ -712,14 +714,14 @@ export default function DashboardPage() {
                     </div>
                     {newBoardType === 'League' && (
                       <div>
-                        <label className="block text-sm font-medium text-blue-600 mb-1 italic">Co-Owner</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Co-Owner</label>
                         <div className="flex gap-2">
                           <div className="flex-1 relative">
                             {showCoOwnerDropdown && (
                               <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
                             )}
                             <div
-                              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                              className="input-field cursor-pointer flex items-center justify-between"
                               onClick={() => setShowCoOwnerDropdown(prev => !prev)}
                             >
                               {selectedCoOwner ? (
