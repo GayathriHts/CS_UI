@@ -851,6 +851,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [rosterFieldSearch, setRosterFieldSearch] = useState('');
+  const [showRosterCancelConfirm, setShowRosterCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
   const showSuccess = (msg: string) => { setSuccessMsg(msg); setErrorMsg(null); setTimeout(() => setSuccessMsg(null), 4000); };
@@ -1277,21 +1278,24 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             </div>
 
             {/* Create/Update & Cancel Buttons */}
-            <div className="flex gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={() => {
+                  const hasDirtyData = formData.rosterName || formData.captain || formData.viceCaptain || formData.coach || formData.members.length > 0;
+                  if (hasDirtyData) { setShowRosterCancelConfirm(true); } else { resetForm(); }
+                }}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+              >
+                Cancel
+              </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-brand-green text-white rounded-lg hover:bg-brand-dark transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary text-sm px-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting
                   ? (editingRosterId ? 'Updating...' : 'Creating...')
                   : (editingRosterId ? 'Update Roster' : 'Create')}
-              </button>
-              <button
-                onClick={resetForm}
-                className="px-6 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
-              >
-                Cancel
               </button>
             </div>
           </div>
@@ -1395,6 +1399,29 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
           </svg>
           <p className="text-lg font-medium text-gray-500 mb-2">No Rosters Yet</p>
           <p className="text-sm text-gray-400">Click "Create New Roster" to build your team squad.</p>
+        </div>
+      )}
+
+      {/* Roster Cancel Confirmation */}
+      {showRosterCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRosterCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setShowRosterCancelConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+                >No, Keep Editing</button>
+                <button
+                  onClick={() => { setShowRosterCancelConfirm(false); resetForm(); }}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
+                >Yes, Discard</button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
