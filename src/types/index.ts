@@ -373,26 +373,16 @@ export interface Umpire {
 
 // ── Ground ──
 export interface Ground {
-  id: string;
-  name: string;
-  placeOfGround?: string;
-  addressLine1?: string;
+  groundId: string;
+  groundName: string;
+  address1?: string;
+  address2?: string;
   city?: string;
   state?: string;
   country?: string;
-  zipCode?: string;
+  zipcode?: string;
   landmark?: string;
   homeTeam?: string;
-  additionalDirection?: string;
-  groundFacilities?: string;
-  pitchDescription?: string;
-  wicketType?: string;
-  permitTimeHour?: string;
-  permitTimeMinute?: string;
-  permitTimePeriod?: string;
-  permitTimeZone?: string;
-  latitude?: number;
-  longitude?: number;
 }
 
 // ── League Application ──

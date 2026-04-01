@@ -350,13 +350,24 @@ export const leagueService = {
   deleteUmpire: (umpireId: string) => umpireApi.delete(`/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
-    groundName: string; address1?: string; address2?: string;
+    groundId?: string; groundName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     landmark?: string; homeTeam?: string;
   }) =>
-    umpireApi.post('/Ground', data),
-  getGrounds: () => api.get<Ground[]>('/league/grounds'),
-  deleteGround: (groundId: string) => api.delete(`/league/grounds/${groundId}`),
+    umpireApi.post('/Ground', {
+      groundId: data.groundId ?? '',
+      groundName: data.groundName,
+      address1: data.address1 ?? '',
+      address2: data.address2 ?? '',
+      city: data.city ?? '',
+      state: data.state ?? '',
+      country: data.country ?? '',
+      zipcode: data.zipcode ?? '',
+      landmark: data.landmark ?? '',
+      homeTeam: data.homeTeam ?? '',
+    }),
+  getGrounds: () => umpireApi.get('/Ground'),
+  deleteGround: (groundId: string) => umpireApi.delete(`/Ground/${groundId}`),
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
   getSchedule: (boardId: string, from: string, to: string) =>
