@@ -308,12 +308,11 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label>
-            <input value={name} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
-            {boardNameError && <p className="text-red-500 text-xs mt-1">{boardNameError}</p>}
+            <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea value={description} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} placeholder="Board description" />
+            <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} placeholder="Board description" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
