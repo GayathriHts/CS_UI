@@ -152,12 +152,15 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
       const now = new Date();
       const from = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
       const to = new Date(now.getFullYear(), now.getMonth() + 2, 0).toISOString().split('T')[0];
-      return leagueService.getSchedule(boardId, from, to).then(r => r.data);
+      return leagueService.getSchedule(boardId, from, to).then(r => {
+        const d = r.data;
+        return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Match[];
+      });
     },
   });
 
-  const recentResults = schedule?.filter(m => m.status === 'Completed').slice(0, 5) ?? [];
-  const upcomingMatches = schedule?.filter(m => m.status === 'Scheduled' || m.status === 'Live').slice(0, 5) ?? [];
+  const recentResults = (schedule ?? []).filter((m: any) => m.status === 'Completed').slice(0, 5);
+  const upcomingMatches = (schedule ?? []).filter((m: any) => m.status === 'Scheduled' || m.status === 'Live').slice(0, 5);
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -184,7 +187,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         </h3>
         {recentResults.length > 0 ? (
           <div className="space-y-3">
-            {recentResults.map(m => (
+            {recentResults.map((m: any) => (
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
@@ -207,7 +210,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         </h3>
         {upcomingMatches.length > 0 ? (
           <div className="space-y-3">
-            {upcomingMatches.map(m => (
+            {upcomingMatches.map((m: any) => (
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
@@ -1883,39 +1886,51 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   });
   const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
 
-  // Extract team board IDs from the selected tournament's groupList
-  const selectedTournament = tournamentList.find((t: any) => t.id === newTournamentId);
-  const tournamentTeamBoardIds: string[] = [];
-  if (selectedTournament && Array.isArray(selectedTournament.groupList)) {
-    for (const g of selectedTournament.groupList) {
-      if (Array.isArray(g.teamBoardId)) {
-        for (const tid of g.teamBoardId) {
-          if (tid && !tournamentTeamBoardIds.includes(tid)) tournamentTeamBoardIds.push(tid);
-        }
-      }
-    }
-  }
-
-  // Fetch board details for the team board IDs in the selected tournament
-  const { data: tournamentTeamBoards } = useQuery({
-    queryKey: ['tournamentTeamBoards', tournamentTeamBoardIds.sort().join(',')],
+  // Load boards from sessionStorage + API fallback (same as CreateTrophyTab / TournamentsTab)
+  const { data: boardsList } = useQuery({
+    queryKey: ['boardsByOwner', user?.id],
     queryFn: async () => {
-      const results: { id: string; name: string }[] = [];
-      for (const tid of tournamentTeamBoardIds) {
-        try {
-          const r = await boardService.getById(tid);
-          const b = r.data as any;
-          results.push({ id: b.id || tid, name: b.name || b.boardName || tid });
-        } catch {
-          results.push({ id: tid, name: tid });
+      try {
+        const stored = sessionStorage.getItem('recentBoards');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((b: any) => ({
+              id: b.id || b.Id || b.boardId || '',
+              name: b.name || b.boardName || b.Name || '',
+              logoUrl: b.logoUrl || '',
+            }));
+          }
         }
+      } catch {}
+      const [ownerRes, coOwnerRes] = await Promise.all([
+        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
+        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
+      ]);
+      const extract = (raw: any): any[] => {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (raw?.items) return raw.items;
+        if (raw?.data?.items) return raw.data.items;
+        if (Array.isArray(raw?.data)) return raw.data;
+        if (Array.isArray(raw?.result)) return raw.result;
+        return [];
+      };
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
+        const id = b.id || b.Id || b.boardId || '';
+        if (id && !seen.has(id)) { seen.add(id); merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' }); }
       }
-      return results;
+      return merged;
     },
-    enabled: tournamentTeamBoardIds.length > 0,
-    staleTime: 60000,
+    enabled: !!user?.id,
+    staleTime: 30000,
   });
-  const teamBoardList = Array.isArray(tournamentTeamBoards) ? tournamentTeamBoards : [];
+  const allBoards = Array.isArray(boardsList) ? boardsList : [];
+
+  // Show all boards for Home/Away team selection (same as Team Board in CreateTournament)
+  const teamBoardList = allBoards;
 
   // Fetch user list for Umpire / App Scorer / Portal Scorer search
   const shouldFetchUsers = showUmpireDropdown || showAppScorerDropdown || showPortalScorerDropdown;
@@ -2020,19 +2035,25 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   });
 
   const createMatchMutation = useMutation({
-    mutationFn: () => tournamentService.createSchedule({
-      tournamentId: newTournamentId || undefined,
-      gameType: newGameType || undefined,
-      homeTeamBoardId: newHomeTeamId || undefined,
-      awayTeamBoardId: newAwayTeamId || undefined,
-      groundId: newGroundId || undefined,
-      startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : undefined,
-      umpireId: newUmpireId || undefined,
-      appScorerId: newAppScorerId || undefined,
-      portalScorerId: newPortalScorerId || undefined,
-      active: true,
-    }),
-    onSuccess: () => {
+    mutationFn: () => {
+      // API expects all fields: GUIDs as value or null, strings as value or ""
+      const payload = {
+        tournamentId: newTournamentId || null,
+        gameType: newGameType || '',
+        homeTeamBoardId: newHomeTeamId || null,
+        awayTeamBoardId: newAwayTeamId || null,
+        groundId: newGroundId || null,
+        startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : null,
+        umpireId: newUmpireId || null,
+        appScorerId: newAppScorerId || '',
+        portalScorerId: newPortalScorerId || '',
+        active: true,
+      };
+      console.log('📤 Schedule POST payload:', JSON.stringify(payload, null, 2));
+      return tournamentService.createSchedule(payload as any);
+    },
+    onSuccess: (response: any) => {
+      console.log('✅ Schedule created successfully:', response?.data);
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       setCreateError('');
       setCreateSuccess('Schedule created successfully!');
@@ -2040,7 +2061,22 @@ function ScheduleTab({ boardId }: { boardId: string }) {
       setTimeout(() => setCreateSuccess(''), 4000);
     },
     onError: (error: any) => {
-      const msg = error?.response?.data?.message || error?.response?.data?.title || error?.response?.data?.error || error?.message || 'Failed to create schedule.';
+      console.error('❌ Schedule creation failed:', error?.response?.status, error?.response?.data);
+      const respData = error?.response?.data;
+      let msg = '';
+      if (typeof respData === 'string') {
+        msg = respData;
+      } else if (respData) {
+        msg = respData.message || respData.title || respData.error || respData.detail || '';
+        // Show validation errors if present
+        if (respData.errors) {
+          const validationErrors = Object.entries(respData.errors)
+            .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`)
+            .join('; ');
+          msg = msg ? `${msg} — ${validationErrors}` : validationErrors;
+        }
+      }
+      if (!msg) msg = error?.message || 'Failed to create schedule.';
       setCreateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
       setCreateSuccess('');
     },
@@ -2135,7 +2171,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     </div>
   );
 
-  // Reusable searchable team board dropdown
+  // Reusable searchable team board dropdown (same UI as Team Board in CreateTrophyTab)
   const renderTeamBoardDropdown = (
     label: string,
     search: string,
@@ -2151,33 +2187,64 @@ function ScheduleTab({ boardId }: { boardId: string }) {
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {selected ? (
         <div className="flex items-center gap-2 input-field bg-gray-50">
+          <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+            {selected.name?.[0]?.toUpperCase() || '?'}
+          </div>
           <span className="flex-1 text-sm truncate">{selected.name}</span>
           <button type="button" onClick={onClear} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
         </div>
       ) : (
         <>
-          <input
-            type="text"
-            placeholder={`Search ${label.toLowerCase()}...`}
-            value={search}
-            onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
-            onFocus={() => setShowDropdown(true)}
-            className="input-field"
-          />
           {showDropdown && (
-            <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {filterTeamBoards(search, excludeId).length > 0 ? filterTeamBoards(search, excludeId).map((b: any) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => { onSelect(b); setShowDropdown(false); setSearch(''); }}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-brand-green/10 border-b last:border-b-0"
-                >
-                  <span className="font-medium">{b.name}</span>
-                </button>
-              )) : (
-                <div className="px-3 py-2 text-sm text-gray-400">{tournamentTeamBoardIds.length === 0 ? 'Select a tournament first' : 'No teams found'}</div>
-              )}
+            <div className="fixed inset-0 z-[5]" onClick={() => { setShowDropdown(false); setSearch(''); }} />
+          )}
+          <div
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+            onClick={() => setShowDropdown(!showDropdown)}
+          >
+            <span className="text-gray-400 text-sm">Search team...</span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+          {showDropdown && (
+            <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
+              <div className="p-2 border-b border-gray-100">
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                  placeholder="Search boards..."
+                  autoFocus
+                  onClick={e => e.stopPropagation()}
+                />
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {(() => {
+                  const filtered = filterTeamBoards(search, excludeId);
+                  return filtered.length === 0 ? (
+                    <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                  ) : (
+                    filtered.map((b: any) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => { onSelect(b); setShowDropdown(false); setSearch(''); }}
+                        className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                      >
+                        <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                          {b.logoUrl
+                            ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                            : b.name?.[0]?.toUpperCase() || '?'
+                          }
+                        </div>
+                        <span className="font-medium text-gray-900">{b.name}</span>
+                      </button>
+                    ))
+                  );
+                })()}
+              </div>
             </div>
           )}
         </>
