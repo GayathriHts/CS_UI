@@ -371,6 +371,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="p-6 space-y-4">
           {/* Logo Upload */}
           <div className="flex flex-col items-start gap-1">
+            <p className="text-sm font-medium text-gray-700">Board Logo</p>
             <div className="flex items-center gap-4">
               <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
                 onClick={() => document.getElementById('edit-board-logo-input')?.click()}>
@@ -388,12 +389,9 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
                   </div>
                 )}
               </div>
-              <div>
-                <p className="text-sm font-medium text-gray-700">Board Logo</p>
-                {logoPreview && (
-                  <button className="text-xs text-red-500 hover:text-red-600 mt-1" onClick={(e) => { e.stopPropagation(); setLogo(null); setLogoPreview(''); }}>Remove</button>
-                )}
-              </div>
+              {logoPreview && (
+                <button className="text-xs text-red-500 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setLogo(null); setLogoPreview(''); }}>Remove</button>
+              )}
             </div>
             <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
             <input id="edit-board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
