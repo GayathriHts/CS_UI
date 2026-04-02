@@ -60,6 +60,7 @@ export default function OtpInput({ value, onChange, length = 6 }: OtpInputProps)
           inputMode="numeric"
           maxLength={1}
           value={digit}
+          autoComplete={`otp-nofill-${i}`}
           onChange={(e) => handleChange(i, e.target.value.replace(/\D/g, ''))}
           onKeyDown={(e) => handleKeyDown(i, e)}
           onPaste={handlePaste}

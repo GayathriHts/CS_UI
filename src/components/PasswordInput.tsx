@@ -11,6 +11,7 @@ const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(({ show, 
       <input
         ref={ref}
         type={show ? 'text' : 'password'}
+        autoComplete="new-password-nofill"
         className={`input-field no-select-password pr-10 ${className}`}
         {...props}
       />
