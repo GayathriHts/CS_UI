@@ -451,6 +451,23 @@ export const leagueService = {
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
   getSchedule: (boardId: string, from: string, to: string) =>
     umpireApi.get('/Schedules', { params: { from, to } }),
+  getScheduleById: (id: string) =>
+    umpireApi.get(`/Schedules/${id}`),
+  updateSchedule: (id: string, data: {
+    tournamentId?: string | null;
+    gameType?: string;
+    homeTeamBoardId?: string | null;
+    awayTeamBoardId?: string | null;
+    groundId?: string | null;
+    startAtUtc?: string | null;
+    umpireId?: string | null;
+    appScorerId?: string;
+    portalScorerId?: string;
+    active?: boolean;
+  }) =>
+    umpireApi.put(`/Schedules/${id}`, data),
+  deleteSchedule: (id: string) =>
+    umpireApi.delete(`/Schedules/${id}`),
   getTeamsByTournament: (tournamentId: string) =>
     umpireApi.get(`/Schedules/dropdowns/${tournamentId}/teams`),
   assignUmpire: (matchId: string, umpireId: string) => api.put(`/league/matches/${matchId}/umpire/${umpireId}`),
