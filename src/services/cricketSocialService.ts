@@ -106,18 +106,26 @@ export const boardService = {
     }),
 
 
-  // Get a board by ID
+  // Get a board by ID — normalizes nested { data: { ... } } wrappers from the API
   getById: (id: string) => boardApi.get(`/Boards/${id}`, {
     params: { _t: Date.now() },
     headers: { 'Cache-Control': 'no-cache' },
+  }).then(r => {
+    const raw = r.data as any;
+    const board = raw?.data && raw.data.id ? raw.data : raw;
+    return { ...r, data: board };
   }),
 
-  // Update a board by ID (PUT /api/v1/Boards/{id})
+  // Update a board by ID (PUT /api/v1/Boards/{id}) — normalizes nested response
   update: (id: string, data: any) => {
     const cleaned = Object.fromEntries(
       Object.entries(data).filter(([_, v]) => v !== undefined && v !== '')
     );
-    return boardApi.put(`/Boards/${id}`, cleaned);
+    return boardApi.put(`/Boards/${id}`, cleaned).then(r => {
+      const raw = r.data as any;
+      const board = raw?.data && raw.data.id ? raw.data : raw;
+      return { ...r, data: board };
+    });
   },
 
   // Get boards by owner/co-owner

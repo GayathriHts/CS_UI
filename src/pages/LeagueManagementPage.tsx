@@ -281,10 +281,7 @@ function EditLeagueModal({ board, boardId, onClose, onSaved }: { board: any; boa
         logoUrl: logoPreview || board.logoUrl || board.LogoUrl || board.logourl || '',
         ...(selectedCoOwner ? { coOwnerId: selectedCoOwner.id } : {}),
       };
-      return boardService.update(boardId, payload).then((r) => {
-        const raw = r.data;
-        return raw?.data && raw.data.id ? raw.data : raw;
-      });
+      return boardService.update(boardId, payload).then((r) => r.data);
     },
     onSuccess: (updatedBoard: any) => {
       const newName = updatedBoard?.name || name;

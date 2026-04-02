@@ -35,13 +35,7 @@ export default function BoardDetailPage() {
 
   const { data: board, isError } = useQuery({
     queryKey: ['board', id],
-    queryFn: () => boardService.getById(id!).then((r) => {
-      const raw = r.data;
-      // Normalize: API may return the board directly, or nested in { data: { ... } }
-      const board = raw?.data && raw.data.id ? raw.data : raw;
-      console.log('getById raw:', raw, 'resolved board:', board);
-      return board;
-    }),
+    queryFn: () => boardService.getById(id!).then((r) => r.data),
     enabled: !!id,
     retry: false,
   });
@@ -300,11 +294,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         ...(isLeague && selectedCoOwner ? { coOwnerId: selectedCoOwner.id } : {}),
       };
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
-      return boardService.update(boardId, payload).then((r) => {
-        // Unwrap the response - API may nest the board in { data: { ... } }
-        const raw = r.data;
-        return raw?.data && raw.data.id ? raw.data : raw;
-      });
+      return boardService.update(boardId, payload).then((r) => r.data);
     },
     onSuccess: (updatedBoard: any) => {
       // Use server response if available, otherwise fall back to local state values
