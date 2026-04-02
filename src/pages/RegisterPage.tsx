@@ -8,6 +8,7 @@ import { getPasswordValidationError } from '../utils/passwordValidation';
 import ResendOtpButton from '../components/ResendOtpButton';
 import OtpInput from '../components/OtpInput';
 import PasswordInput from '../components/PasswordInput';
+import { fetchCountryPhoneCodes } from '../services/locationService';
 
 type TabType = 'email' | 'mobile';
 type Step = 'details' | 'otp' | 'password';
@@ -28,6 +29,7 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string }[]>([]);
   const { register, watch, getValues, setValue, trigger, formState: { isSubmitting } } = useForm<RegisterRequest>();
   const watchedFirstName = watch('firstName');
   const watchedLastName = watch('lastName');
@@ -41,6 +43,10 @@ export default function RegisterPage() {
       return () => clearTimeout(timeout);
     }
   }, [successMessage]);
+
+  useEffect(() => {
+    fetchCountryPhoneCodes().then(setPhoneCodeList).catch(() => setPhoneCodeList([]));
+  }, []);
 
   const buildRegisterStartPayload = (): RegisterStartRequest => {
     const rawPhoneNumber = (getValues('phoneNumber') || '').replace(/\D/g, '');
@@ -347,10 +353,18 @@ export default function RegisterPage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Mobile Number</label>
                       <div className="flex gap-2">
                         <select className="input-field w-24 text-sm" value={countryCode} onChange={(e) => setCountryCode(e.target.value)}>
-                          <option>+1</option>
-                          <option>+91</option>
-                          <option>+44</option>
-                          <option>+61</option>
+                          {phoneCodeList.length > 0 ? (
+                            phoneCodeList.map(c => (
+                              <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                            ))
+                          ) : (
+                            <>
+                              <option>+1</option>
+                              <option>+91</option>
+                              <option>+44</option>
+                              <option>+61</option>
+                            </>
+                          )}
                         </select>
                         <input
                           type="tel"

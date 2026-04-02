@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, leagueService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
-import { fetchCountries, fetchStates, fetchCities } from '../services/locationService';
+import { fetchCountries, fetchStates, fetchCities, fetchCountryPhoneCodes } from '../services/locationService';
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
 import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
 
-type LeagueTab = 'dashboard' | 'create-umpire' | 'umpire-list' | 'create-ground' | 'ground-list' | 'create-trophy' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game';
+type LeagueTab = 'dashboard' | 'umpire-list' | 'ground-list' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game';
 
 type SidebarSection = 'umpires' | 'grounds' | 'trophy' | 'schedules';
 
@@ -15,22 +15,19 @@ const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueT
   {
     id: 'umpires', label: 'UMPIRES',
     items: [
-      { id: 'create-umpire', label: 'Create Umpire' },
-      { id: 'umpire-list', label: 'Umpire List' },
+      { id: 'umpire-list', label: 'Umpire' },
     ],
   },
   {
     id: 'grounds', label: 'GROUNDS',
     items: [
-      { id: 'create-ground', label: 'Create Ground' },
-      { id: 'ground-list', label: 'Ground List' },
+      { id: 'ground-list', label: 'Ground' },
     ],
   },
   {
     id: 'trophy', label: 'TOURNAMENTS',
     items: [
-      { id: 'create-trophy', label: 'Create Tournament' },
-      { id: 'tournaments', label: 'Tournament List' },
+      { id: 'tournaments', label: 'Tournament' },
     ],
   },
   {
@@ -134,11 +131,8 @@ export default function LeagueManagementPage() {
         {/* Content */}
         <div className="ml-64 flex-1 p-6">
           {activeTab === 'dashboard' && <LeagueLandingTab boardId={boardId!} />}
-          {activeTab === 'create-umpire' && <CreateUmpireTab boardId={boardId!} />}
           {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} />}
-          {activeTab === 'create-ground' && <CreateGroundTab onCreated={() => setActiveTab('ground-list')} />}
           {activeTab === 'ground-list' && <GroundListTab />}
-          {activeTab === 'create-trophy' && <CreateTrophyTab boardId={boardId!} />}
           {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} />}
           {activeTab === 'schedule' && <ScheduleTab boardId={boardId!} />}
           {activeTab === 'cancel-game' && <CancelGameTab boardId={boardId!} />}
@@ -692,7 +686,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
 }
 
 // ── CREATE UMPIRE TAB ──
-function CreateUmpireTab({ boardId }: { boardId: string }) {
+function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
   const [addressLine2, setAddressLine2] = useState('');
@@ -707,6 +701,10 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
+
+  // Phone codes state
+  const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string }[]>([]);
+  const [phoneCodesLoading, setPhoneCodesLoading] = useState(false);
 
   // Location cascading dropdown state
   const [countryList, setCountryList] = useState<string[]>([]);
@@ -725,6 +723,8 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
   useEffect(() => {
     setCountriesLoading(true);
     fetchCountries().then(setCountryList).catch(() => setCountryList([])).finally(() => setCountriesLoading(false));
+    setPhoneCodesLoading(true);
+    fetchCountryPhoneCodes().then(setPhoneCodeList).catch(() => setPhoneCodeList([])).finally(() => setPhoneCodesLoading(false));
   }, []);
 
   useEffect(() => {
@@ -780,6 +780,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
       setZipCode(''); setContactNo(''); setEmail('');
       setErrors({});
       setSubmitStatus({ type: 'success', message: 'Umpire created successfully!' });
+      if (onClose) onClose();
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message || err?.response?.data?.title || err?.message || 'Failed to create umpire. Please try again.';
@@ -797,6 +798,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
 
   const handleCancel = () => {
     if (hasAnyData()) { setShowCancelConfirm(true); return; }
+    if (onClose) onClose();
   };
 
   const confirmCancel = () => {
@@ -806,6 +808,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
     setZipCode(''); setContactNo(''); setEmail('');
     setErrors({});
     setSubmitStatus(null);
+    if (onClose) onClose();
   };
 
   return (
@@ -963,18 +966,22 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
                 <select
                   value={countryCode}
                   onChange={e => setCountryCode(e.target.value)}
-                  className="input-field w-28"
+                  className="input-field w-32"
+                  disabled={phoneCodesLoading}
                 >
-                  <option value="+1">+1 (US)</option>
-                  <option value="+44">+44 (UK)</option>
-                  <option value="+91">+91 (IN)</option>
-                  <option value="+61">+61 (AU)</option>
-                  <option value="+64">+64 (NZ)</option>
-                  <option value="+27">+27 (ZA)</option>
-                  <option value="+94">+94 (LK)</option>
-                  <option value="+92">+92 (PK)</option>
-                  <option value="+880">+880 (BD)</option>
-                  <option value="+971">+971 (AE)</option>
+                  {phoneCodesLoading ? (
+                    <option>Loading...</option>
+                  ) : phoneCodeList.length > 0 ? (
+                    phoneCodeList.map(c => (
+                      <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="+1">+1 (US)</option>
+                      <option value="+91">+91 (IN)</option>
+                      <option value="+44">+44 (GB)</option>
+                    </>
+                  )}
                 </select>
                 <input
                   value={contactNo}
@@ -1042,6 +1049,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
 // ── UMPIRE LIST TAB ──
 function UmpireListTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -1168,6 +1176,23 @@ function UmpireListTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="animate-fade-in">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-800">Umpires</h2>
+        {!showCreate && (
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
+            + Create Umpire
+          </button>
+        )}
+      </div>
+
+      {showCreate && (
+        <div className="mb-6">
+          <CreateUmpireTab boardId={boardId} onClose={() => setShowCreate(false)} />
+        </div>
+      )}
+
+      {!showCreate && (
+        <>
       {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
 
       {/* Edit form */}
@@ -1417,12 +1442,14 @@ function UmpireListTab({ boardId }: { boardId: string }) {
           </div>
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
 
 // ── CREATE GROUND TAB ──
-function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
+function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [address1, setAddress1] = useState('');
   const [address2, setAddress2] = useState('');
@@ -1546,6 +1573,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
       setTimeout(() => {
         setSuccessMsg('');
         onCreated?.();
+        onClose?.();
       }, 1500);
     },
     onError: (err: any) => {
@@ -1567,6 +1595,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
 
   const handleCancel = () => {
     if (hasAnyData()) { setShowCancelConfirm(true); return; }
+    if (onClose) onClose();
   };
 
   const confirmCancel = () => {
@@ -1574,6 +1603,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
     resetForm();
     setErrorMsg('');
     setSuccessMsg('');
+    if (onClose) onClose();
   };
 
   return (
@@ -1807,6 +1837,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
 // ── GROUND LIST TAB ──
 function GroundListTab() {
   const qc = useQueryClient();
+  const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -1928,6 +1959,23 @@ function GroundListTab() {
 
   return (
     <div className="animate-fade-in">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-800">Grounds</h2>
+        {!showCreate && (
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
+            + Create Ground
+          </button>
+        )}
+      </div>
+
+      {showCreate && (
+        <div className="mb-6">
+          <CreateGroundTab onClose={() => setShowCreate(false)} />
+        </div>
+      )}
+
+      {!showCreate && (
+        <>
       {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
 
       {/* Edit form */}
@@ -2172,6 +2220,8 @@ function GroundListTab() {
           </div>
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -2182,7 +2232,7 @@ interface TrophyGroup {
   teamIds: string[];
 }
 
-function CreateTrophyTab({ boardId }: { boardId: string }) {
+function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [winPoints, setWinPoints] = useState('2');
   const [umpireOption, setUmpireOption] = useState<'list' | 'buddy'>('list');
@@ -2273,7 +2323,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
       setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']);
       setSuccessMsg('Tournament created successfully!');
       setErrorMsg('');
-      setTimeout(() => setSuccessMsg(''), 4000);
+      setTimeout(() => { setSuccessMsg(''); if (onClose) onClose(); }, 4000);
     },
     onError: (err: any) => {
       setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to create tournament. Please try again.');
@@ -2512,6 +2562,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
               onClick={() => {
                 const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== 'group A' || g.teamIds.length > 0) || groups.length > 1;
                 if (hasData) { setShowCancelConfirm(true); return; }
+                if (onClose) onClose();
               }}
               className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
             >
@@ -2552,7 +2603,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
               <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
               <div className="flex gap-3 w-full">
                 <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
-                <button onClick={() => { setShowCancelConfirm(false); setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']); setErrorMsg(''); setSuccessMsg(''); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+                <button onClick={() => { setShowCancelConfirm(false); setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']); setErrorMsg(''); setSuccessMsg(''); if (onClose) onClose(); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
               </div>
             </div>
           </div>
@@ -2598,6 +2649,7 @@ function CancelGameTab({ boardId }: { boardId: string }) {
 function TournamentsTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editOriginal, setEditOriginal] = useState<any>(null);
@@ -2800,6 +2852,23 @@ function TournamentsTab({ boardId }: { boardId: string }) {
 
   return (
     <div className="animate-fade-in">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold text-gray-800">Tournaments</h2>
+        {!showCreate && (
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
+            + Create Tournament
+          </button>
+        )}
+      </div>
+
+      {showCreate && (
+        <div className="mb-6">
+          <CreateTrophyTab boardId={boardId} onClose={() => setShowCreate(false)} />
+        </div>
+      )}
+
+      {!showCreate && (
+        <>
       {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
 
       {/* Edit form */}
@@ -3059,6 +3128,8 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           </div>
         </div>
       )}
+        </>
+      )}
     </div>
   );
 }
@@ -3067,8 +3138,9 @@ function TournamentsTab({ boardId }: { boardId: string }) {
 function ScheduleTab({ boardId }: { boardId: string }) {
   const today = new Date();
   const user = useAuthStore((s) => s.user);
-  const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
-  const [to, setTo] = useState(new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().split('T')[0]);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const [from, setFrom] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`);
+  const [to, setTo] = useState(() => { const last = new Date(today.getFullYear(), today.getMonth() + 2, 0); return `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`; });
   const [editMatchId, setEditMatchId] = useState<string | null>(null);
   const [editTournamentId, setEditTournamentId] = useState('');
   const [editGameType, setEditGameType] = useState('');
@@ -3782,6 +3854,8 @@ function ScheduleTab({ boardId }: { boardId: string }) {
         </div>
       )}
 
+      {!showCreate && (
+        <>
       <div className="card mb-6">
         <div className="flex flex-wrap gap-4 items-end">
           <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="input-field" /></div>
@@ -3930,6 +4004,8 @@ function ScheduleTab({ boardId }: { boardId: string }) {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
 
       {/* Create Form Cancel Confirmation Modal */}

@@ -1,10 +1,11 @@
 const COUNTRIES_NOW_BASE = 'https://countriesnow.space/api/v0.1';
 
 // Simple in-memory cache to avoid redundant API calls
-const cache: { countries: string[] | null; states: Record<string, string[]>; cities: Record<string, string[]> } = {
+const cache: { countries: string[] | null; states: Record<string, string[]>; cities: Record<string, string[]>; phoneCodes: { name: string; code: string; dial_code: string }[] | null } = {
   countries: null,
   states: {},
   cities: {},
+  phoneCodes: null,
 };
 
 export async function fetchCountries(): Promise<string[]> {
@@ -55,4 +56,17 @@ export async function fetchCities(country: string, state: string): Promise<strin
   const cities: string[] = (json.data || []).filter((c: string) => c).sort();
   cache.cities[key] = cities;
   return cities;
+}
+
+export async function fetchCountryPhoneCodes(): Promise<{ name: string; code: string; dial_code: string }[]> {
+  if (cache.phoneCodes) return cache.phoneCodes;
+  const res = await fetch(`${COUNTRIES_NOW_BASE}/countries/codes`);
+  if (!res.ok) throw new Error('Failed to fetch country phone codes');
+  const json = await res.json();
+  if (json.error) throw new Error(json.msg || 'API error');
+  const codes = (json.data as { name: string; code: string; dial_code: string }[])
+    .filter(c => c.dial_code)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  cache.phoneCodes = codes;
+  return codes;
 }
