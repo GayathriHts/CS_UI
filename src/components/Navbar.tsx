@@ -49,7 +49,7 @@ export default function Navbar({ title, backTo, rightContent, variant = 'default
               onClick={handleLogout}
               className="text-white/80 hover:text-white text-sm px-3 py-1.5 border border-white/30 rounded-lg hover:bg-white/10 transition-colors"
             >
-              Logout
+              Sign Out
             </button>
           </div>
         </div>
