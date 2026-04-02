@@ -3264,16 +3264,14 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Schedule</h2>
-        <button onClick={() => {
-          if (showCreate) {
-            const hasData = newTournamentId || newHomeTeamId || newAwayTeamId || newGroundId || newUmpireId || newAppScorerId || newPortalScorerId || newScheduledAt || newGameType;
-            if (hasData) { setShowCreateCancelConfirm(true); return; }
-          }
-          setShowCreate(!showCreate);
-          if (!showCreate) { resetCreateForm(); setCreateError(''); setCreateSuccess(''); }
-        }} className="btn-primary text-sm px-4">
-          {showCreate ? 'Cancel' : '+ Create Match'}
-        </button>
+        {!showCreate && (
+          <button onClick={() => {
+            setShowCreate(true);
+            resetCreateForm(); setCreateError(''); setCreateSuccess('');
+          }} className="btn-primary text-sm px-4">
+            + Create Match
+          </button>
+        )}
       </div>
 
       {showCreate && (
@@ -3344,13 +3342,25 @@ function ScheduleTab({ boardId }: { boardId: string }) {
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
             </div>
           </div>
-          <button
-            onClick={validateAndCreate}
-            disabled={!isCreateFormValid || createMatchMutation.isPending}
-            className={`text-sm px-6 mt-4 rounded-lg py-2 font-medium transition-colors ${isCreateFormValid && !createMatchMutation.isPending ? 'btn-primary' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
-          >
-            {createMatchMutation.isPending ? 'Creating...' : 'Create Match'}
-          </button>
+          <div className="flex justify-end gap-2 mt-4">
+            <button
+              onClick={() => {
+                const hasData = newTournamentId || newHomeTeamId || newAwayTeamId || newGroundId || newUmpireId || newAppScorerId || newPortalScorerId || newScheduledAt || newGameType;
+                if (hasData) { setShowCreateCancelConfirm(true); return; }
+                setShowCreate(false);
+              }}
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={validateAndCreate}
+              disabled={!isCreateFormValid || createMatchMutation.isPending}
+              className={`text-sm px-6 rounded-lg py-2 font-medium transition-colors ${isCreateFormValid && !createMatchMutation.isPending ? 'btn-primary' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
+            >
+              {createMatchMutation.isPending ? 'Creating...' : 'Create Match'}
+            </button>
+          </div>
         </div>
       )}
 
