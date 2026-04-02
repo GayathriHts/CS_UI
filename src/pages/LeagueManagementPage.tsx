@@ -652,7 +652,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
             ))}
           </div>
         ) : (
-          <p className="text-gray-400 text-sm italic">No completed match results</p>
+          <p className="text-red-500 text-sm italic">No completed match results</p>
         )}
       </div>
 

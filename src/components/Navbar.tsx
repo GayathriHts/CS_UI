@@ -43,7 +43,6 @@ export default function Navbar({ title, backTo, rightContent, variant = 'default
               <div className="w-8 h-8 bg-brand-light rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
-              <span className="text-white text-sm hidden md:block">{user?.firstName}</span>
             </Link>
             <button
               onClick={handleLogout}
