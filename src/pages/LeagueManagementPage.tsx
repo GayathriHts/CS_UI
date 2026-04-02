@@ -705,6 +705,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
   const [email, setEmail] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
   const validate = (): boolean => {
@@ -755,6 +756,21 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
     setSubmitStatus(null);
     if (!validate()) return;
     createMutation.mutate();
+  };
+
+  const hasAnyData = () => name.trim() || addressLine1.trim() || addressLine2.trim() || city.trim() || state.trim() || country.trim() || zipCode.trim() || contactNo.trim() || email.trim();
+
+  const handleCancel = () => {
+    if (hasAnyData()) { setShowCancelConfirm(true); return; }
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
+    setName(''); setAddressLine1(''); setAddressLine2('');
+    setCity(''); setState(''); setCountry('');
+    setZipCode(''); setContactNo(''); setEmail('');
+    setErrors({});
+    setSubmitStatus(null);
   };
 
   return (
@@ -889,7 +905,13 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             </div>
           </div>
 
-          <div className="flex justify-end mt-6">
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              onClick={handleCancel}
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleSubmit}
               disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !email.trim()}
@@ -900,6 +922,26 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={confirmCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -922,6 +964,8 @@ function UmpireListTab({ boardId }: { boardId: string }) {
   const [editEmail, setEditEmail] = useState('');
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [editOriginal, setEditOriginal] = useState<any>(null);
 
   const { data: umpires, isLoading } = useQuery({
     queryKey: ['umpires', boardId],
@@ -980,11 +1024,20 @@ function UmpireListTab({ boardId }: { boardId: string }) {
     setEditWorkPhone(u.workPhone || '');
     setEditMobile(u.mobile || u.contactNumber || '');
     setEditEmail(u.email || '');
+    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: u.mobile || u.contactNumber || '', email: u.email || '' });
     setUpdateError('');
     setUpdateSuccess('');
   };
 
   const cancelEdit = () => {
+    const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editHomePhone !== editOriginal.homePhone || editWorkPhone !== editOriginal.workPhone || editMobile !== editOriginal.mobile || editEmail !== editOriginal.email);
+    if (hasChanges) { setShowCancelConfirm(true); return; }
+    setEditId(null);
+    setUpdateError('');
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
     setEditId(null);
     setUpdateError('');
   };
@@ -1154,6 +1207,23 @@ function UmpireListTab({ boardId }: { boardId: string }) {
           </div>
         </div>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={confirmCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1174,6 +1244,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
   const [showHomeTeamDropdown, setShowHomeTeamDropdown] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -1266,6 +1337,19 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
       return;
     }
     createMutation.mutate();
+  };
+
+  const hasAnyData = () => name.trim() || address1.trim() || address2.trim() || city.trim() || state.trim() || country.trim() || zipCode.trim() || landmark.trim() || homeTeam.trim();
+
+  const handleCancel = () => {
+    if (hasAnyData()) { setShowCancelConfirm(true); return; }
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
+    resetForm();
+    setErrorMsg('');
+    setSuccessMsg('');
   };
 
   return (
@@ -1386,7 +1470,13 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
             </div>
           </div>
 
-          <div className="flex justify-end mt-6">
+          <div className="flex justify-end gap-2 mt-6">
+            <button
+              onClick={handleCancel}
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
+            >
+              Cancel
+            </button>
             <button
               onClick={handleSubmit}
               disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim()}
@@ -1397,6 +1487,26 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
           </div>
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={confirmCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1417,6 +1527,8 @@ function GroundListTab() {
   const [editHomeTeam, setEditHomeTeam] = useState('');
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [editOriginal, setEditOriginal] = useState<any>(null);
 
   const { data: grounds, isLoading } = useQuery({
     queryKey: ['grounds'],
@@ -1472,11 +1584,20 @@ function GroundListTab() {
     setEditZipcode(g.zipcode || '');
     setEditLandmark(g.landmark || '');
     setEditHomeTeam(g.homeTeam || '');
+    setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '' });
     setUpdateError('');
     setUpdateSuccess('');
   };
 
   const cancelEdit = () => {
+    const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editLandmark !== editOriginal.landmark || editHomeTeam !== editOriginal.homeTeam);
+    if (hasChanges) { setShowCancelConfirm(true); return; }
+    setEditId(null);
+    setUpdateError('');
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
     setEditId(null);
     setUpdateError('');
   };
@@ -1641,6 +1762,23 @@ function GroundListTab() {
           </div>
         </div>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={confirmCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1660,6 +1798,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -1817,38 +1956,16 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Win Points for the Match <span className="text-red-500">*</span>
               </label>
-              <input
-                type="number"
+              <select
                 value={winPoints}
                 onChange={e => setWinPoints(e.target.value)}
                 className="input-field"
-                placeholder="2"
-              />
+              >
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <option key={n} value={String(n)}>{n}</option>
+                ))}
+              </select>
             </div>
-          </div>
-
-          {/* Umpire Assignment Options */}
-          <div className="space-y-3">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="radio"
-                name="umpireOption"
-                checked={umpireOption === 'list'}
-                onChange={() => setUmpireOption('list')}
-                className="w-4 h-4 text-red-600 accent-red-600"
-              />
-              <span className="text-sm text-gray-700">Assign Umpire from Umpire list</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input
-                type="radio"
-                name="umpireOption"
-                checked={umpireOption === 'buddy'}
-                onChange={() => setUmpireOption('buddy')}
-                className="w-4 h-4 text-red-600 accent-red-600"
-              />
-              <span className="text-sm text-gray-700">Assign any CricketSocial Buddy as umpire</span>
-            </label>
           </div>
 
           {/* Groups */}
@@ -2016,7 +2133,10 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
               {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
             </button>
             <button
-              onClick={() => { setName(''); setGroups([{ name: 'group A', teamIds: [] }]); }}
+              onClick={() => {
+                const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== 'group A' || g.teamIds.length > 0) || groups.length > 1;
+                if (hasData) { setShowCancelConfirm(true); return; }
+              }}
               className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
             >
               Cancel
@@ -2026,6 +2146,26 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
 
         </div>
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={() => { setShowCancelConfirm(false); setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']); setErrorMsg(''); setSuccessMsg(''); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2078,6 +2218,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   const [editOpenDropdown, setEditOpenDropdown] = useState<number | null>(null);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   // Fetch tournaments from GET /api/v{version}/Tournament (umpireApi)
   const { data: tournaments, isLoading } = useQuery({
@@ -2191,6 +2332,22 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   };
 
   const cancelEdit = () => {
+    if (editOriginal) {
+      const origName = editOriginal.tournamentName || editOriginal.name || '';
+      const origWin = String(editOriginal.winPoint ?? 2);
+      const origMatch = editOriginal.matchType || 'league';
+      if (editName !== origName || editWinPoint !== origWin || editMatchType !== origMatch) {
+        setShowCancelConfirm(true);
+        return;
+      }
+    }
+    setEditId(null);
+    setUpdateError('');
+    setEditOpenDropdown(null);
+  };
+
+  const confirmCancel = () => {
+    setShowCancelConfirm(false);
     setEditId(null);
     setUpdateError('');
     setEditOpenDropdown(null);
@@ -2464,6 +2621,26 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           </div>
         </div>
       )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={confirmCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2486,7 +2663,10 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [editScheduledAt, setEditScheduledAt] = useState('');
   const [editError, setEditError] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [editOriginal, setEditOriginal] = useState<any>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateCancelConfirm, setShowCreateCancelConfirm] = useState(false);
   const [newTournamentId, setNewTournamentId] = useState('');
   const [newHomeTeamId, setNewHomeTeamId] = useState('');
   const [newAwayTeamId, setNewAwayTeamId] = useState('');
@@ -2820,11 +3000,22 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     setEditUmpire(m.umpireId || '');
     setEditAppScorer(m.appScorerId || '');
     setEditPortalScorer(m.portalScorerId || '');
-    setEditScheduledAt(m.startAtUtc ? new Date(m.startAtUtc).toISOString().slice(0, 16) : m.scheduledAt ? new Date(m.scheduledAt).toISOString().slice(0, 16) : '');
+    const schedAt = m.startAtUtc ? new Date(m.startAtUtc).toISOString().slice(0, 16) : m.scheduledAt ? new Date(m.scheduledAt).toISOString().slice(0, 16) : '';
+    setEditScheduledAt(schedAt);
+    setEditOriginal({ tournamentId: m.tournamentId || '', gameType: m.gameType || '', homeTeamId: m.homeTeamBoardId || '', awayTeamId: m.awayTeamBoardId || '', ground: m.groundId || '', umpire: m.umpireId || '', appScorer: m.appScorerId || '', portalScorer: m.portalScorerId || '', scheduledAt: schedAt });
     setEditError('');
   };
 
   const cancelEdit = () => {
+    if (editOriginal) {
+      const hasChanges = editTournamentId !== editOriginal.tournamentId || editGameType !== editOriginal.gameType || editHomeTeamId !== editOriginal.homeTeamId || editAwayTeamId !== editOriginal.awayTeamId || editGround !== editOriginal.ground || editUmpire !== editOriginal.umpire || editAppScorer !== editOriginal.appScorer || editPortalScorer !== editOriginal.portalScorer || editScheduledAt !== editOriginal.scheduledAt;
+      if (hasChanges) { setShowCancelConfirm(true); return; }
+    }
+    confirmCancelEdit();
+  };
+
+  const confirmCancelEdit = () => {
+    setShowCancelConfirm(false);
     setEditMatchId(null);
     setEditTournamentId('');
     setEditGameType('');
@@ -2836,6 +3027,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     setEditPortalScorer('');
     setEditScheduledAt('');
     setEditError('');
+    setEditOriginal(null);
   };
 
   const resetCreateForm = () => {
@@ -3072,7 +3264,14 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Schedule</h2>
-        <button onClick={() => { setShowCreate(!showCreate); if (!showCreate) { resetCreateForm(); setCreateError(''); setCreateSuccess(''); } }} className="btn-primary text-sm px-4">
+        <button onClick={() => {
+          if (showCreate) {
+            const hasData = newTournamentId || newHomeTeamId || newAwayTeamId || newGroundId || newUmpireId || newAppScorerId || newPortalScorerId || newScheduledAt || newGameType;
+            if (hasData) { setShowCreateCancelConfirm(true); return; }
+          }
+          setShowCreate(!showCreate);
+          if (!showCreate) { resetCreateForm(); setCreateError(''); setCreateSuccess(''); }
+        }} className="btn-primary text-sm px-4">
           {showCreate ? 'Cancel' : '+ Create Match'}
         </button>
       </div>
@@ -3279,6 +3478,46 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <button onClick={() => deleteMatchMutation.mutate(deleteConfirmId)} disabled={deleteMatchMutation.isPending} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">
                   {deleteMatchMutation.isPending ? 'Deleting...' : 'Delete'}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={confirmCancelEdit} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Form Cancel Confirmation Modal */}
+      {showCreateCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCreateCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCreateCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={() => { setShowCreateCancelConfirm(false); resetCreateForm(); setCreateError(''); setCreateSuccess(''); setShowCreate(false); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
               </div>
             </div>
           </div>

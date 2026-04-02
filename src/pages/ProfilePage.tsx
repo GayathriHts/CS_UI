@@ -13,6 +13,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState<Partial<User>>({});
   const [successMsg, setSuccessMsg] = useState('');
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [editOriginal, setEditOriginal] = useState<Partial<User>>({});
 
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
@@ -32,7 +34,7 @@ export default function ProfilePage() {
   });
 
   const startEditing = () => {
-    setFormData({
+    const initial = {
       firstName: profile?.firstName || '',
       lastName: profile?.lastName || '',
       city: profile?.city || '',
@@ -40,7 +42,9 @@ export default function ProfilePage() {
       battingStyle: profile?.battingStyle || '',
       bowlingStyle: profile?.bowlingStyle || '',
       playerRole: profile?.playerRole || '',
-    });
+    };
+    setFormData(initial);
+    setEditOriginal(initial);
     setIsEditing(true);
   };
 
@@ -212,7 +216,11 @@ export default function ProfilePage() {
 
             <div className="flex gap-3 mt-8 justify-end">
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={() => {
+                  const hasChanges = formData.firstName !== editOriginal.firstName || formData.lastName !== editOriginal.lastName || formData.city !== editOriginal.city || formData.country !== editOriginal.country || formData.battingStyle !== editOriginal.battingStyle || formData.bowlingStyle !== editOriginal.bowlingStyle || formData.playerRole !== editOriginal.playerRole;
+                  if (hasChanges) { setShowCancelConfirm(true); return; }
+                  setIsEditing(false);
+                }}
                 className="px-6 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
               >
                 Cancel
@@ -273,6 +281,26 @@ export default function ProfilePage() {
           </div>
         )}
       </div>
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+                <button onClick={() => { setShowCancelConfirm(false); setIsEditing(false); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
