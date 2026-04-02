@@ -400,7 +400,7 @@ export default function DashboardPage() {
               {!sidebarCollapsed && (
                 <div>
                   <p className="font-semibold text-gray-800">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-gray-500">{user?.playerRole || 'Cricket Player'}</p>
+                  <p className="text-xs text-gray-500">{user?.playerRole}</p>
                   <p className="text-xs text-brand-green font-medium mt-0.5">View Profile →</p>
                 </div>
               )}
