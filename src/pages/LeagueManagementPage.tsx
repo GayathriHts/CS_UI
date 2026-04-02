@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, leagueService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
@@ -2186,6 +2187,8 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const [groups, setGroups] = useState<TrophyGroup[]>([{ name: 'group A', teamIds: [] }]);
   const [teamSearches, setTeamSearches] = useState<string[]>(['']);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const dropdownTriggerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -2374,6 +2377,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 </div>
 
                 <div className="p-4 space-y-4">
+                  {/* Group Name — full width */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Group Name <span className="text-red-500">*</span>
@@ -2381,103 +2385,132 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                     <input
                       value={group.name}
                       onChange={e => updateGroupName(gIdx, e.target.value)}
-                      className="input-field max-w-xs"
+                      className="input-field w-full"
                     />
                   </div>
 
+                  {/* Team slots — fixed dropdown row + chips row below */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Team Board <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative flex-1 max-w-xs">
-                      {openDropdown === gIdx && (
-                          <div className="fixed inset-0 z-[5]" onClick={() => { setOpenDropdown(null); const s = [...teamSearches]; s[gIdx] = ''; setTeamSearches(s); }} />
-                        )}
-                        <div
-                          className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
-                          onClick={() => {
-                            setOpenDropdown(prev => prev === gIdx ? null : gIdx);
-                            refetchBoards();
-                          }}
-                        >
-                          <span className="text-gray-400 text-sm">Select Team</span>
-                          <svg className={`w-4 h-4 text-gray-400 transition-transform ${openDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                        {openDropdown === gIdx && (
-                          <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
-                            <div className="p-2 border-b border-gray-100">
-                              <input
-                                type="text"
-                                value={teamSearches[gIdx] || ''}
-                                onChange={e => {
-                                  const searches = [...teamSearches];
-                                  searches[gIdx] = e.target.value;
-                                  setTeamSearches(searches);
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                                placeholder="Search boards..."
-                                autoFocus
-                                onClick={e => e.stopPropagation()}
-                              />
-                            </div>
-                            <div className="max-h-60 overflow-y-auto">
-                              {boardsLoading ? (
-                                <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
-                              ) : (() => {
-                                const filtered = getFilteredBoards(gIdx);
-                                return filtered.length === 0 ? (
-                                  <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
-                                ) : (
-                                  filtered.map((b: any) => (
-                                    <button
-                                      key={b.id}
-                                      onClick={() => {
-                                        addTeamToGroup(gIdx, b.id);
-                                        setOpenDropdown(null);
-                                      }}
-                                      className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
-                                    >
-                                      <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                                        {b.logoUrl
-                                          ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
-                                          : b.name?.[0]?.toUpperCase() || '?'
-                                        }
-                                      </div>
-                                      <div className="min-w-0">
-                                        <span className="block font-medium text-gray-900">{b.name}</span>
-                                        {b.description && <span className="block text-xs text-gray-600 truncate">{b.description}</span>}
-                                      </div>
-                                    </button>
-                                  ))
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        )}
-                    </div>
-                  </div>
 
-                  {group.teamIds.length > 0 && (
-                    <div className="space-y-2">
-                      {group.teamIds.map(tid => {
-                        const board = boardsList?.find((b: any) => b.id === tid);
-                        return (
-                          <div key={tid} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
-                            <div className="flex items-center gap-3">
-                              {board?.logoUrl
-                                ? <img src={board.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
-                              }
-                              <span className="text-sm font-medium">{board?.name || tid}</span>
-                            </div>
-                            <button onClick={() => removeTeamFromGroup(gIdx, tid)} className="text-red-500 hover:text-red-700 text-xs font-medium">Remove</button>
-                          </div>
-                        );
-                      })}
+                    {/* Select Team dropdown — always fixed at top, never moves */}
+                    <div className="relative w-44 mb-3"
+                      ref={el => { dropdownTriggerRefs.current[gIdx] = el; }}
+                    >
+                      <div
+                        className="w-full px-3 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer flex items-center justify-between bg-gray-50 hover:border-brand-green hover:bg-brand-green/5 transition-colors"
+                        onClick={() => {
+                          if (openDropdown === gIdx) {
+                            setOpenDropdown(null);
+                            setDropdownPos(null);
+                          } else {
+                            const el = dropdownTriggerRefs.current[gIdx];
+                            if (el) {
+                              const rect = el.getBoundingClientRect();
+                              setDropdownPos({ top: rect.bottom + window.scrollY + 4, left: rect.left + window.scrollX, width: Math.max(rect.width, 224) });
+                            }
+                            setOpenDropdown(gIdx);
+                            refetchBoards();
+                          }
+                        }}
+                      >
+                        <span className="text-gray-400 text-sm truncate">Select Team</span>
+                        <svg className={`w-4 h-4 text-gray-400 transition-transform flex-shrink-0 ml-1 ${openDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </div>
                     </div>
-                  )}
+
+                    {/* Portal dropdown — renders at body level to escape overflow:hidden */}
+                    {openDropdown === gIdx && dropdownPos && ReactDOM.createPortal(
+                      <>
+                        <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenDropdown(null); setDropdownPos(null); const s = [...teamSearches]; s[gIdx] = ''; setTeamSearches(s); }} />
+                        <div
+                          className="absolute z-[9999] bg-white border border-gray-200 rounded-lg shadow-2xl"
+                          style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+                        >
+                          <div className="p-2 border-b border-gray-100">
+                            <input
+                              type="text"
+                              value={teamSearches[gIdx] || ''}
+                              onChange={e => {
+                                const searches = [...teamSearches];
+                                searches[gIdx] = e.target.value;
+                                setTeamSearches(searches);
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                              placeholder="Search boards..."
+                              autoFocus
+                              onClick={e => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="max-h-60 overflow-y-auto">
+                            {boardsLoading ? (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
+                            ) : (() => {
+                              const filtered = getFilteredBoards(gIdx);
+                              return filtered.length === 0 ? (
+                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                              ) : (
+                                filtered.map((b: any) => (
+                                  <button
+                                    key={b.id}
+                                    onClick={() => {
+                                      addTeamToGroup(gIdx, b.id);
+                                      setOpenDropdown(null);
+                                      setDropdownPos(null);
+                                    }}
+                                    className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                                  >
+                                    <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs flex-shrink-0">
+                                      {b.logoUrl
+                                        ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                        : b.name?.[0]?.toUpperCase() || '?'
+                                      }
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="block font-medium text-gray-900 truncate">{b.name}</span>
+                                      {b.description && <span className="block text-xs text-gray-600 truncate">{b.description}</span>}
+                                    </div>
+                                  </button>
+                                ))
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      </>,
+                      document.body
+                    )}
+
+                    {/* Selected team chips — separate row, never shifts the dropdown above */}
+                    {group.teamIds.length > 0 && (
+                      <div className="flex flex-wrap gap-3 items-start mt-1">
+                        {group.teamIds.map(tid => {
+                          const board = boardsList?.find((b: any) => b.id === tid);
+                          return (
+                            <div key={tid} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm min-w-[140px] max-w-[180px]">
+                              {board?.logoUrl
+                                ? <img src={board.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
+                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">🏏</div>
+                              }
+                              <span className="text-sm font-medium text-gray-800 truncate flex-1">{board?.name || tid}</span>
+                              <button
+                                onClick={() => removeTeamFromGroup(gIdx, tid)}
+                                className="text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 ml-1"
+                                title="Remove team"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
