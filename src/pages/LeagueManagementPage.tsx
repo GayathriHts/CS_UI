@@ -980,8 +980,10 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
                 </select>
                 <input
                   value={contactNo}
-                  onChange={e => setContactNo(e.target.value)}
+                  maxLength={10}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setContactNo(v); }}
                   className="input-field flex-1"
+                  placeholder="10-digit number"
                 />
               </div>
             </div>
@@ -1187,7 +1189,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
-              <input value={editMobile} onChange={e => setEditMobile(e.target.value)} className="input-field" placeholder="Mobile" />
+              <input value={editMobile} maxLength={10} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setEditMobile(v); }} className="input-field" placeholder="10-digit number" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Phone</label>
@@ -2512,6 +2514,15 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
           <div className="flex gap-4">
             <button
               onClick={() => {
+                const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== 'group A' || g.teamIds.length > 0) || groups.length > 1;
+                if (hasData) { setShowCancelConfirm(true); return; }
+              }}
+              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
                 setErrorMsg('');
                 if (!name.trim()) { setErrorMsg('Tournament Name is mandatory.'); return; }
                 if (groups.length === 0) { setErrorMsg('At least one group is required.'); return; }
@@ -2522,18 +2533,9 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                 createMutation.mutate();
               }}
               disabled={createMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
-              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-6 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
-            </button>
-            <button
-              onClick={() => {
-                const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== 'group A' || g.teamIds.length > 0) || groups.length > 1;
-                if (hasData) { setShowCancelConfirm(true); return; }
-              }}
-              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
-            >
-              Cancel
             </button>
           </div>
 
