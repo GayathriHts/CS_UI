@@ -3396,12 +3396,6 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   // Auto-fill defaults when form opens
   useEffect(() => {
     if (!showCreate) return;
-    if (tournamentList.length > 0 && !newTournamentId) {
-      setNewTournamentId(tournamentList[0].id);
-    }
-    if (!newGameType) {
-      setNewGameType('T20');
-    }
   }, [showCreate, tournamentList.length]);
 
   const updateMatchMutation = useMutation({
@@ -3555,8 +3549,8 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   };
 
   const resetCreateForm = () => {
-    setNewTournamentId(tournamentList.length > 0 ? tournamentList[0].id : '');
-    setNewGameType('T20');
+    setNewTournamentId('');
+    setNewGameType('');
     setNewHomeTeamId('');
     setNewAwayTeamId('');
     setNewGroundId('');
