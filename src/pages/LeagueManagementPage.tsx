@@ -2315,7 +2315,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [showUmpireDropdown, setShowUmpireDropdown] = useState(false);
   const [showAppScorerDropdown, setShowAppScorerDropdown] = useState(false);
   const [showPortalScorerDropdown, setShowPortalScorerDropdown] = useState(false);
-  const [selectedUmpire, setSelectedUmpire] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [selectedUmpire, setSelectedUmpire] = useState<{ id: string; name: string; email?: string } | null>(null);
   const [selectedAppScorer, setSelectedAppScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
   const [selectedPortalScorer, setSelectedPortalScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
 
@@ -2391,11 +2391,29 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   });
   const allBoards = Array.isArray(boardsList) ? boardsList : [];
 
+  // Fetch teams for the selected tournament via Schedules dropdown API
+  const { data: tournamentTeams, isLoading: tournamentTeamsLoading } = useQuery({
+    queryKey: ['tournamentTeams', newTournamentId],
+    queryFn: async () => {
+      const r = await leagueService.getTeamsByTournament(newTournamentId);
+      const d = r.data as any;
+      console.log('📋 Tournament teams raw response:', d);
+      const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
+      return list.map((t: any) => ({
+        id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
+        name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
+        logoUrl: t.logoUrl || t.logo || '',
+      }));
+    },
+    enabled: !!newTournamentId,
+  });
+  const tournamentTeamList = Array.isArray(tournamentTeams) ? tournamentTeams : [];
+
   // Show all boards for Home/Away team selection (same as Team Board in CreateTournament)
   const teamBoardList = allBoards;
 
-  // Fetch user list for Umpire / App Scorer / Portal Scorer search
-  const shouldFetchUsers = showUmpireDropdown || showAppScorerDropdown || showPortalScorerDropdown;
+  // Fetch user list for App Scorer / Portal Scorer search
+  const shouldFetchUsers = showAppScorerDropdown || showPortalScorerDropdown;
   const { data: userList } = useQuery({
     queryKey: ['usersListSchedule'],
     queryFn: async () => {
@@ -2451,10 +2469,11 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     );
   };
 
-  // Filter team boards based on search text
+  // Filter team boards based on search text — use tournament teams when available, else all boards
   const filterTeamBoards = (search: string, excludeId?: string) => {
     const q = search.toLowerCase();
-    return teamBoardList.filter((b: any) =>
+    const source = tournamentTeamList.length > 0 ? tournamentTeamList : teamBoardList;
+    return source.filter((b: any) =>
       (!excludeId || b.id !== excludeId) &&
       (!q || b.name.toLowerCase().includes(q))
     );
@@ -2583,6 +2602,58 @@ function ScheduleTab({ boardId }: { boardId: string }) {
 
   const statusColor = (s: string) => s === 'Scheduled' ? 'bg-blue-100 text-blue-700' : s === 'Live' ? 'bg-green-100 text-green-700' : s === 'Completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700';
 
+  // Searchable umpire dropdown using Umpire API data
+  const renderUmpireDropdown = () => {
+    const q = umpireSearch.toLowerCase();
+    const getUmpireId = (u: any) => u.id || u.umpireId || '';
+    const getUmpireName = (u: any) => u.umpireName || u.name || '';
+    const filtered = umpireList.filter((u: any) =>
+      !q || getUmpireName(u).toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q)
+    );
+    return (
+      <div className="relative">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
+        {selectedUmpire ? (
+          <div className="flex items-center gap-2 input-field bg-gray-50">
+            <span className="flex-1 text-sm truncate">{selectedUmpire.name}</span>
+            <button type="button" onClick={() => { setSelectedUmpire(null); setNewUmpireId(''); setUmpireSearch(''); }} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+          </div>
+        ) : (
+          <>
+            {showUmpireDropdown && (
+              <div className="fixed inset-0 z-[5]" onClick={() => { setShowUmpireDropdown(false); setUmpireSearch(''); }} />
+            )}
+            <input
+              type="text"
+              placeholder="Search umpire..."
+              value={umpireSearch}
+              onChange={e => { setUmpireSearch(e.target.value); setShowUmpireDropdown(true); }}
+              onFocus={() => setShowUmpireDropdown(true)}
+              className="input-field"
+            />
+            {showUmpireDropdown && (
+              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filtered.length > 0 ? filtered.slice(0, 20).map((u: any) => (
+                  <button
+                    key={getUmpireId(u)}
+                    type="button"
+                    onClick={() => { setSelectedUmpire({ id: getUmpireId(u), name: getUmpireName(u), email: u.email }); setNewUmpireId(getUmpireId(u)); setShowUmpireDropdown(false); setUmpireSearch(''); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-brand-green/10 border-b last:border-b-0"
+                  >
+                    <span className="font-medium">{getUmpireName(u)}</span>
+                    {u.email && <span className="text-gray-400 ml-2 text-xs">{u.email}</span>}
+                  </button>
+                )) : (
+                  <div className="px-3 py-2 text-sm text-gray-400">No umpires found</div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   // Reusable searchable user dropdown
   const renderUserSearchDropdown = (
     label: string,
@@ -2644,7 +2715,9 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     onSelect: (b: { id: string; name: string }) => void,
     onClear: () => void,
     excludeId?: string,
-  ) => (
+  ) => {
+    const noTournament = !newTournamentId;
+    return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       {selected ? (
@@ -2661,10 +2734,10 @@ function ScheduleTab({ boardId }: { boardId: string }) {
             <div className="fixed inset-0 z-[5]" onClick={() => { setShowDropdown(false); setSearch(''); }} />
           )}
           <div
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
-            onClick={() => setShowDropdown(!showDropdown)}
+            className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between ${noTournament ? 'opacity-50 pointer-events-none' : ''}`}
+            onClick={() => { if (!noTournament) setShowDropdown(!showDropdown); }}
           >
-            <span className="text-gray-400 text-sm">Search team...</span>
+            <span className="text-gray-400 text-sm">{noTournament ? 'Select tournament first' : 'Search team...'}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
@@ -2677,16 +2750,18 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                  placeholder="Search boards..."
+                  placeholder="Search teams..."
                   autoFocus
                   onClick={e => e.stopPropagation()}
                 />
               </div>
               <div className="max-h-60 overflow-y-auto">
-                {(() => {
+                {tournamentTeamsLoading ? (
+                  <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
+                ) : (() => {
                   const filtered = filterTeamBoards(search, excludeId);
                   return filtered.length === 0 ? (
-                    <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                    <div className="px-4 py-3 text-sm text-gray-500 text-center">No teams found</div>
                   ) : (
                     filtered.map((b: any) => (
                       <button
@@ -2712,7 +2787,8 @@ function ScheduleTab({ boardId }: { boardId: string }) {
         </>
       )}
     </div>
-  );
+    );
+  };
 
   return (
     <div className="animate-fade-in">
@@ -2769,13 +2845,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
-            {renderUserSearchDropdown(
-              'Umpire', umpireSearch, setUmpireSearch,
-              showUmpireDropdown, setShowUmpireDropdown,
-              selectedUmpire,
-              (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); },
-              () => { setSelectedUmpire(null); setNewUmpireId(''); setUmpireSearch(''); },
-            )}
+            {renderUmpireDropdown()}
             {renderUserSearchDropdown(
               'App Scorer', appScorerSearch, setAppScorerSearch,
               showAppScorerDropdown, setShowAppScorerDropdown,
