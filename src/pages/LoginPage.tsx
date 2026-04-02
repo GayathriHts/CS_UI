@@ -216,11 +216,12 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit(onSubmit)} noValidate  className="space-y-5">
+              <form onSubmit={handleSubmit(onSubmit)} noValidate autoComplete="off" className="space-y-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                   <input
                     type="email"
+                    autoComplete="off"
                     {...register('email', { required: true })}
                     className="input-field"
                    
@@ -308,7 +309,7 @@ export default function LoginPage() {
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                    <input type="email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                    <input type="email" autoComplete="off" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                       className="input-field" />
                     {forgotFieldErrors.email && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.email}</div>

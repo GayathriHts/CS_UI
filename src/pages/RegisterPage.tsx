@@ -281,11 +281,12 @@ export default function RegisterPage() {
                   </button>
                 </div>
 
-                <form className="space-y-4">
+                <form className="space-y-4" autoComplete="off">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name</label>
                       <input
+                        autoComplete="off"
                         {...register('firstName', { required: true })}
                         className="input-field"
                         placeholder=""
@@ -306,6 +307,7 @@ export default function RegisterPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
                       <input
+                        autoComplete="off"
                         {...register('lastName', { required: true })}
                         className="input-field"
                         placeholder=""
@@ -331,6 +333,7 @@ export default function RegisterPage() {
                       <input
                         id="email"
                         type="email"
+                        autoComplete="off"
                         {...register('email', { required: activeTab === 'email' })}
                         className="input-field"
                         placeholder=""
@@ -351,6 +354,7 @@ export default function RegisterPage() {
                         </select>
                         <input
                           type="tel"
+                          autoComplete="off"
                           {...register('phoneNumber', { required: activeTab === 'mobile' })}
                           className="input-field flex-1"
                           placeholder=""
