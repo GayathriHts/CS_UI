@@ -1171,14 +1171,66 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
   const [zipCode, setZipCode] = useState('');
   const [landmark, setLandmark] = useState('');
   const [homeTeam, setHomeTeam] = useState('');
+  const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ id: string; name: string; logoUrl?: string } | null>(null);
+  const [homeTeamSearch, setHomeTeamSearch] = useState('');
+  const [showHomeTeamDropdown, setShowHomeTeamDropdown] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+
+  // Fetch user's boards/teams for home team dropdown
+  const { data: boardsList, isLoading: boardsLoading } = useQuery({
+    queryKey: ['boardsByOwner', user?.id],
+    queryFn: async () => {
+      try {
+        const stored = sessionStorage.getItem('recentBoards');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((b: any) => ({
+              id: b.id || b.Id || b.boardId || '',
+              name: b.name || b.boardName || b.Name || '',
+              logoUrl: b.logoUrl || '',
+            }));
+          }
+        }
+      } catch {}
+      const [ownerRes, coOwnerRes] = await Promise.all([
+        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
+        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
+      ]);
+      const extract = (raw: any): any[] => {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        if (raw?.items) return raw.items;
+        if (raw?.data?.items) return raw.data.items;
+        if (Array.isArray(raw?.data)) return raw.data;
+        if (Array.isArray(raw?.result)) return raw.result;
+        return [];
+      };
+      const seen = new Set<string>();
+      const merged: any[] = [];
+      for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
+        const id = b.id || b.Id || b.boardId || '';
+        if (id && !seen.has(id)) { seen.add(id); merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' }); }
+      }
+      return merged;
+    },
+    enabled: !!user?.id,
+    staleTime: 30000,
+  });
+
+  const teamList = Array.isArray(boardsList) ? boardsList : [];
+  const filteredTeams = teamList.filter((b: any) => {
+    const q = homeTeamSearch.toLowerCase();
+    return !q || b.name?.toLowerCase().includes(q);
+  });
 
   const resetForm = () => {
     setName(''); setAddress1(''); setAddress2('');
     setCity(''); setState(''); setCountry(''); setZipCode('');
-    setLandmark(''); setHomeTeam('');
+    setLandmark(''); setHomeTeam(''); setSelectedHomeTeam(null); setHomeTeamSearch('');
   };
 
   const createMutation = useMutation({
@@ -1265,9 +1317,74 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
               <input value={landmark} onChange={e => setLandmark(e.target.value)} className="input-field" />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
-              <input value={homeTeam} onChange={e => setHomeTeam(e.target.value)} className="input-field" />
+              {selectedHomeTeam ? (
+                <div className="flex items-center gap-2 input-field bg-gray-50">
+                  <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                    {selectedHomeTeam.logoUrl
+                      ? <img src={selectedHomeTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      : selectedHomeTeam.name?.[0]?.toUpperCase() || '?'
+                    }
+                  </div>
+                  <span className="flex-1 text-sm truncate">{selectedHomeTeam.name}</span>
+                  <button type="button" onClick={() => { setSelectedHomeTeam(null); setHomeTeam(''); setHomeTeamSearch(''); }} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+                </div>
+              ) : (
+                <>
+                  {showHomeTeamDropdown && (
+                    <div className="fixed inset-0 z-[5]" onClick={() => { setShowHomeTeamDropdown(false); setHomeTeamSearch(''); }} />
+                  )}
+                  <div
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                    onClick={() => setShowHomeTeamDropdown(!showHomeTeamDropdown)}
+                  >
+                    <span className="text-gray-400 text-sm">Search team...</span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${showHomeTeamDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  {showHomeTeamDropdown && (
+                    <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
+                      <div className="p-2 border-b border-gray-100">
+                        <input
+                          type="text"
+                          value={homeTeamSearch}
+                          onChange={e => setHomeTeamSearch(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                          placeholder="Search teams..."
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {boardsLoading ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
+                        ) : filteredTeams.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 text-center">No teams found</div>
+                        ) : (
+                          filteredTeams.map((b: any) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => { setSelectedHomeTeam(b); setHomeTeam(b.name); setShowHomeTeamDropdown(false); setHomeTeamSearch(''); }}
+                              className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                            >
+                              <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                {b.logoUrl
+                                  ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                  : b.name?.[0]?.toUpperCase() || '?'
+                                }
+                              </div>
+                              <span className="font-medium text-gray-900">{b.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 
