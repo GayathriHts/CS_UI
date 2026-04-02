@@ -1084,7 +1084,6 @@ function UmpireListTab({ boardId }: { boardId: string }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Umpires</h2>
         {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
             + Create Umpire
@@ -1898,7 +1897,6 @@ function GroundListTab() {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Grounds</h2>
         {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
             + Create Ground
@@ -2822,7 +2820,6 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Tournaments</h2>
         {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
             + Create Tournament
@@ -3795,7 +3792,6 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-800">Schedule</h2>
         {!showCreate && !editMatchId && (
           <button onClick={() => {
             setShowCreate(true);
