@@ -290,7 +290,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         ...(board.contactEmail ? { contactEmail: board.contactEmail } : {}),
         ...(board.websiteAddress ? { websiteAddress: board.websiteAddress } : {}),
         ownerId: resolvedOwnerId,
-        logoUrl: logoPreview || board.logoUrl || board.LogoUrl || board.logourl || '',
+        logoUrl: logoPreview,
         ...(isLeague && selectedCoOwner ? { coOwnerId: selectedCoOwner.id } : {}),
       };
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
@@ -303,8 +303,9 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
       const newCity = updatedBoard?.city ?? city;
       const newState = updatedBoard?.state ?? state;
       const newCountry = updatedBoard?.country ?? country;
+      const newLogoUrl = updatedBoard?.logoUrl ?? updatedBoard?.LogoUrl ?? logoPreview;
 
-      const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry };
+      const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry, logoUrl: newLogoUrl };
 
       // Persist edit in sessionStorage so it survives page refresh and refetch race conditions
       try {
@@ -319,7 +320,8 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         return { ...old, ...editOverlay };
       });
       // Update the boards list cache
-      qc.setQueryData(['myBoards'], (old: any) => {
+      const userId = useAuthStore.getState().user?.id;
+      qc.setQueryData(['myBoards', userId], (old: any) => {
         if (!old?.items) return old;
         return {
           ...old,

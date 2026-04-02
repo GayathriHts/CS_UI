@@ -145,6 +145,7 @@ export default function DashboardPage() {
   const [newBoardCountry, setNewBoardCountry] = useState('');
   const [newBoardLogo, setNewBoardLogo] = useState<File | null>(null);
   const [newBoardLogoPreview, setNewBoardLogoPreview] = useState<string>('');
+  const [newBoardLogoError, setNewBoardLogoError] = useState<string>('');
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
   const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
   const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
@@ -282,8 +283,8 @@ export default function DashboardPage() {
     onSuccess: (newBoard) => {
       // Track the new board so it persists even if backend is slow
       updateRecentBoards([newBoard, ...recentBoards]);
-      // Add to cache instantly
-      qc.setQueryData(['myBoards'], (old: any) => {
+      // Add to cache instantly (must match the exact query key ['myBoards', user?.id])
+      qc.setQueryData(['myBoards', user?.id], (old: any) => {
         if (!old) return { items: [newBoard] };
         return {
           ...old,
@@ -302,7 +303,7 @@ export default function DashboardPage() {
       setCoOwnerSearch('');
       setShowCoOwnerDropdown(false);
       // Stay on the boards dashboard
-      qc.invalidateQueries({ queryKey: ['myBoards'] });
+      qc.invalidateQueries({ queryKey: ['myBoards', user?.id] });
     },
     onError: (error: any) => {
       if (error?.message === 'Board name already exists. Please create a different name.') {
@@ -615,10 +616,13 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
+                    {newBoardLogoError && <p className="text-xs text-red-500 mt-1">{newBoardLogoError}</p>}
                     <input id="board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
                       const file = e.target.files?.[0];
+                      e.target.value = '';
                       if (file) {
-                        if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
+                        if (file.size > 2 * 1024 * 1024) { setNewBoardLogoError('Logo must be under 2MB'); return; }
+                        setNewBoardLogoError('');
                         setNewBoardLogo(file);
                         const reader = new FileReader();
                         reader.onloadend = () => setNewBoardLogoPreview(reader.result as string);

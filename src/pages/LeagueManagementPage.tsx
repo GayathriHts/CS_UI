@@ -71,9 +71,9 @@ export default function LeagueManagementPage() {
           {/* Board Info */}
           <div className="p-4 border-b">
             <div className="flex flex-col items-center text-center">
-              <div className="w-20 h-20 bg-red-600 rounded-full flex items-center justify-center mb-3">
+              <div className="w-20 h-20 flex items-center justify-center mb-3">
                 {board.logoUrl
-                  ? <img src={board.logoUrl} alt="" className="w-16 h-16 rounded-full object-cover" />
+                  ? <img src={board.logoUrl} alt="" className="w-16 h-16 object-cover" />
                   : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />
                 }
               </div>
@@ -163,6 +163,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
   const [country, setCountry] = useState(board.country || '');
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>(board.logoUrl || board.LogoUrl || board.logourl || '');
+  const [logoError, setLogoError] = useState<string>('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
@@ -268,7 +269,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         ...(board.contactEmail ? { contactEmail: board.contactEmail } : {}),
         ...(board.websiteAddress ? { websiteAddress: board.websiteAddress } : {}),
         ownerId: resolvedOwnerId,
-        logoUrl: logoPreview || board.logoUrl || board.LogoUrl || board.logourl || '',
+        logoUrl: logoPreview,
         ...(selectedCoOwner ? { coOwnerId: selectedCoOwner.id } : {}),
       };
       return boardService.update(boardId, payload).then((r) => r.data);
@@ -279,18 +280,21 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
       const newCity = updatedBoard?.city ?? city;
       const newState = updatedBoard?.state ?? state;
       const newCountry = updatedBoard?.country ?? country;
-      const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry };
+      const newLogoUrl = updatedBoard?.logoUrl ?? updatedBoard?.LogoUrl ?? logoPreview;
+      const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry, logoUrl: newLogoUrl };
       try {
         const pending = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
         pending[boardId] = editOverlay;
         sessionStorage.setItem('boardEdits', JSON.stringify(pending));
       } catch {}
+      const userId = useAuthStore.getState().user?.id;
       qc.setQueryData(['board', boardId], (old: any) => old ? { ...old, ...editOverlay } : updatedBoard || old);
-      qc.setQueryData(['myBoards'], (old: any) => {
+      qc.setQueryData(['myBoards', userId], (old: any) => {
         if (!old?.items) return old;
         return { ...old, items: old.items.map((b: any) => b.id === boardId ? { ...b, ...editOverlay } : b) };
       });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+      qc.invalidateQueries({ queryKey: ['myBoards', userId] });
       onSaved();
     },
     onError: (error: any) => {
@@ -336,10 +340,13 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
           )}
         </div>
         <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
+        {logoError && <p className="text-xs text-red-500 mt-1">{logoError}</p>}
         <input id="edit-league-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
           const file = e.target.files?.[0];
+          e.target.value = '';
           if (file) {
-            if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
+            if (file.size > 2 * 1024 * 1024) { setLogoError('Logo must be under 2MB'); return; }
+            setLogoError('');
             setLogo(file);
             const reader = new FileReader();
             reader.onloadend = () => setLogoPreview(reader.result as string);
