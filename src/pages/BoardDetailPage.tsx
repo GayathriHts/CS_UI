@@ -1175,7 +1175,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             <div className="pt-2">
               <div className="flex items-center justify-between mb-1">
                 <h4 className="font-semibold text-gray-700">Add Member</h4>
-                <span className="text-sm text-gray-500 font-medium">Action</span>
               </div>
               <hr className="border-brand-green mb-4" />
 
@@ -1310,7 +1309,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       )}
 
       {/* Rosters List */}
-      {squads?.length ? squads.map((roster: any) => (
+      {!showCreateForm && squads?.length ? squads.map((roster: any) => (
         <div key={roster.id} className="card mb-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
