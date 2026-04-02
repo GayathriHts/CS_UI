@@ -850,7 +850,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
               {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contact No</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
               <div className="flex gap-2">
                 <select
                   value={countryCode}
@@ -877,7 +877,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                E-mail ID <span className="text-red-500">*</span>
+                Email ID <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
