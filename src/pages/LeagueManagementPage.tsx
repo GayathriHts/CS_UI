@@ -894,7 +894,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
           <div className="flex justify-end mt-6">
             <button
               onClick={handleSubmit}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !email.trim()}
               className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -1251,7 +1251,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
           <div className="flex justify-end mt-6">
             <button
               onClick={handleSubmit}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim()}
               className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -1849,7 +1849,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                 }
                 createMutation.mutate();
               }}
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
               className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
@@ -1890,8 +1890,8 @@ function CancelGameTab({ boardId }: { boardId: string }) {
           <div className="flex flex-wrap gap-4 items-end">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="input-field" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className="input-field" /></div>
-            <button onClick={() => bulkCancelMutation.mutate()} disabled={bulkCancelMutation.isPending}
-              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors">
+            <button onClick={() => bulkCancelMutation.mutate()} disabled={bulkCancelMutation.isPending || !from || !to}
+              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {bulkCancelMutation.isPending ? 'Cancelling...' : 'Cancel Games'}
             </button>
           </div>
