@@ -586,8 +586,8 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         </div>
         <div className="flex items-center justify-end gap-3 p-6 border-t">
           <button
-            onClick={() => name.trim() && updateMutation.mutate()}
-            disabled={!name.trim() || updateMutation.isPending}
+            onClick={() => name.trim() && country && state && city && updateMutation.mutate()}
+            disabled={!name.trim() || !country || !state || !city || updateMutation.isPending}
             className="btn-primary text-sm px-6"
           >
             {updateMutation.isPending ? 'Saving...' : 'Save'}

@@ -370,7 +370,7 @@ export default function LoginPage() {
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.confirmPassword}</div>
                     )}
                   </div>
-                  <div className="flex justify-center"><button type="button" onClick={handleForgotPassword} disabled={loading} className="btn-primary rounded-full py-2.5 px-16 text-sm">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Resetting...</span> : 'Reset Password'}</button></div>
+                  <div className="flex justify-center"><button type="button" onClick={handleForgotPassword} disabled={!newPassword || !confirmPassword || loading} className="btn-primary rounded-full py-2.5 px-16 text-sm disabled:opacity-50 disabled:cursor-not-allowed">{loading ? <span className="flex items-center justify-center gap-2"><svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>Resetting...</span> : 'Reset Password'}</button></div>
                 </div>
               )}
               {forgotStep === 'done' && (

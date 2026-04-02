@@ -565,8 +565,8 @@ function EditLeagueModal({ board, boardId, onClose, onSaved }: { board: any; boa
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-6 border-t">
           <button
-            onClick={() => name.trim() && updateMutation.mutate()}
-            disabled={!name.trim() || updateMutation.isPending}
+            onClick={() => name.trim() && country && state && city && updateMutation.mutate()}
+            disabled={!name.trim() || !country || !state || !city || updateMutation.isPending}
             className="btn-primary text-sm px-6"
           >
             {updateMutation.isPending ? 'Saving...' : 'Save'}
@@ -1045,7 +1045,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="btn-primary text-sm px-6">
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
             <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
@@ -1529,7 +1529,7 @@ function GroundListTab() {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="btn-primary text-sm px-6">
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
             <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
@@ -2352,7 +2352,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           )}
 
           <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMutation.mutate()} disabled={updateMutation.isPending} className="btn-primary text-sm px-6">
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editWinPoint.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
             <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
@@ -3231,7 +3231,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
             </div>
           </div>
           <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMatchMutation.mutate()} disabled={updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Saving...' : 'Save'}</button>
+            <button onClick={() => updateMatchMutation.mutate()} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Saving...' : 'Save'}</button>
             <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
           </div>
         </div>
