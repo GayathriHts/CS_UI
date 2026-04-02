@@ -1082,9 +1082,16 @@ function UmpireListTab({ boardId }: { boardId: string }) {
   const [stateSearchText, setStateSearchText] = useState('');
   const [citySearchText, setCitySearchText] = useState('');
 
+  // Phone codes state for edit
+  const [editPhoneCodeList, setEditPhoneCodeList] = useState<{ name: string; code: string; dial_code: string }[]>([]);
+  const [editPhoneCodesLoading, setEditPhoneCodesLoading] = useState(false);
+  const [editCountryCode, setEditCountryCode] = useState('+1');
+
   useEffect(() => {
     setCountriesLoading(true);
     fetchCountries().then(setCountryList).catch(() => setCountryList([])).finally(() => setCountriesLoading(false));
+    setEditPhoneCodesLoading(true);
+    fetchCountryPhoneCodes().then(setEditPhoneCodeList).catch(() => setEditPhoneCodeList([])).finally(() => setEditPhoneCodesLoading(false));
   }, []);
 
   useEffect(() => {
@@ -1126,7 +1133,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
       zipcode: editZipcode,
       homePhone: editHomePhone,
       workPhone: editWorkPhone,
-      mobile: editMobile,
+      mobile: editMobile.trim() ? `${editCountryCode}${editMobile.trim()}` : '',
       email: editEmail,
     }),
     onSuccess: () => {
@@ -1154,9 +1161,18 @@ function UmpireListTab({ boardId }: { boardId: string }) {
     setEditZipcode(u.zipcode || u.zipCode || '');
     setEditHomePhone(u.homePhone || '');
     setEditWorkPhone(u.workPhone || '');
-    setEditMobile(u.mobile || u.contactNumber || '');
+    // Extract country code from mobile (e.g. "+91" prefix)
+    const rawMobile = u.mobile || u.contactNumber || '';
+    const codeMatch = rawMobile.match(/^(\+\d{1,4})/);
+    if (codeMatch) {
+      setEditCountryCode(codeMatch[1]);
+      setEditMobile(rawMobile.slice(codeMatch[1].length));
+    } else {
+      setEditCountryCode('+1');
+      setEditMobile(rawMobile);
+    }
     setEditEmail(u.email || '');
-    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: u.mobile || u.contactNumber || '', email: u.email || '' });
+    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: rawMobile, email: u.email || '' });
     setUpdateError('');
     setUpdateSuccess('');
   };
@@ -1178,7 +1194,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Umpires</h2>
-        {!showCreate && (
+        {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
             + Create Umpire
           </button>
@@ -1197,40 +1213,30 @@ function UmpireListTab({ boardId }: { boardId: string }) {
 
       {/* Edit form */}
       {editId && (
-        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400">
-          <h3 className="font-semibold mb-4 text-gray-800">Edit Umpire</h3>
+        <div className="bg-white rounded-lg shadow-sm mb-6">
+          <div className="bg-gray-100 px-6 py-3 border-b">
+            <h2 className="text-base font-bold text-gray-800">Edit Umpire</h2>
+          </div>
+          <div className="p-6">
           {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+            {/* Row 1 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Umpire Name <span className="text-red-500">*</span></label>
               <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
-              <input value={editMobile} maxLength={10} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setEditMobile(v); }} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Phone</label>
-              <input value={editHomePhone} onChange={e => setEditHomePhone(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Work Phone</label>
-              <input value={editWorkPhone} onChange={e => setEditWorkPhone(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address 1</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
               <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address 2</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
               <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
             </div>
+
+            {/* Row 2: Country → State → City */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
                 className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
@@ -1257,7 +1263,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
                 className={`input-field cursor-pointer flex items-center justify-between ${!editCountry || statesLoading ? 'pointer-events-none' : ''}`}
@@ -1284,7 +1290,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
                 className={`input-field cursor-pointer flex items-center justify-between ${!editState || citiesLoading ? 'pointer-events-none' : ''}`}
@@ -1310,20 +1316,60 @@ function UmpireListTab({ boardId }: { boardId: string }) {
                 </div>
               )}
             </div>
+
+            {/* Row 3 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code <span className="text-red-500">*</span></label>
               <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+              <div className="flex gap-2">
+                <select
+                  value={editCountryCode}
+                  onChange={e => setEditCountryCode(e.target.value)}
+                  className="input-field w-32"
+                  disabled={editPhoneCodesLoading}
+                >
+                  {editPhoneCodesLoading ? (
+                    <option>Loading...</option>
+                  ) : editPhoneCodeList.length > 0 ? (
+                    editPhoneCodeList.map(c => (
+                      <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="+1">+1 (US)</option>
+                      <option value="+91">+91 (IN)</option>
+                      <option value="+44">+44 (GB)</option>
+                    </>
+                  )}
+                </select>
+                <input
+                  value={editMobile}
+                  maxLength={10}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setEditMobile(v); }}
+                  className="input-field flex-1"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email ID <span className="text-red-500">*</span></label>
+              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="input-field" />
+            </div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
+
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors">Cancel</button>
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
-            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
+          </div>
           </div>
         </div>
       )}
 
+      {!editId && (
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
           <h2 className="text-base font-bold text-gray-800">Umpire List</h2>
@@ -1403,6 +1449,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
           )}
         </div>
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -1961,7 +2008,7 @@ function GroundListTab() {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Grounds</h2>
-        {!showCreate && (
+        {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
             + Create Ground
           </button>
@@ -1980,22 +2027,28 @@ function GroundListTab() {
 
       {/* Edit form */}
       {editId && (
-        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400">
-          <h3 className="font-semibold mb-4 text-gray-800">Edit Ground</h3>
+        <div className="bg-white rounded-lg shadow-sm mb-6">
+          <div className="bg-gray-100 px-6 py-3 border-b">
+            <h2 className="text-base font-bold text-gray-800">Edit Ground</h2>
+          </div>
+          <div className="p-6">
           {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+            {/* Row 1 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name <span className="text-red-500">*</span></label>
               <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address 1</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
               <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address 2</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
               <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
             </div>
+
+            {/* Row 2: Country → State → City */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
@@ -2086,19 +2139,22 @@ function GroundListTab() {
               <input value={editLandmark} onChange={e => setEditLandmark(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
               <input value={editHomeTeam} onChange={e => setEditHomeTeam(e.target.value)} className="input-field" />
             </div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
+
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors">Cancel</button>
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || updateMutation.isPending} className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
-            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
+          </div>
           </div>
         </div>
       )}
 
+      {!editId && (
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
           <h2 className="text-base font-bold text-gray-800">Ground List</h2>
@@ -2181,6 +2237,7 @@ function GroundListTab() {
           )}
         </div>
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -2854,7 +2911,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Tournaments</h2>
-        {!showCreate && (
+        {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
             + Create Tournament
           </button>
@@ -2873,46 +2930,55 @@ function TournamentsTab({ boardId }: { boardId: string }) {
 
       {/* Edit form */}
       {editId && (
-        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400">
-          <h3 className="font-semibold mb-4 text-gray-800">Edit Tournament</h3>
-          {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="bg-white rounded-lg shadow-sm mb-6">
+          <div className="bg-gray-100 px-6 py-3 border-b">
+            <h2 className="text-base font-bold text-gray-800">Edit Tournament</h2>
+          </div>
+          <div className="p-6 space-y-6">
+          {updateError && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{updateError}</div>}
+
+          {/* Tournament Name + Win Points */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name <span className="text-red-500">*</span></label>
               <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Win Points</label>
-              <input type="number" value={editWinPoint} onChange={e => setEditWinPoint(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Match Type</label>
-              <input value={editMatchType} onChange={e => setEditMatchType(e.target.value)} className="input-field" />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Win Points for the Match <span className="text-red-500">*</span></label>
+              <select value={editWinPoint} onChange={e => setEditWinPoint(e.target.value)} className="input-field">
+                {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                  <option key={n} value={String(n)}>{n}</option>
+                ))}
+              </select>
             </div>
           </div>
 
           {/* Edit Groups with Team Board dropdowns */}
-          {editGroups.length > 0 && (
-            <div className="mt-4 space-y-4">
-              <h4 className="text-sm font-semibold text-gray-700">Groups</h4>
+          <div className="space-y-4">
               {editGroups.map((group, gIdx) => (
-                <div key={group.id} className="border border-gray-200 rounded-lg p-4 bg-white">
-                  <div className="flex gap-4 items-center mb-3">
-                    <div className="flex-1">
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Group Name</label>
-                      <input
-                        value={group.tournamentGroupName}
-                        onChange={e => {
-                          const updated = [...editGroups];
-                          updated[gIdx] = { ...updated[gIdx], tournamentGroupName: e.target.value };
-                          setEditGroups(updated);
-                        }}
-                        className="input-field max-w-xs"
-                      />
-                    </div>
+                <div key={group.id} className="border-2 border-red-500 rounded-lg overflow-hidden">
+                  <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between">
+                    <span className="font-bold text-sm uppercase">Group {String.fromCharCode(65 + gIdx)}</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
                   </div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Team Boards</label>
-                  <div className="flex gap-3 items-start mb-2">
+                  <div className="p-4 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Group Name <span className="text-red-500">*</span></label>
+                    <input
+                      value={group.tournamentGroupName}
+                      onChange={e => {
+                        const updated = [...editGroups];
+                        updated[gIdx] = { ...updated[gIdx], tournamentGroupName: e.target.value };
+                        setEditGroups(updated);
+                      }}
+                      className="input-field max-w-xs"
+                    />
+                  </div>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Board <span className="text-red-500">*</span></label>
+                  <div className="flex gap-3 items-start">
                     <div className="relative flex-1 max-w-xs">
                       {editOpenDropdown === gIdx && (
                         <div className="fixed inset-0 z-[5]" onClick={() => { setEditOpenDropdown(null); const s = [...editGroupSearches]; s[gIdx] = ''; setEditGroupSearches(s); }} />
@@ -2921,7 +2987,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
                         onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
                       >
-                        <span className="text-gray-400 text-sm">Search board...</span>
+                        <span className="text-gray-400 text-sm">Select Team</span>
                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${editOpenDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                         </svg>
@@ -2967,21 +3033,23 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                     </div>
                     <button
                       onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
-                      className="px-4 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
+                      className="px-6 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
                     >
                       Add
                     </button>
                   </div>
+                  </div>
                   {group.teamBoardId.length > 0 && (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {group.teamBoardId.map(tid => {
                         const b = boardsList?.find((brd: any) => brd.id === tid);
                         return (
-                          <div key={tid} className="flex items-center justify-between bg-gray-50 rounded px-3 py-1.5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                                {b?.logoUrl ? <img src={b.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" /> : (b?.name?.[0]?.toUpperCase() || '?')}
-                              </div>
+                          <div key={tid} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
+                            <div className="flex items-center gap-3">
+                              {b?.logoUrl
+                                ? <img src={b.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
+                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
+                              }
                               <span className="text-sm font-medium">{b?.name || tid}</span>
                             </div>
                             <button onClick={() => removeBoardFromEditGroup(gIdx, tid)} className="text-red-500 hover:text-red-700 text-xs font-medium">Remove</button>
@@ -2990,20 +3058,22 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                       })}
                     </div>
                   )}
+                  </div>
                 </div>
               ))}
-            </div>
-          )}
+          </div>
 
-          <div className="flex gap-2 mt-4">
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editWinPoint.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
+          <div className="flex justify-end gap-2 mt-6">
+            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors">Cancel</button>
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editWinPoint.trim() || updateMutation.isPending} className="px-6 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
-            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
+          </div>
           </div>
         </div>
       )}
 
+      {!editId && (
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
           <h2 className="text-base font-bold text-gray-800">Tournament List</h2>
@@ -3086,6 +3156,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           )}
         </div>
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -3189,6 +3260,23 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ id: string; name: string } | null>(null);
   const [selectedAwayTeam, setSelectedAwayTeam] = useState<{ id: string; name: string } | null>(null);
 
+  // Edit-form searchable dropdown state
+  const [editHomeTeamSearch, setEditHomeTeamSearch] = useState('');
+  const [editAwayTeamSearch, setEditAwayTeamSearch] = useState('');
+  const [editUmpireSearchText, setEditUmpireSearchText] = useState('');
+  const [editAppScorerSearch, setEditAppScorerSearch] = useState('');
+  const [editPortalScorerSearch, setEditPortalScorerSearch] = useState('');
+  const [showEditHomeTeamDropdown, setShowEditHomeTeamDropdown] = useState(false);
+  const [showEditAwayTeamDropdown, setShowEditAwayTeamDropdown] = useState(false);
+  const [showEditUmpireDropdown, setShowEditUmpireDropdown] = useState(false);
+  const [showEditAppScorerDropdown, setShowEditAppScorerDropdown] = useState(false);
+  const [showEditPortalScorerDropdown, setShowEditPortalScorerDropdown] = useState(false);
+  const [selectedEditHomeTeam, setSelectedEditHomeTeam] = useState<{ id: string; name: string } | null>(null);
+  const [selectedEditAwayTeam, setSelectedEditAwayTeam] = useState<{ id: string; name: string } | null>(null);
+  const [selectedEditUmpire, setSelectedEditUmpire] = useState<{ id: string; name: string; email?: string } | null>(null);
+  const [selectedEditAppScorer, setSelectedEditAppScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [selectedEditPortalScorer, setSelectedEditPortalScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+
   const qc = useQueryClient();
   const { data: matches } = useQuery({
     queryKey: ['schedule', boardId, from, to],
@@ -3273,6 +3361,23 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     enabled: !!newTournamentId,
   });
   const tournamentTeamList = Array.isArray(tournamentTeams) ? tournamentTeams : [];
+
+  // Fetch teams for the selected edit tournament
+  const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading } = useQuery({
+    queryKey: ['editTournamentTeams', editTournamentId],
+    queryFn: async () => {
+      const r = await leagueService.getTeamsByTournament(editTournamentId);
+      const d = r.data as any;
+      const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
+      return list.map((t: any) => ({
+        id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
+        name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
+        logoUrl: t.logoUrl || t.logo || '',
+      }));
+    },
+    enabled: !!editTournamentId && !!editMatchId,
+  });
+  const editTournamentTeamList = Array.isArray(editTournamentTeamsData) ? editTournamentTeamsData : [];
 
   // Show all boards for Home/Away team selection (same as Team Board in CreateTournament)
   const teamBoardList = allBoards;
@@ -3494,6 +3599,19 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     setEditScheduledAt(schedAt);
     setEditOriginal({ tournamentId: m.tournamentId || '', gameType: m.gameType || '', homeTeamId: m.homeTeamBoardId || '', awayTeamId: m.awayTeamBoardId || '', ground: m.groundId || '', umpire: m.umpireId || '', appScorer: m.appScorerId || '', portalScorer: m.portalScorerId || '', scheduledAt: schedAt });
     setEditError('');
+    // Pre-populate searchable dropdown selections
+    const homeBoard = allBoards.find((b: any) => b.id === m.homeTeamBoardId);
+    setSelectedEditHomeTeam(homeBoard ? { id: homeBoard.id, name: homeBoard.name } : m.homeTeamBoardId ? { id: m.homeTeamBoardId, name: m.homeTeamName || m.homeTeamBoardId } : null);
+    const awayBoard = allBoards.find((b: any) => b.id === m.awayTeamBoardId);
+    setSelectedEditAwayTeam(awayBoard ? { id: awayBoard.id, name: awayBoard.name } : m.awayTeamBoardId ? { id: m.awayTeamBoardId, name: m.awayTeamName || m.awayTeamBoardId } : null);
+    const ump = umpireList.find((u: any) => (u.id || u.umpireId) === m.umpireId);
+    setSelectedEditUmpire(ump ? { id: ump.id || (ump as any).umpireId, name: (ump as any).umpireName || (ump as any).name || '', email: (ump as any).email } : null);
+    const appSc = normalizedUsers.find((u: any) => u.id === m.appScorerId);
+    setSelectedEditAppScorer(appSc ? { id: appSc.id, firstName: appSc.firstName, lastName: appSc.lastName, email: appSc.email } : null);
+    const portalSc = normalizedUsers.find((u: any) => u.id === m.portalScorerId);
+    setSelectedEditPortalScorer(portalSc ? { id: portalSc.id, firstName: portalSc.firstName, lastName: portalSc.lastName, email: portalSc.email } : null);
+    setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditUmpireSearchText(''); setEditAppScorerSearch(''); setEditPortalScorerSearch('');
+    setShowEditHomeTeamDropdown(false); setShowEditAwayTeamDropdown(false); setShowEditUmpireDropdown(false); setShowEditAppScorerDropdown(false); setShowEditPortalScorerDropdown(false);
   };
 
   const cancelEdit = () => {
@@ -3518,6 +3636,10 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     setEditScheduledAt('');
     setEditError('');
     setEditOriginal(null);
+    // Clear edit searchable dropdown state
+    setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setSelectedEditUmpire(null); setSelectedEditAppScorer(null); setSelectedEditPortalScorer(null);
+    setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditUmpireSearchText(''); setEditAppScorerSearch(''); setEditPortalScorerSearch('');
+    setShowEditHomeTeamDropdown(false); setShowEditAwayTeamDropdown(false); setShowEditUmpireDropdown(false); setShowEditAppScorerDropdown(false); setShowEditPortalScorerDropdown(false);
   };
 
   const resetCreateForm = () => {
@@ -3563,8 +3685,16 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const statusColor = (s: string) => s === 'Scheduled' ? 'bg-blue-100 text-blue-700' : s === 'Live' ? 'bg-green-100 text-green-700' : s === 'Completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700';
 
   // Searchable umpire dropdown using Umpire API data
-  const renderUmpireDropdown = () => {
-    const q = umpireSearch.toLowerCase();
+  const renderUmpireDropdown = (
+    search: string,
+    setSearch: (v: string) => void,
+    showDd: boolean,
+    setShowDd: (v: boolean) => void,
+    selected: { id: string; name: string; email?: string } | null,
+    onSelect: (u: { id: string; name: string; email?: string }) => void,
+    onClear: () => void,
+  ) => {
+    const q = search.toLowerCase();
     const getUmpireId = (u: any) => u.id || u.umpireId || '';
     const getUmpireName = (u: any) => u.umpireName || u.name || '';
     const filtered = umpireList.filter((u: any) =>
@@ -3573,31 +3703,31 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     return (
       <div className="relative">
         <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
-        {selectedUmpire ? (
+        {selected ? (
           <div className="flex items-center gap-2 input-field bg-gray-50">
-            <span className="flex-1 text-sm truncate">{selectedUmpire.name}</span>
-            <button type="button" onClick={() => { setSelectedUmpire(null); setNewUmpireId(''); setUmpireSearch(''); }} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+            <span className="flex-1 text-sm truncate">{selected.name}</span>
+            <button type="button" onClick={onClear} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
           </div>
         ) : (
           <>
-            {showUmpireDropdown && (
-              <div className="fixed inset-0 z-[5]" onClick={() => { setShowUmpireDropdown(false); setUmpireSearch(''); }} />
+            {showDd && (
+              <div className="fixed inset-0 z-[5]" onClick={() => { setShowDd(false); setSearch(''); }} />
             )}
             <input
               type="text"
               placeholder="Search umpire..."
-              value={umpireSearch}
-              onChange={e => { setUmpireSearch(e.target.value); setShowUmpireDropdown(true); }}
-              onFocus={() => setShowUmpireDropdown(true)}
+              value={search}
+              onChange={e => { setSearch(e.target.value); setShowDd(true); }}
+              onFocus={() => setShowDd(true)}
               className="input-field"
             />
-            {showUmpireDropdown && (
+            {showDd && (
               <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                 {filtered.length > 0 ? filtered.slice(0, 20).map((u: any) => (
                   <button
                     key={getUmpireId(u)}
                     type="button"
-                    onClick={() => { setSelectedUmpire({ id: getUmpireId(u), name: getUmpireName(u), email: u.email }); setNewUmpireId(getUmpireId(u)); setShowUmpireDropdown(false); setUmpireSearch(''); }}
+                    onClick={() => { onSelect({ id: getUmpireId(u), name: getUmpireName(u), email: u.email }); setShowDd(false); setSearch(''); }}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-brand-green/10 border-b last:border-b-0"
                   >
                     <span className="font-medium">{getUmpireName(u)}</span>
@@ -3675,8 +3805,12 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     onSelect: (b: { id: string; name: string }) => void,
     onClear: () => void,
     excludeId?: string,
+    opts?: { tournamentId?: string; teamSource?: any[]; teamsLoading?: boolean },
   ) => {
-    const noTournament = !newTournamentId;
+    const effectiveTournamentId = opts?.tournamentId !== undefined ? opts.tournamentId : newTournamentId;
+    const noTournament = !effectiveTournamentId;
+    const effectiveTeamSource = opts?.teamSource !== undefined ? opts.teamSource : tournamentTeamList;
+    const effectiveTeamsLoading = opts?.teamsLoading !== undefined ? opts.teamsLoading : tournamentTeamsLoading;
     return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label.replace(' *', '')} {label.includes('*') && <span className="text-red-500">*</span>}</label>
@@ -3716,10 +3850,12 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 />
               </div>
               <div className="max-h-60 overflow-y-auto">
-                {tournamentTeamsLoading ? (
+                {effectiveTeamsLoading ? (
                   <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
                 ) : (() => {
-                  const filtered = filterTeamBoards(search, excludeId);
+                  const q = search.toLowerCase();
+                  const source = effectiveTeamSource.length > 0 ? effectiveTeamSource : teamBoardList;
+                  const filtered = source.filter((b: any) => (!excludeId || b.id !== excludeId) && (!q || b.name.toLowerCase().includes(q)));
                   return filtered.length === 0 ? (
                     <div className="px-4 py-3 text-sm text-gray-500 text-center">No teams found</div>
                   ) : (
@@ -3754,7 +3890,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-gray-800">Schedule</h2>
-        {!showCreate && (
+        {!showCreate && !editMatchId && (
           <button onClick={() => {
             setShowCreate(true);
             resetCreateForm(); setCreateError(''); setCreateSuccess('');
@@ -3811,7 +3947,13 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
-            {renderUmpireDropdown()}
+            {renderUmpireDropdown(
+              umpireSearch, setUmpireSearch,
+              showUmpireDropdown, setShowUmpireDropdown,
+              selectedUmpire,
+              (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); },
+              () => { setSelectedUmpire(null); setNewUmpireId(''); setUmpireSearch(''); },
+            )}
             {renderUserSearchDropdown(
               'App Scorer', appScorerSearch, setAppScorerSearch,
               showAppScorerDropdown, setShowAppScorerDropdown,
@@ -3864,19 +4006,19 @@ function ScheduleTab({ boardId }: { boardId: string }) {
       </div>
 
       {editMatchId && (
-        <div className="card mb-6 bg-blue-50 border-l-4 border-blue-400 p-5">
-          <h3 className="font-semibold mb-4 text-gray-800">Edit Schedule</h3>
+        <div className="card mb-6">
+          <h3 className="font-semibold mb-4">Edit Schedule</h3>
           {editError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{editError}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament</label>
-              <select value={editTournamentId} onChange={e => setEditTournamentId(e.target.value)} className="input-field">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
+              <select value={editTournamentId} onChange={e => { setEditTournamentId(e.target.value); setEditHomeTeamId(''); setEditAwayTeamId(''); setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); }} className="input-field">
                 <option value="">Select Tournament</option>
                 {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Game Type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Game Type <span className="text-red-500">*</span></label>
               <select value={editGameType} onChange={e => setEditGameType(e.target.value)} className="input-field">
                 <option value="">Select Game Type</option>
                 <option value="T20">T20</option>
@@ -3884,20 +4026,24 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <option value="Test Match">Test Match</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
-              <select value={editHomeTeamId} onChange={e => setEditHomeTeamId(e.target.value)} className="input-field">
-                <option value="">Select Home Team</option>
-                {allBoards.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Away Team</label>
-              <select value={editAwayTeamId} onChange={e => setEditAwayTeamId(e.target.value)} className="input-field">
-                <option value="">Select Away Team</option>
-                {allBoards.filter((b: any) => b.id !== editHomeTeamId).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-            </div>
+            {renderTeamBoardDropdown(
+              'Home Team *', editHomeTeamSearch, setEditHomeTeamSearch,
+              showEditHomeTeamDropdown, setShowEditHomeTeamDropdown,
+              selectedEditHomeTeam,
+              (b) => { setSelectedEditHomeTeam(b); setEditHomeTeamId(b.id); if (b.id === editAwayTeamId) { setEditAwayTeamId(''); setSelectedEditAwayTeam(null); } },
+              () => { setSelectedEditHomeTeam(null); setEditHomeTeamId(''); setEditHomeTeamSearch(''); },
+              editAwayTeamId,
+              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
+            )}
+            {renderTeamBoardDropdown(
+              'Away Team *', editAwayTeamSearch, setEditAwayTeamSearch,
+              showEditAwayTeamDropdown, setShowEditAwayTeamDropdown,
+              selectedEditAwayTeam,
+              (b) => { setSelectedEditAwayTeam(b); setEditAwayTeamId(b.id); },
+              () => { setSelectedEditAwayTeam(null); setEditAwayTeamId(''); setEditAwayTeamSearch(''); },
+              editHomeTeamId,
+              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
               <select value={editGround} onChange={e => setEditGround(e.target.value)} className="input-field">
@@ -3905,39 +4051,40 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
+            {renderUmpireDropdown(
+              editUmpireSearchText, setEditUmpireSearchText,
+              showEditUmpireDropdown, setShowEditUmpireDropdown,
+              selectedEditUmpire,
+              (u) => { setSelectedEditUmpire(u); setEditUmpire(u.id); },
+              () => { setSelectedEditUmpire(null); setEditUmpire(''); setEditUmpireSearchText(''); },
+            )}
+            {renderUserSearchDropdown(
+              'App Scorer', editAppScorerSearch, setEditAppScorerSearch,
+              showEditAppScorerDropdown, setShowEditAppScorerDropdown,
+              selectedEditAppScorer,
+              (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); },
+              () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); },
+            )}
+            {renderUserSearchDropdown(
+              'Portal Scorer', editPortalScorerSearch, setEditPortalScorerSearch,
+              showEditPortalScorerDropdown, setShowEditPortalScorerDropdown,
+              selectedEditPortalScorer,
+              (u) => { setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); },
+              () => { setSelectedEditPortalScorer(null); setEditPortalScorer(''); setEditPortalScorerSearch(''); },
+            )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
-              <select value={editUmpire} onChange={e => setEditUmpire(e.target.value)} className="input-field">
-                <option value="">Select Umpire</option>
-                {umpireList.map((u: any) => <option key={u.id || u.umpireId} value={u.id || u.umpireId}>{u.umpireName || u.name}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">App Scorer</label>
-              <select value={editAppScorer} onChange={e => setEditAppScorer(e.target.value)} className="input-field">
-                <option value="">Select App Scorer</option>
-                {normalizedUsers.map((u: any) => <option key={u.id} value={u.id}>{`${u.firstName} ${u.lastName}`.trim()}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Portal Scorer</label>
-              <select value={editPortalScorer} onChange={e => setEditPortalScorer(e.target.value)} className="input-field">
-                <option value="">Select Portal Scorer</option>
-                {normalizedUsers.map((u: any) => <option key={u.id} value={u.id}>{`${u.firstName} ${u.lastName}`.trim()}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <input type="datetime-local" value={editScheduledAt} onChange={e => setEditScheduledAt(e.target.value)} className="input-field" />
             </div>
           </div>
-          <div className="flex gap-2 mt-4">
+          <div className="flex justify-end gap-2 mt-4">
+            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400 transition-colors">Cancel</button>
             <button onClick={() => updateMatchMutation.mutate()} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Saving...' : 'Save'}</button>
-            <button onClick={cancelEdit} className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm hover:bg-gray-400">Cancel</button>
           </div>
         </div>
       )}
 
+      {!editMatchId && (
       <div className="card">
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left text-gray-700 font-bold text-sm"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
@@ -3966,6 +4113,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
