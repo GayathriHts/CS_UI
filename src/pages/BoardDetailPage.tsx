@@ -7,7 +7,7 @@ import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
 import type { BoardInfo, BoardDirector, BoardSponsor, BoardFan, BoardFeedItem, BoardScore, RosterDetail, BoardFollowing, BoardEvent } from '../types';
 
-type BoardTab = 'info' | 'pitch' | 'score' | 'fans' | 'squad' | 'invite' | 'events';
+type BoardTab = 'info' | 'pitch' | 'score' | 'fans' | 'squad' | 'invite' | 'events' | 'edit';
 type InfoSubTab = 'about' | 'history' | 'rules' | 'awards' | 'faq' | 'directors' | 'sponsors';
 
 const tabs: { id: BoardTab; label: string; icon: string }[] = [
@@ -27,7 +27,6 @@ const isLeagueBoard = (boardType: any) => boardType === 2 || boardType === 'Leag
 export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<BoardTab>('info');
-  const [showEditBoard, setShowEditBoard] = useState(false);
   const [rosterFormDirty, setRosterFormDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<BoardTab | null>(null);
   const qc = useQueryClient();
@@ -92,7 +91,7 @@ export default function BoardDetailPage() {
             </div>
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setShowEditBoard(true)}
+                onClick={() => setActiveTab('edit')}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -126,20 +125,19 @@ export default function BoardDetailPage() {
         {activeTab === 'squad' && <SquadTab boardId={id!} onDirtyChange={setRosterFormDirty} />}
         {activeTab === 'invite' && <InviteTab boardId={id!} />}
         {activeTab === 'events' && <EventsTab boardId={id!} />}
+        {activeTab === 'edit' && (
+          <EditBoardForm
+            board={board}
+            boardId={id!}
+            onClose={() => setActiveTab('info')}
+            onSaved={() => {
+              setActiveTab('info');
+              qc.invalidateQueries({ queryKey: ['board', id] });
+            }}
+          />
+        )}
       </div>
 
-      {/* Edit Board Modal */}
-      {showEditBoard && (
-        <EditBoardModal
-          board={board}
-          boardId={id!}
-          onClose={() => setShowEditBoard(false)}
-          onSaved={() => {
-            setShowEditBoard(false);
-            qc.invalidateQueries({ queryKey: ['board', id] });
-          }}
-        />
-      )}
       {/* Tab Switch Confirmation */}
       {pendingTab && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
@@ -165,7 +163,7 @@ export default function BoardDetailPage() {
     </div>
   );
 }
-function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
+function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
   console.log('EditBoardModal board object:', board, 'boardId:', boardId);
   const [name, setName] = useState(board.name || '');
   const [boardNameError, setBoardNameError] = useState('');
@@ -358,253 +356,176 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
     },
   });
 
+  const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '') || (selectedCoOwner?.id || '') !== initialCoOwnerId;
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-6 border-b">
-          <h2 className="text-xl font-bold text-gray-800">Edit Board</h2>
-          <button onClick={() => {
-            const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '') || (selectedCoOwner?.id || '') !== initialCoOwnerId;
-            if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); }
-          }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    <>
+    <div className="card mb-6">
+      <h3 className="font-semibold mb-4">Edit Board</h3>
+      {/* Logo Upload */}
+      <div className="flex flex-col items-start gap-1 mb-4">
+        <p className="text-sm font-medium text-gray-700">Board Logo</p>
+        <div className="flex items-center gap-4">
+          <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
+            onClick={() => document.getElementById('edit-board-logo-input')?.click()}>
+            {logoPreview ? (
+              <img src={logoPreview} alt="Board logo" className="w-full h-full object-cover" />
+            ) : (
+              <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors px-1">
+                <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                <span className="text-[9px] leading-tight text-center font-medium">Upload Logo</span>
+              </div>
+            )}
+            {logoPreview && (
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </div>
+            )}
+          </div>
+          {logoPreview && <button className="text-xs text-red-500 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setLogo(null); setLogoPreview(''); }}>Remove</button>}
         </div>
-        <div className="p-6 space-y-4">
-          {/* Logo Upload */}
-          <div className="flex flex-col items-start gap-1">
-            <p className="text-sm font-medium text-gray-700">Board Logo</p>
-            <div className="flex items-center gap-4">
-              <div className="relative w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex items-center justify-center bg-gray-50 overflow-hidden hover:border-brand-green transition-colors cursor-pointer group"
-                onClick={() => document.getElementById('edit-board-logo-input')?.click()}>
-                {logoPreview ? (
-                  <img src={logoPreview} alt="Board logo" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center text-gray-400 group-hover:text-brand-green transition-colors px-1">
-                    <svg className="w-5 h-5 mb-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                    <span className="text-[9px] leading-tight text-center font-medium">Upload Logo</span>
-                  </div>
-                )}
-                {logoPreview && (
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                  </div>
-                )}
-              </div>
-              {logoPreview && (
-                <button className="text-xs text-red-500 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setLogo(null); setLogoPreview(''); }}>Remove</button>
-              )}
-            </div>
-            <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
-            <input id="edit-board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
-              const file = e.target.files?.[0];
-              if (file) {
-                if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
-                setLogo(file);
-                const reader = new FileReader();
-                reader.onloadend = () => setLogoPreview(reader.result as string);
-                reader.readAsDataURL(file);
-              }
-            }} />
+        <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
+        <input id="edit-board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
+          const file = e.target.files?.[0];
+          if (file) {
+            if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
+            setLogo(file);
+            const reader = new FileReader();
+            reader.onloadend = () => setLogoPreview(reader.result as string);
+            reader.readAsDataURL(file);
+          }
+        }} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label>
+          <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} />
+          {boardNameError && <p className="text-xs text-red-500 mt-1">{boardNameError}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <input value={isLeague ? 'League' : 'Team'} disabled className="input-field bg-gray-100 text-gray-500 cursor-not-allowed" />
+        </div>
+        <div className="md:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} />
+        </div>
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+          {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+          <div className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
+            <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label>
-            <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
-              <div
-                className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
-                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
-              >
-                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          {countryDropdownOpen && (
+            <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+              <div className="max-h-80 overflow-y-auto">
+                {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                  <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`} onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                ))}
+                {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>}
               </div>
-              {countryDropdownOpen && (
-                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                  <div className="max-h-80 overflow-y-auto">
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
-                    ))}
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
-                      <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
-                    )}
-                  </div>
-                  <div className="p-2 border-t border-gray-100">
-                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
-              {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
-              <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`}
-                onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
-              >
-                <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </div>
-              {stateDropdownOpen && (
-                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                  <div className="max-h-80 overflow-y-auto">
-                    {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).map(s => (
-                      <button key={s} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${state === s ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setState(s); setCity(''); setStateDropdownOpen(false); setStateSearchText(''); }}>{s}</button>
-                    ))}
-                    {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).length === 0 && (
-                      <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
-                    )}
-                  </div>
-                  <div className="p-2 border-t border-gray-100">
-                    <input type="text" value={stateSearchText} onChange={e => setStateSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search state..." autoFocus onClick={e => e.stopPropagation()} />
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
-              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
-              <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`}
-                onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
-              >
-                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select District / City'}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </div>
-              {cityDropdownOpen && (
-                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                  <div className="max-h-80 overflow-y-auto">
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
-                    ))}
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
-                      <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
-                    )}
-                  </div>
-                  <div className="p-2 border-t border-gray-100">
-                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search district / city..." autoFocus onClick={e => e.stopPropagation()} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          {isLeague && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Co-Owner</label>
-              <div className="relative">
-                  {showCoOwnerDropdown && (
-                    <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
-                  )}
-                  <div
-                    className="input-field cursor-pointer flex items-center justify-between"
-                    onClick={() => setShowCoOwnerDropdown(prev => !prev)}
-                  >
-                    {selectedCoOwner ? (
-                      <span className="text-gray-900 flex items-center gap-2">
-                        {selectedCoOwner.firstName || selectedCoOwner.lastName ? `${selectedCoOwner.firstName} ${selectedCoOwner.lastName}`.trim() : selectedCoOwner.email}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); setSelectedCoOwner(null); }}
-                          className="text-gray-400 hover:text-red-500 font-bold text-sm"
-                        >×</button>
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">Select Co-Owner</span>
-                    )}
-                  </div>
-                  {showCoOwnerDropdown && (
-                    <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                      <div className="max-h-48 overflow-y-auto">
-                        {coOwnerLoading ? (
-                          <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
-                        ) : (() => {
-                          const currentUserId = board.ownerId || board.owneriD || board.OwnerId || '';
-                          const loggedInUserId = useAuthStore.getState().user?.id || '';
-                          const filtered = (coOwnerUserList || []).filter((u: any) =>
-                            u.id !== currentUserId &&
-                            u.id !== loggedInUserId &&
-                            (!coOwnerSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(coOwnerSearch.toLowerCase()))
-                          );
-                          return filtered.length === 0 ? (
-                            <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
-                          ) : (
-                            filtered.map((u: any) => (
-                              <button
-                                key={u.id}
-                                onClick={() => {
-                                  setSelectedCoOwner({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email });
-                                  setCoOwnerSearch('');
-                                  setShowCoOwnerDropdown(false);
-                                }}
-                                className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
-                              >
-                                <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                                  {u.firstName?.[0]}
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
-                                  {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
-                                </div>
-                              </button>
-                            ))
-                          );
-                        })()}
-                      </div>
-                      <div className="p-2 border-t border-gray-100">
-                        <input
-                          type="text"
-                          value={coOwnerSearch}
-                          onChange={e => setCoOwnerSearch(e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                          placeholder="Search users..."
-                          autoFocus
-                          onClick={e => e.stopPropagation()}
-                        />
-                      </div>
-                    </div>
-                  )}
-              </div>
+              <div className="p-2 border-t border-gray-100"><input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} /></div>
             </div>
           )}
         </div>
-        <div className="flex items-center justify-end gap-3 p-6 border-t">
-          <button
-            onClick={() => name.trim() && country && state && city && updateMutation.mutate()}
-            disabled={!name.trim() || !country || !state || !city || updateMutation.isPending}
-            className="btn-primary text-sm px-6"
-          >
-            {updateMutation.isPending ? 'Saving...' : 'Save'}
-          </button>
-        </div>
-      </div>
-      {/* Cancel Confirmation Modal */}
-      {showCancelConfirm && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
-            <div className="flex flex-col items-center text-center">
-              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
-              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
-              <div className="flex gap-3 w-full">
-                <button
-                  onClick={() => setShowCancelConfirm(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
-                >No, Keep Editing</button>
-                <button
-                  onClick={() => { setShowCancelConfirm(false); onClose(); }}
-                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
-                >Yes, Discard</button>
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
+          {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
+          <div className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
+            <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </div>
+          {stateDropdownOpen && (
+            <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+              <div className="max-h-80 overflow-y-auto">
+                {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).map(s => (
+                  <button key={s} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${state === s ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`} onClick={() => { setState(s); setCity(''); setStateDropdownOpen(false); setStateSearchText(''); }}>{s}</button>
+                ))}
+                {stateList.filter(s => !stateSearchText || s.toLowerCase().includes(stateSearchText.toLowerCase())).length === 0 && <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>}
               </div>
+              <div className="p-2 border-t border-gray-100"><input type="text" value={stateSearchText} onChange={e => setStateSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search state..." autoFocus onClick={e => e.stopPropagation()} /></div>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
+          {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+          <div className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
+            <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select District / City'}</span>
+            <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </div>
+          {cityDropdownOpen && (
+            <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+              <div className="max-h-80 overflow-y-auto">
+                {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                  <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`} onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                ))}
+                {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>}
+              </div>
+              <div className="p-2 border-t border-gray-100"><input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search district / city..." autoFocus onClick={e => e.stopPropagation()} /></div>
+            </div>
+          )}
+        </div>
+        {isLeague && (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Co-Owner</label>
+            <div className="relative">
+              {showCoOwnerDropdown && <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />}
+              <div className="input-field cursor-pointer flex items-center justify-between" onClick={() => setShowCoOwnerDropdown(prev => !prev)}>
+                {selectedCoOwner ? (
+                  <span className="text-gray-900 flex items-center gap-2">
+                    {selectedCoOwner.firstName || selectedCoOwner.lastName ? `${selectedCoOwner.firstName} ${selectedCoOwner.lastName}`.trim() : selectedCoOwner.email}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedCoOwner(null); }} className="text-gray-400 hover:text-red-500 font-bold text-sm">×</button>
+                  </span>
+                ) : <span className="text-gray-400">Select Co-Owner</span>}
+              </div>
+              {showCoOwnerDropdown && (
+                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="max-h-48 overflow-y-auto">
+                    {coOwnerLoading ? <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div> : (() => {
+                      const currentUserId = board.ownerId || board.owneriD || board.OwnerId || '';
+                      const loggedInUserId = useAuthStore.getState().user?.id || '';
+                      const filtered = (coOwnerUserList || []).filter((u: any) => u.id !== currentUserId && u.id !== loggedInUserId && (!coOwnerSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(coOwnerSearch.toLowerCase())));
+                      return filtered.length === 0 ? <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div> : filtered.map((u: any) => (
+                        <button key={u.id} onClick={() => { setSelectedCoOwner({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email }); setCoOwnerSearch(''); setShowCoOwnerDropdown(false); }} className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0">
+                          <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">{u.firstName?.[0]}</div>
+                          <div className="min-w-0"><span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>{u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}</div>
+                        </button>
+                      ));
+                    })()}
+                  </div>
+                  <div className="p-2 border-t border-gray-100"><input type="text" value={coOwnerSearch} onChange={e => setCoOwnerSearch(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search users..." autoFocus onClick={e => e.stopPropagation()} /></div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 mt-4">
+        <button onClick={() => { if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); } }} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
+        <button onClick={() => name.trim() && country && state && city && updateMutation.mutate()} disabled={!name.trim() || !country || !state || !city || updateMutation.isPending} className="btn-primary text-sm px-6">{updateMutation.isPending ? 'Saving...' : 'Save'}</button>
+      </div>
+    </div>
+
+    {showCancelConfirm && (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
+        <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+          <div className="flex flex-col items-center text-center">
+            <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+            <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel? Any unsaved changes will be lost.</p>
+            <div className="flex gap-3 w-full">
+              <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
+              <button onClick={() => { setShowCancelConfirm(false); onClose(); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
             </div>
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    )}
+    </>
   );
 }
 
