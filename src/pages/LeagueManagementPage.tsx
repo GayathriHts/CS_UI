@@ -1011,7 +1011,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             <button
               onClick={handleSubmit}
               disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !email.trim()}
-              className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
             </button>
@@ -1776,7 +1776,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
             <button
               onClick={handleSubmit}
               disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim()}
-              className="px-8 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
             </button>
@@ -2511,13 +2511,13 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
           {/* Action Buttons */}
           {successMsg && <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">{successMsg}</div>}
           {errorMsg && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{errorMsg}</div>}
-          <div className="flex gap-4">
+          <div className="flex justify-end gap-2 mt-6">
             <button
               onClick={() => {
                 const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== 'group A' || g.teamIds.length > 0) || groups.length > 1;
                 if (hasData) { setShowCancelConfirm(true); return; }
               }}
-              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+              className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
             >
               Cancel
             </button>
