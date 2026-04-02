@@ -1804,7 +1804,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Create Tournament / Trophy <span className="text-red-500">*</span>
+                Create Tournament <span className="text-red-500">*</span>
               </label>
               <input
                 value={name}
@@ -2997,7 +2997,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
     const noTournament = !newTournamentId;
     return (
     <div className="relative">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label.replace(' *', '')} {label.includes('*') && <span className="text-red-500">*</span>}</label>
       {selected ? (
         <div className="flex items-center gap-2 input-field bg-gray-50">
           <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
@@ -3097,8 +3097,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <option value="">Select Game Type</option>
                 <option value="T20">T20</option>
                 <option value="ODI">ODI</option>
-                <option value="Test">Test</option>
-                <option value="League">League</option>
+                <option value="Test Match">Test Match</option>
               </select>
               {formErrors.gameType && <p className="text-red-500 text-xs mt-1">{formErrors.gameType}</p>}
             </div>
@@ -3181,8 +3180,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 <option value="">Select Game Type</option>
                 <option value="T20">T20</option>
                 <option value="ODI">ODI</option>
-                <option value="Test">Test</option>
-                <option value="League">League</option>
+                <option value="Test Match">Test Match</option>
               </select>
             </div>
             <div>
