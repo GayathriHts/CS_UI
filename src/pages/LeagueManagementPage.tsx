@@ -1066,7 +1066,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-700 font-bold text-[13px]">
+                    <tr className="border-b text-left text-gray-700 font-bold text-sm">
                       <th className="pb-3">Name</th>
                       <th className="pb-3">Email</th>
                       <th className="pb-3">Phone</th>
@@ -1550,7 +1550,7 @@ function GroundListTab() {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-700 font-bold text-[13px]">
+                    <tr className="border-b text-left text-gray-700 font-bold text-sm">
                       <th className="pb-3">Ground Name</th>
                       <th className="pb-3">City</th>
                       <th className="pb-3">State</th>
@@ -2373,7 +2373,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-700 font-bold text-[13px]">
+                    <tr className="border-b text-left text-gray-700 font-bold text-sm">
                       <th className="pb-3">Tournament Name</th>
                       <th className="pb-3">Win Points</th>
                       <th className="pb-3">Match Type</th>
@@ -3241,7 +3241,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
 
       <div className="card">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-gray-700 font-bold text-[13px]"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
+          <thead><tr className="border-b text-left text-gray-700 font-bold text-sm"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -3322,7 +3322,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
       {selectedTournament && (
         <div className="card">
           <table className="w-full text-sm">
-            <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Team</th><th className="pb-3">Payment</th><th className="pb-3">Waiver</th><th className="pb-3">Status</th><th className="pb-3">Submitted</th><th className="pb-3">Actions</th></tr></thead>
+            <thead><tr className="border-b text-left text-gray-700 font-bold text-sm"><th className="pb-3">Team</th><th className="pb-3">Payment</th><th className="pb-3">Waiver</th><th className="pb-3">Status</th><th className="pb-3">Submitted</th><th className="pb-3">Actions</th></tr></thead>
             <tbody>
               {apps?.map(a => (
                 <tr key={a.id} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -3385,7 +3385,7 @@ function InvoicesTab({ boardId }: { boardId: string }) {
       )}
       <div className="card">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Invoice #</th><th className="pb-3">Description</th><th className="pb-3">Amount</th><th className="pb-3">Paid</th><th className="pb-3">Due Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
+          <thead><tr className="border-b text-left text-gray-700 font-bold text-sm"><th className="pb-3">Invoice #</th><th className="pb-3">Description</th><th className="pb-3">Amount</th><th className="pb-3">Paid</th><th className="pb-3">Due Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
           <tbody>
             {invoices?.map(inv => (
               <tr key={inv.id} className="border-b last:border-b-0 hover:bg-gray-50">

@@ -88,7 +88,7 @@ export default function LiveScoringPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-gray-400 text-left border-b border-gray-700">
+                      <tr className="text-gray-400 text-left border-b border-gray-700 font-bold text-sm">
                         <th className="pb-2">Batsman</th><th className="pb-2 text-center">R</th><th className="pb-2 text-center">B</th>
                         <th className="pb-2 text-center">4s</th><th className="pb-2 text-center">6s</th><th className="pb-2 text-center">SR</th>
                       </tr>
