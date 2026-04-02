@@ -1,12 +1,15 @@
 import axios from 'axios';
 import type { AxiosRequestConfig } from 'axios';
 
-const API_BASE_URL = 'http://10.10.20.24:9002/api/v1'; 
+// In dev mode, use relative paths so Vite proxy handles CORS.
+// In production (deployed build), use the actual backend URLs directly.
+const isDev = import.meta.env.DEV;
 
-// Use relative paths for board & umpire APIs so Vite proxy handles CORS
-const BOARD_API_BASE_URL = '/board-api/v1';
+const API_BASE_URL = isDev ? '/api/v1' : 'http://10.10.20.24:9002/api/v1';
 
-const UMPIRE_API_BASE_URL = '/umpire-api/v1';
+const BOARD_API_BASE_URL = isDev ? '/board-api/v1' : 'http://10.10.20.24:9003/api/v1';
+
+const UMPIRE_API_BASE_URL = isDev ? '/umpire-api/v1' : 'http://10.10.20.24:9004/api/v1';
 
 const getBoardToken = () => {
   return sessionStorage.getItem('token') || localStorage.getItem('token');

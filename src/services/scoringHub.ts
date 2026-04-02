@@ -1,7 +1,7 @@
 import * as signalR from '@microsoft/signalr';
 import type { BallUpdate, LiveScore, Scorecard } from '../types';
 
-const SCORING_HUB_URL = import.meta.env.VITE_SIGNALR_URL || '/hubs/scoring';
+const SCORING_HUB_URL = import.meta.env.VITE_SIGNALR_URL || (import.meta.env.DEV ? '/hubs/scoring' : 'http://10.10.20.24:9002/hubs/scoring');
 
 class ScoringHubService {
   private connection: signalR.HubConnection | null = null;
