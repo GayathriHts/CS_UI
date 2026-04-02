@@ -155,7 +155,7 @@ export default function ProfilePage() {
                   value={formData.city || ''}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className="input-field"
-                  placeholder="e.g. Mumbai"
+                 
                 />
               </div>
               <div>
@@ -164,7 +164,7 @@ export default function ProfilePage() {
                   value={formData.country || ''}
                   onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                   className="input-field"
-                  placeholder="e.g. India"
+                 
                 />
               </div>
               <div>

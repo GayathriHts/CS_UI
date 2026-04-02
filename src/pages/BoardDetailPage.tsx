@@ -407,11 +407,11 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label>
-            <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
+            <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} placeholder="Board description" />
+            <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
@@ -1441,11 +1441,11 @@ function InviteTab({ boardId }: { boardId: string }) {
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="player@example.com" className="input-field" />
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input-field" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Search Buddies</label>
-            <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name..." className="input-field" />
+            <input type="text" value={search} onChange={e => setSearch(e.target.value)} className="input-field" />
             {buddies && buddies.length > 0 && (
               <div className="mt-2 border rounded-lg max-h-40 overflow-y-auto">
                 {buddies.map((b: any) => (
@@ -1461,7 +1461,7 @@ function InviteTab({ boardId }: { boardId: string }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Message (optional)</label>
-            <textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Join our team!" className="input-field resize-none" rows={3} />
+            <textarea value={message} onChange={e => setMessage(e.target.value)} className="input-field resize-none" rows={3} />
           </div>
           <button onClick={() => email && inviteMutation.mutate()} disabled={!email || inviteMutation.isPending}
             className="btn-primary w-full">{inviteMutation.isPending ? 'Sending...' : 'Send Invitation'}</button>

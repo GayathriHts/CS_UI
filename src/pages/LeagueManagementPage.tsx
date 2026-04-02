@@ -365,7 +365,7 @@ function EditLeagueModal({ board, boardId, onClose, onSaved }: { board: any; boa
           {/* Board Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label>
-            <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
+            <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} />
             {boardNameError && <p className="text-xs text-red-500 mt-1">{boardNameError}</p>}
           </div>
 
@@ -378,7 +378,7 @@ function EditLeagueModal({ board, boardId, onClose, onSaved }: { board: any; boa
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} placeholder="Board description" />
+            <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} />
           </div>
 
           {/* Country, State, City */}
@@ -832,7 +832,6 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
                 value={name}
                 onChange={e => { setName(e.target.value); if (errors.name) setErrors(prev => ({ ...prev, name: '' })); }}
                 className={`input-field ${errors.name ? 'border-red-500' : ''}`}
-                placeholder="Search by Name, Email or Mobile No"
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
@@ -955,7 +954,6 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
                 maxLength={6}
                 onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
                 className={`input-field ${errors.zipCode ? 'border-red-500' : ''}`}
-                placeholder="6-digit zip code"
               />
               {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
             </div>
@@ -983,7 +981,6 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
                   maxLength={10}
                   onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setContactNo(v); }}
                   className="input-field flex-1"
-                  placeholder="10-digit number"
                 />
               </div>
             </div>
@@ -1181,31 +1178,31 @@ function UmpireListTab({ boardId }: { boardId: string }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" placeholder="Umpire name" />
+              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="input-field" placeholder="Email" />
+              <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Mobile</label>
-              <input value={editMobile} maxLength={10} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setEditMobile(v); }} className="input-field" placeholder="10-digit number" />
+              <input value={editMobile} maxLength={10} onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setEditMobile(v); }} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Phone</label>
-              <input value={editHomePhone} onChange={e => setEditHomePhone(e.target.value)} className="input-field" placeholder="Home phone" />
+              <input value={editHomePhone} onChange={e => setEditHomePhone(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Work Phone</label>
-              <input value={editWorkPhone} onChange={e => setEditWorkPhone(e.target.value)} className="input-field" placeholder="Work phone" />
+              <input value={editWorkPhone} onChange={e => setEditWorkPhone(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address 1</label>
-              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" placeholder="Address line 1" />
+              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address 2</label>
-              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" placeholder="Address line 2" />
+              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
@@ -1290,7 +1287,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
-              <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" placeholder="6-digit zip code" />
+              <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
             </div>
           </div>
           <div className="flex gap-2 mt-4">
@@ -1689,7 +1686,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
             {/* Row 3 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
-              <input value={zipCode} maxLength={6} onChange={e => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" placeholder="6-digit zip code" />
+              <input value={zipCode} maxLength={6} onChange={e => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
@@ -1717,7 +1714,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
                     onClick={() => setShowHomeTeamDropdown(!showHomeTeamDropdown)}
                   >
-                    <span className="text-gray-400 text-sm">Search team...</span>
+                    <span className="text-gray-400 text-sm">Select Team</span>
                     <svg className={`w-4 h-4 text-gray-400 transition-transform ${showHomeTeamDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -1941,15 +1938,15 @@ function GroundListTab() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name</label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" placeholder="Ground name" />
+              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address 1</label>
-              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" placeholder="Address line 1" />
+              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address 2</label>
-              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" placeholder="Address line 2" />
+              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
@@ -2034,15 +2031,15 @@ function GroundListTab() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
-              <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" placeholder="6-digit zip code" />
+              <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
-              <input value={editLandmark} onChange={e => setEditLandmark(e.target.value)} className="input-field" placeholder="Landmark" />
+              <input value={editLandmark} onChange={e => setEditLandmark(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
-              <input value={editHomeTeam} onChange={e => setEditHomeTeam(e.target.value)} className="input-field" placeholder="Home team" />
+              <input value={editHomeTeam} onChange={e => setEditHomeTeam(e.target.value)} className="input-field" />
             </div>
           </div>
           <div className="flex gap-2 mt-4">
@@ -2345,7 +2342,6 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 className="input-field"
-                placeholder="Tournament name"
               />
             </div>
             <div>
@@ -2408,7 +2404,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                             refetchBoards();
                           }}
                         >
-                          <span className="text-gray-400 text-sm">Search team...</span>
+                          <span className="text-gray-400 text-sm">Select Team</span>
                           <svg className={`w-4 h-4 text-gray-400 transition-transform ${openDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
@@ -2814,15 +2810,15 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name</label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" placeholder="Tournament name" />
+              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Win Points</label>
-              <input type="number" value={editWinPoint} onChange={e => setEditWinPoint(e.target.value)} className="input-field" placeholder="2" />
+              <input type="number" value={editWinPoint} onChange={e => setEditWinPoint(e.target.value)} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Match Type</label>
-              <input value={editMatchType} onChange={e => setEditMatchType(e.target.value)} className="input-field" placeholder="league" />
+              <input value={editMatchType} onChange={e => setEditMatchType(e.target.value)} className="input-field" />
             </div>
           </div>
 
@@ -4044,9 +4040,9 @@ function InvoicesTab({ boardId }: { boardId: string }) {
         <div className="card mb-6">
           <h3 className="font-semibold mb-4">Create Invoice</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input-field" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input-field" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date <span className="text-red-500">*</span></label><input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-field" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><input value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Description" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><input value={description} onChange={e => setDescription(e.target.value)} className="input-field" /></div>
           </div>
           <button onClick={() => amount && dueDate && createMutation.mutate()} disabled={!amount || !dueDate || createMutation.isPending}
             className="btn-primary text-sm px-6 mt-4">{createMutation.isPending ? 'Creating...' : 'Create Invoice'}</button>
