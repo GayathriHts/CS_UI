@@ -118,8 +118,9 @@ export const boardService = {
 
   // Update a board by ID (PUT /api/v1/Boards/{id}) — normalizes nested response
   update: (id: string, data: any) => {
+    // Allow logoUrl: '' through so the API can clear it; strip other empty strings
     const cleaned = Object.fromEntries(
-      Object.entries(data).filter(([_, v]) => v !== undefined && v !== '')
+      Object.entries(data).filter(([k, v]) => v !== undefined && (k === 'logoUrl' || v !== ''))
     );
     return boardApi.put(`/Boards/${id}`, cleaned).then(r => {
       const raw = r.data as any;

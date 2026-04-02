@@ -280,7 +280,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
       const newCity = updatedBoard?.city ?? city;
       const newState = updatedBoard?.state ?? state;
       const newCountry = updatedBoard?.country ?? country;
-      const newLogoUrl = updatedBoard?.logoUrl ?? updatedBoard?.LogoUrl ?? logoPreview;
+      const newLogoUrl = logoPreview; // always use local state — this is what the user chose
       const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry, logoUrl: newLogoUrl };
       try {
         const pending = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
@@ -293,7 +293,6 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         if (!old?.items) return old;
         return { ...old, items: old.items.map((b: any) => b.id === boardId ? { ...b, ...editOverlay } : b) };
       });
-      qc.invalidateQueries({ queryKey: ['board', boardId] });
       qc.invalidateQueries({ queryKey: ['myBoards', userId] });
       onSaved();
     },

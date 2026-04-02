@@ -173,6 +173,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
   const [country, setCountry] = useState(board.country || '');
   const [logo, setLogo] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string>(board.logoUrl || board.LogoUrl || board.logourl || '');
+  const [logoError, setLogoError] = useState<string>('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
@@ -297,13 +298,14 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
       return boardService.update(boardId, payload).then((r) => r.data);
     },
     onSuccess: (updatedBoard: any) => {
-      // Use server response if available, otherwise fall back to local state values
+      // Use server response for text fields but use local logoPreview as truth
+      // (server may return old logo URL if it didn't process the clear)
       const newName = updatedBoard?.name || name;
       const newDescription = updatedBoard?.description ?? description;
       const newCity = updatedBoard?.city ?? city;
       const newState = updatedBoard?.state ?? state;
       const newCountry = updatedBoard?.country ?? country;
-      const newLogoUrl = updatedBoard?.logoUrl ?? updatedBoard?.LogoUrl ?? logoPreview;
+      const newLogoUrl = logoPreview; // always use local state — this is what the user chose
 
       const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry, logoUrl: newLogoUrl };
 
@@ -341,8 +343,8 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
           sessionStorage.setItem('recentBoards', JSON.stringify(updated));
         }
       } catch {}
-      // Refetch board detail (backend is authoritative for single-board endpoint)
-      qc.invalidateQueries({ queryKey: ['board', boardId] });
+      // Invalidate the boards list so dashboard reflects changes
+      qc.invalidateQueries({ queryKey: ['myBoards', userId] });
       onSaved();
     },
     onError: (error: any) => {
@@ -387,10 +389,13 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
           {logoPreview && <button className="text-xs text-red-500 hover:text-red-600" onClick={(e) => { e.stopPropagation(); setLogo(null); setLogoPreview(''); }}>Remove</button>}
         </div>
         <p className="text-xs text-gray-400 ml-2">Max 2MB</p>
+        {logoError && <p className="text-xs text-red-500 mt-1">{logoError}</p>}
         <input id="edit-board-logo-input" type="file" accept="image/*" className="hidden" onChange={e => {
           const file = e.target.files?.[0];
+          e.target.value = '';
           if (file) {
-            if (file.size > 2 * 1024 * 1024) { alert('Logo must be under 2MB'); return; }
+            if (file.size > 2 * 1024 * 1024) { setLogoError('Logo must be under 2MB'); return; }
+            setLogoError('');
             setLogo(file);
             const reader = new FileReader();
             reader.onloadend = () => setLogoPreview(reader.result as string);
