@@ -115,7 +115,12 @@ export default function DashboardPage() {
       } catch {}
 
       const serverIds = new Set(items.map((b: any) => b.id));
-      const missing = recentBoards.filter(b => b.id && !serverIds.has(b.id));
+      // Read recentBoards from sessionStorage (synchronous) rather than React state,
+      // so the closure always sees the latest value even when refetch fires immediately after onSuccess
+      const latestRecent = (() => {
+        try { return JSON.parse(sessionStorage.getItem('recentBoards') || '[]'); } catch { return []; }
+      })();
+      const missing = latestRecent.filter((b: any) => b.id && !serverIds.has(b.id));
       // Clean up recentBoards once backend returns them
       if (recentBoards.length > 0 && missing.length === 0) {
         updateRecentBoards([]);
