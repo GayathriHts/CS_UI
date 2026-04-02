@@ -2680,20 +2680,30 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => tournamentService.updateTournament(editId!, {
-      id: editId!,
-      tournamentName: editName,
-      winPoint: Number(editWinPoint) || 0,
-      umpireCheck: editUmpireCheck,
-      active: editOriginal?.active ?? 1,
-      scheduleCoordinator: editOriginal?.scheduleCoordinator ?? true,
-      startNode: editOriginal?.startNode ?? 0,
-      endNode: editOriginal?.endNode ?? 0,
-      recordCount: editOriginal?.recordCount ?? 0,
-      matchType: editMatchType,
-      groupList: editGroups,
-      modifiedBy: user?.id ?? '',
-    }),
+    mutationFn: () => {
+      // Build payload with ONLY the fields the PUT API accepts — nothing extra
+      const payload = {
+        id: editId!,
+        tournamentName: editName.trim(),
+        winPoint: Number(editWinPoint) || 0,
+        umpireCheck: Number(editOriginal?.umpireCheck ?? 0),
+        active: Number(editOriginal?.active ?? 0),
+        scheduleCoordinator: editOriginal?.scheduleCoordinator ?? true,
+        startNode: Number(editOriginal?.startNode ?? 0),
+        endNode: Number(editOriginal?.endNode ?? 0),
+        recordCount: Number(editOriginal?.recordCount ?? 0),
+        matchType: editMatchType || 'league',
+        groupList: editGroups.map(g => ({
+          id: g.id,
+          tournamentGroupName: g.tournamentGroupName,
+          active: Number(g.active ?? 0),
+          teamBoardId: Array.isArray(g.teamBoardId) ? g.teamBoardId.filter((tid: string) => typeof tid === 'string' && tid.trim()) : [],
+        })),
+        modifiedBy: user?.id ?? '',
+      };
+      console.log('[UpdateTournament] PUT payload:', JSON.stringify(payload, null, 2));
+      return tournamentService.updateTournament(editId!, payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
       setEditId(null);
@@ -2702,23 +2712,39 @@ function TournamentsTab({ boardId }: { boardId: string }) {
       setTimeout(() => setUpdateSuccess(''), 4000);
     },
     onError: (err: any) => {
-      setUpdateError(err?.response?.data?.message || err?.message || 'Failed to update tournament.');
+      console.error('[UpdateTournament] Error:', err?.response?.status, err?.response?.data);
+      const errData = err?.response?.data;
+      const msg = typeof errData === 'string' ? errData : errData?.message || errData?.title || errData?.errors ? JSON.stringify(errData.errors) : err?.message || 'Failed to update tournament.';
+      setUpdateError(msg);
     },
   });
 
   const handleEdit = (t: any) => {
+    console.log('[EditTournament] Raw GET data:', JSON.stringify(t, null, 2));
     setEditId(t.id);
     setEditOriginal(t);
     setEditName(t.tournamentName || t.name || '');
     setEditWinPoint(String(t.winPoint ?? 2));
-    setEditUmpireCheck(t.umpireCheck ?? 1);
+    setEditUmpireCheck(Number(t.umpireCheck ?? 1));
     setEditMatchType(t.matchType || 'league');
-    const groups = Array.isArray(t.groupList) ? t.groupList.map((g: any) => ({
-      id: g.id || crypto.randomUUID(),
-      tournamentGroupName: g.tournamentGroupName || '',
-      active: g.active ?? 1,
-      teamBoardId: Array.isArray(g.teamBoardId) ? g.teamBoardId : [],
-    })) : [];
+    const rawGroups = Array.isArray(t.groupList) ? t.groupList : [];
+    console.log('[EditTournament] Raw groupList:', JSON.stringify(rawGroups, null, 2));
+    const groups = rawGroups.map((g: any) => {
+      // Extract teamBoardId robustly: could be string[], object[], single string, or missing
+      const rawTeams = g.teamBoardId || g.teamBoardIds || g.teams || [];
+      let teamIds: string[] = [];
+      if (Array.isArray(rawTeams)) {
+        teamIds = rawTeams.map((item: any) => typeof item === 'string' ? item : (item?.id || item?.boardId || '')).filter(Boolean);
+      } else if (typeof rawTeams === 'string' && rawTeams) {
+        teamIds = [rawTeams];
+      }
+      return {
+        id: g.id || g.groupId || crypto.randomUUID(),
+        tournamentGroupName: g.tournamentGroupName || g.groupName || g.name || '',
+        active: Number(g.active ?? 1),
+        teamBoardId: teamIds,
+      };
+    });
     setEditGroups(groups);
     setEditGroupSearches(groups.map(() => ''));
     setEditOpenDropdown(null);
