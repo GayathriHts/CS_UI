@@ -763,7 +763,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Create Umpire</h2>
+          <h2 className="text-base font-bold text-gray-800">Create Umpire</h2>
         </div>
         <div className="p-6">
           {/* Status message */}
@@ -910,6 +910,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
 function UmpireListTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editAddress1, setEditAddress1] = useState('');
   const [editAddress2, setEditAddress2] = useState('');
@@ -1056,7 +1057,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
 
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Umpire List</h2>
+          <h2 className="text-base font-bold text-gray-800">Umpire List</h2>
         </div>
         <div className="p-4 sm:p-6">
           {isLoading ? (
@@ -1067,7 +1068,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-500">
+                    <tr className="border-b text-left text-gray-700 font-bold text-[13px]">
                       <th className="pb-3">Name</th>
                       <th className="pb-3">Email</th>
                       <th className="pb-3">Phone</th>
@@ -1090,7 +1091,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
                           <td className="py-3 space-x-2">
                             <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                            <button onClick={() => deleteMutation.mutate(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                            <button onClick={() => setDeleteConfirmId(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                           </td>
                         </tr>
                       );
@@ -1112,7 +1113,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
                         <h3 className="font-medium text-gray-800">{u.umpireName || u.name || '-'}</h3>
                         <div className="space-x-2">
                           <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => deleteMutation.mutate(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          <button onClick={() => setDeleteConfirmId(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
@@ -1133,6 +1134,28 @@ function UmpireListTab({ boardId }: { boardId: string }) {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Delete Umpire?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to delete? This action cannot be undone.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setDeleteConfirmId(null)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
+                <button onClick={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} disabled={deleteMutation.isPending} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">
+                  {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1199,7 +1222,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
     <div className="animate-fade-in">
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Create Ground</h2>
+          <h2 className="text-base font-bold text-gray-800">Create Ground</h2>
         </div>
         <div className="p-6">
           {successMsg && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">{successMsg}</div>}
@@ -1267,6 +1290,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
 function GroundListTab() {
   const qc = useQueryClient();
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editAddress1, setEditAddress1] = useState('');
   const [editAddress2, setEditAddress2] = useState('');
@@ -1400,7 +1424,7 @@ function GroundListTab() {
 
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Ground List</h2>
+          <h2 className="text-base font-bold text-gray-800">Ground List</h2>
         </div>
         <div className="p-4 sm:p-6">
           {isLoading ? (
@@ -1411,7 +1435,7 @@ function GroundListTab() {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-500">
+                    <tr className="border-b text-left text-gray-700 font-bold text-[13px]">
                       <th className="pb-3">Ground Name</th>
                       <th className="pb-3">City</th>
                       <th className="pb-3">State</th>
@@ -1434,7 +1458,7 @@ function GroundListTab() {
                           <td className="py-3">{g.homeTeam || '-'}</td>
                           <td className="py-3 space-x-2">
                             <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                            <button onClick={() => deleteMutation.mutate(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                            <button onClick={() => setDeleteConfirmId(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                           </td>
                         </tr>
                       );
@@ -1459,7 +1483,7 @@ function GroundListTab() {
                         </div>
                         <div className="space-x-2">
                           <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => deleteMutation.mutate(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          <button onClick={() => setDeleteConfirmId(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                         </div>
                       </div>
                     <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
@@ -1480,6 +1504,28 @@ function GroundListTab() {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Delete Ground?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to delete? This action cannot be undone.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setDeleteConfirmId(null)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
+                <button onClick={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} disabled={deleteMutation.isPending} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">
+                  {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1635,7 +1681,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Group Tournament</h2>
+          <h2 className="text-base font-bold text-gray-800">Group Tournament</h2>
         </div>
 
         <div className="p-6 space-y-6">
@@ -1884,7 +1930,7 @@ function CancelGameTab({ boardId }: { boardId: string }) {
     <div className="animate-fade-in">
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Cancel Game by Date</h2>
+          <h2 className="text-base font-bold text-gray-800">Cancel Game by Date</h2>
         </div>
         <div className="p-6">
           <div className="flex flex-wrap gap-4 items-end">
@@ -1906,6 +1952,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editOriginal, setEditOriginal] = useState<any>(null);
   const [editName, setEditName] = useState('');
   const [editWinPoint, setEditWinPoint] = useState('2');
@@ -2200,7 +2247,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
 
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800 uppercase">Tournament List</h2>
+          <h2 className="text-base font-bold text-gray-800">Tournament List</h2>
         </div>
         <div className="p-4 sm:p-6">
           {isLoading ? (
@@ -2211,7 +2258,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-500">
+                    <tr className="border-b text-left text-gray-700 font-bold text-[13px]">
                       <th className="pb-3">Tournament Name</th>
                       <th className="pb-3">Win Points</th>
                       <th className="pb-3">Match Type</th>
@@ -2237,7 +2284,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                           </td>
                           <td className="py-3 space-x-2">
                             <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                            <button onClick={() => deleteMutation.mutate(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                            <button onClick={() => setDeleteConfirmId(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                           </td>
                         </tr>
                       );
@@ -2260,7 +2307,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                         <h3 className="font-medium text-gray-800">{t.tournamentName || t.name || '-'}</h3>
                         <div className="space-x-2">
                           <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => deleteMutation.mutate(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          <button onClick={() => setDeleteConfirmId(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
@@ -2280,6 +2327,28 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Delete Tournament?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to delete? This action cannot be undone.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setDeleteConfirmId(null)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
+                <button onClick={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} disabled={deleteMutation.isPending} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">
+                  {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -3057,7 +3126,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
 
       <div className="card">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-gray-500"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
+          <thead><tr className="border-b text-left text-gray-700 font-bold text-[13px]"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
