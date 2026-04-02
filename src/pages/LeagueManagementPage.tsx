@@ -364,7 +364,7 @@ function EditLeagueModal({ board, boardId, onClose, onSaved }: { board: any; boa
 
           {/* Board Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label>
             <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
             {boardNameError && <p className="text-xs text-red-500 mt-1">{boardNameError}</p>}
           </div>
@@ -775,7 +775,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             {/* Row 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>Umpire Name
+                Umpire Name <span className="text-red-500">*</span>
               </label>
               <input
                 value={name}
@@ -805,7 +805,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             {/* Row 2 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>City
+                City <span className="text-red-500">*</span>
               </label>
               <input
                 value={city}
@@ -816,7 +816,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>State
+                State <span className="text-red-500">*</span>
               </label>
               <input
                 value={state}
@@ -827,7 +827,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>Country
+                Country <span className="text-red-500">*</span>
               </label>
               <input
                 value={country}
@@ -840,7 +840,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             {/* Row 3 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>Zip Code
+                Zip Code <span className="text-red-500">*</span>
               </label>
               <input
                 value={zipCode}
@@ -877,7 +877,7 @@ function CreateUmpireTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>E-mail ID
+                E-mail ID <span className="text-red-500">*</span>
               </label>
               <input
                 type="email"
@@ -1280,7 +1280,7 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
             {/* Row 1 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Ground Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name <span className="text-red-500">*</span></label>
               <input value={name} onChange={e => setName(e.target.value)} className="input-field" />
             </div>
             <div>
@@ -1294,15 +1294,15 @@ function CreateGroundTab({ onCreated }: { onCreated?: () => void }) {
 
             {/* Row 2 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>City</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
               <input value={city} onChange={e => setCity(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>State</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               <input value={state} onChange={e => setState(e.target.value)} className="input-field" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1"><span className="text-red-500">*</span>Country</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               <input value={country} onChange={e => setCountry(e.target.value)} className="input-field" />
             </div>
 
@@ -1804,7 +1804,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>Create Tournament / Trophy
+                Create Tournament / Trophy <span className="text-red-500">*</span>
               </label>
               <input
                 value={name}
@@ -1815,7 +1815,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                <span className="text-red-500">*</span>Win Points for the Match
+                Win Points for the Match <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -1870,7 +1870,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
                 <div className="p-4 space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <span className="text-red-500">*</span>Group Name
+                      Group Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       value={group.name}
@@ -1881,7 +1881,7 @@ function CreateTrophyTab({ boardId }: { boardId: string }) {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      <span className="text-red-500">*</span>Team Board
+                      Team Board <span className="text-red-500">*</span>
                     </label>
                     <div className="flex gap-3 items-start">
                       <div className="relative flex-1 max-w-xs">
@@ -3375,8 +3375,8 @@ function InvoicesTab({ boardId }: { boardId: string }) {
         <div className="card mb-6">
           <h3 className="font-semibold mb-4">Create Invoice</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount *</label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input-field" placeholder="0.00" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label><input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input-field" placeholder="0.00" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date <span className="text-red-500">*</span></label><input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-field" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><input value={description} onChange={e => setDescription(e.target.value)} className="input-field" placeholder="Description" /></div>
           </div>
           <button onClick={() => amount && dueDate && createMutation.mutate()} disabled={!amount || !dueDate || createMutation.isPending}

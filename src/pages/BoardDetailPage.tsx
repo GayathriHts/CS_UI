@@ -406,7 +406,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
             }} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Board Name *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label>
             <input value={name} maxLength={50} onChange={(e) => { setName(e.target.value); setBoardNameError(''); }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Board name" />
           </div>
           <div>
