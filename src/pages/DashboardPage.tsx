@@ -712,8 +712,7 @@ export default function DashboardPage() {
                     {newBoardType === 'League' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Co-Owner</label>
-                        <div className="flex gap-2">
-                          <div className="flex-1 relative">
+                        <div className="relative">
                             {showCoOwnerDropdown && (
                               <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
                             )}
@@ -782,17 +781,6 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                             )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowCoOwnerDropdown(prev => !prev)}
-                            className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                            title="Select co-owner"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                          </button>
                         </div>
                       </div>
                     )}

@@ -496,8 +496,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
           {isLeague && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Co-Owner</label>
-              <div className="flex gap-2">
-                <div className="flex-1 relative">
+              <div className="relative">
                   {showCoOwnerDropdown && (
                     <div className="fixed inset-0 z-[5]" onClick={() => { setShowCoOwnerDropdown(false); setCoOwnerSearch(''); }} />
                   )}
@@ -569,17 +568,6 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
                       </div>
                     </div>
                   )}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowCoOwnerDropdown(prev => !prev)}
-                  className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                  title="Select co-owner"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                </button>
               </div>
             </div>
           )}
@@ -1140,10 +1128,8 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
           <div className="space-y-5">
             {/* Roster Name row */}
-            <div className="flex items-center gap-0">
-              <span className="bg-brand-dark text-white text-sm font-semibold px-5 py-2.5 rounded-l-lg whitespace-nowrap">
-                Roster Name
-              </span>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Roster Name</label>
               <input
                 type="text"
                 value={formData.rosterName}
@@ -1155,8 +1141,8 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   setFormData(prev => ({ ...prev, rosterName: val }));
                   onDirtyChange?.(true);
                 }}
-                placeholder=""
-                className={`flex-1 px-4 py-2.5 border border-l-0 rounded-r-lg focus:ring-2 focus:ring-brand-green focus:border-transparent ${errors.rosterName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                placeholder="Enter roster name"
+                className={`w-full max-w-sm px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent ${errors.rosterName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
               />
             </div>
             {errors.rosterName && <p className="text-xs text-red-600 ml-36">{errors.rosterName}</p>}
@@ -1166,11 +1152,11 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               <div className="flex items-center justify-between mb-1">
                 <h4 className="font-semibold text-gray-700">Add Member</h4>
               </div>
-              <hr className="border-brand-green mb-4" />
+              <hr className="border-gray-200 mb-4" />
 
               {/* Captain */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Captain</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Captain</label>
                 <div className="relative max-w-sm">
                   <input
                     type="text"
@@ -1186,7 +1172,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
               {/* Vice Captain */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Vice Captain</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Vice Captain</label>
                 <div className="relative max-w-sm">
                   <input
                     type="text"
@@ -1202,7 +1188,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
               {/* Coach */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1 italic">Coach</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Coach</label>
                 <div className="relative max-w-sm">
                   <input
                     type="text"
@@ -1218,9 +1204,9 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
               {/* Add Member */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-blue-600 mb-1 italic">Add Member</label>
-                <div className="flex gap-2 max-w-sm">
-                  <div className="flex-1 relative">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Add Member</label>
+                <div className="max-w-sm">
+                  <div className="relative">
                     <input
                       type="text"
                       value={newMember}
@@ -1231,15 +1217,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                     />
                     {renderSearchDropdown('member')}
                   </div>
-                  <button
-                    onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
-                    className="px-3 py-2.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                    title="Add member"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                  </button>
                 </div>
               </div>
 
