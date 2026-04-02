@@ -631,7 +631,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="block text-sm font-medium text-gray-700 mb-1">Board Name <span className="text-red-500">*</span></label><input value={newBoardName} maxLength={50} onChange={e => { let val = e.target.value; if (val.length === 0 || (val.length > 0 && val[0] !== ' ' && /^[a-zA-Z0-9 ]*$/.test(val))) { val = val.charAt(0).toUpperCase() + val.slice(1); setNewBoardName(val); setBoardNameError(''); } }} className={`input-field ${boardNameError ? 'border-red-500' : ''}`} placeholder="Enter board name" /></div>
-                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-1">Type <span className="text-red-500">*</span></label>
                       <select value={newBoardType} onChange={e => setNewBoardType(e.target.value as '' | 'Team' | 'League')} className="input-field"><option value="" disabled>Select Type</option><option value="Team">Team</option><option value="League">League</option></select></div>
                     <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={newBoardDescription} maxLength={1000} onChange={e => setNewBoardDescription(e.target.value)} className="input-field" rows={3} placeholder="Enter board description" /></div>
                     <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
@@ -802,11 +802,11 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex justify-end gap-3 mt-4">
                     <button onClick={() => {
-                      const hasTextData = newBoardName || newBoardDescription || newBoardLogoPreview;
-                      if (hasTextData) { setShowCancelConfirm(true); } else { setShowCreateBoard(false); setNewBoardCountry(''); setNewBoardState(''); setNewBoardCity(''); setNewBoardType('' as any); setSelectedCoOwner(null); }
+                      const hasAnyData = newBoardName || newBoardDescription || newBoardLogoPreview || newBoardType || newBoardCountry || newBoardState || newBoardCity || selectedCoOwner;
+                      if (hasAnyData) { setShowCancelConfirm(true); } else { setShowCreateBoard(false); }
                     }}
                       className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Cancel</button>
-                    <button onClick={() => newBoardName && createBoardMutation.mutate()} disabled={!newBoardName || !newBoardCountry || !newBoardState || !newBoardCity || createBoardMutation.isPending}
+                    <button onClick={() => newBoardName && newBoardType && createBoardMutation.mutate()} disabled={!newBoardName || !newBoardType || !newBoardCountry || !newBoardState || !newBoardCity || createBoardMutation.isPending}
                       className="btn-primary text-sm px-6">{createBoardMutation.isPending ? 'Creating...' : 'Create Board'}</button>
                   </div>
                 </div>
@@ -996,7 +996,7 @@ export default function DashboardPage() {
                   className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
                 >No, Keep Editing</button>
                 <button
-                  onClick={() => { setShowCancelConfirm(false); setShowCreateBoard(false); }}
+                  onClick={() => { setShowCancelConfirm(false); setShowCreateBoard(false); setNewBoardName(''); setNewBoardDescription(''); setNewBoardLogoPreview(''); setNewBoardLogo(null); setNewBoardType('' as any); setNewBoardCountry(''); setNewBoardState(''); setNewBoardCity(''); setSelectedCoOwner(null); setBoardNameError(''); }}
                   className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
                 >Yes, Discard</button>
               </div>

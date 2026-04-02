@@ -218,6 +218,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
   const [coOwnerSearch, setCoOwnerSearch] = useState('');
   const [showCoOwnerDropdown, setShowCoOwnerDropdown] = useState(false);
   const [selectedCoOwner, setSelectedCoOwner] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+  const [initialCoOwnerId, setInitialCoOwnerId] = useState<string>('');
 
   // Fetch user list eagerly for League boards so we can resolve the co-owner from ownerId
   const { data: coOwnerUserList, isLoading: coOwnerLoading } = useQuery({
@@ -251,6 +252,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
       const match = coOwnerUserList.find((u: any) => u.id === boardOwnerId);
       if (match) {
         setSelectedCoOwner({ id: match.id, firstName: match.firstName, lastName: match.lastName, email: match.email });
+        setInitialCoOwnerId(match.id);
       }
     }
   }, [coOwnerUserList, isLeague]);
@@ -362,7 +364,7 @@ function EditBoardModal({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="flex items-center justify-between p-6 border-b">
           <h2 className="text-xl font-bold text-gray-800">Edit Board</h2>
           <button onClick={() => {
-            const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
+            const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '') || (selectedCoOwner?.id || '') !== initialCoOwnerId;
             if (hasChanges) { setShowCancelConfirm(true); } else { onClose(); }
           }} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
         </div>
