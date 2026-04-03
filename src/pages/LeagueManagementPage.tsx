@@ -1084,9 +1084,10 @@ function UmpireListTab({ boardId }: { boardId: string }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Umpire List</h2>
         {!showCreate && !editId && (
-          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
-            + Create Umpire
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm flex items-center gap-2">
+            <span className="text-xl font-bold leading-none">+</span> Create Umpire
           </button>
         )}
       </div>
@@ -1897,9 +1898,10 @@ function GroundListTab() {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Ground List</h2>
         {!showCreate && !editId && (
-          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
-            + Create Ground
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm flex items-center gap-2">
+            <span className="text-xl font-bold leading-none">+</span> Create Ground
           </button>
         )}
       </div>
@@ -2820,9 +2822,10 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Tournaments</h2>
         {!showCreate && !editId && (
-          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm px-4">
-            + Create Tournament
+          <button onClick={() => setShowCreate(true)} className="btn-primary text-sm flex items-center gap-2">
+            <span className="text-xl font-bold leading-none">+</span> Create Tournament
           </button>
         )}
       </div>
@@ -3792,12 +3795,13 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Schedules & Results</h2>
         {!showCreate && !editMatchId && (
           <button onClick={() => {
             setShowCreate(true);
             resetCreateForm(); setCreateError(''); setCreateSuccess('');
-          }} className="btn-primary text-sm px-4">
-            + Create Match
+          }} className="btn-primary text-sm flex items-center gap-2">
+            <span className="text-xl font-bold leading-none">+</span> Create Match
           </button>
         )}
       </div>
