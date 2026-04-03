@@ -18,7 +18,7 @@ export default function Navbar({ title, backTo, rightContent, variant = 'default
     navigate('/');
   };
 
-  const bgClass = variant === 'dark' ? 'bg-black/90 backdrop-blur-sm' : 'bg-brand-dark shadow-lg';
+  const bgClass = variant === 'dark' ? 'bg-black/90 backdrop-blur-sm' : 'bg-brand-bg shadow-lg';
 
   return (
     <nav className={`fixed top-0 left-0 right-0 z-50 ${bgClass}`}>

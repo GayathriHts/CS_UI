@@ -342,7 +342,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Top Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-brand-dark shadow-lg">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-brand-bg shadow-lg">
         <div className="max-w-full mx-auto px-4">
           <div className="flex items-center justify-between h-14">
             <Link to="/" className="flex items-center gap-2">
@@ -371,7 +371,7 @@ export default function DashboardPage() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-brand-dark" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-brand-bg" />
               </button>
               <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
                 <div className="w-8 h-8 bg-brand-light rounded-full flex items-center justify-center text-white font-bold text-sm">
