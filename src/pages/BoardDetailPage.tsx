@@ -65,77 +65,76 @@ export default function BoardDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar backTo="/dashboard?tab=board" />
+      <Navbar title={`Board Management — ${board.name}`} backTo="/dashboard?tab=board" />
 
-      <div className="pt-14 bg-gradient-to-r from-brand-green to-brand-dark text-white">
-        <div className="max-w-6xl mx-auto px-6 py-8">
-          <div className="flex items-center gap-6">
-            <div className="w-20 h-20 bg-white/20 rounded-xl flex items-center justify-center">
-              {board.logoUrl ? <img src={board.logoUrl} alt="" className="w-16 h-16 rounded-lg object-cover" /> : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold">{board.name}</h1>
-              <p className="text-green-200 mt-1">
-                {board.city && `${board.city}, `}{board.country}
-                {board.fanCount > 0 && ` · ${board.fanCount} fans`}
-                {board.rosterCount > 0 && ` · ${board.rosterCount} teams`}
-              </p>
-              {board.owner && (
-                <p className="text-green-200 text-sm mt-1">
-                  Owner: {`${board.owner.firstName || ''} ${board.owner.lastName || ''}`.trim() || board.owner.email || board.owner.userName || 'Unknown'}
-                  {board.coOwner && (
-                    <> · Co-Owner: {`${board.coOwner.firstName || ''} ${board.coOwner.lastName || ''}`.trim() || board.coOwner.email || board.coOwner.userName}</>
-                  )}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
+      <div className="pt-14 flex">
+        {/* Sidebar */}
+        <div className="w-64 min-h-screen bg-white border-r shadow-sm fixed left-0 top-14 overflow-y-auto">
+          {/* Board Info */}
+          <div className="p-4 border-b">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-20 h-20 flex items-center justify-center mb-3">
+                {board.logoUrl
+                  ? <img src={board.logoUrl} alt="" className="w-16 h-16 object-cover" />
+                  : <img src="/images/boardIcon.png" alt="" className="w-12 h-12" />
+                }
+              </div>
               <button
                 onClick={() => setActiveTab('edit')}
-                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors text-sm font-medium"
+                className="font-bold text-sm flex items-center gap-1 hover:text-brand-green transition-colors cursor-pointer"
+                title="Edit Board"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-                Edit Board
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                {board.name}
               </button>
             </div>
           </div>
-          {board.description && <p className="mt-4 text-green-100 max-w-2xl">{board.description}</p>}
-          <div className="flex gap-1 mt-6 -mb-px overflow-x-auto">
+
+          {/* Navigation Items */}
+          <div className="py-2">
             {visibleTabs.map((tab) => (
-              <button key={tab.id} onClick={() => {
-                if (activeTab === 'squad' && tab.id !== 'squad' && rosterFormDirty) {
-                  setPendingTab(tab.id);
-                } else {
-                  setActiveTab(tab.id);
-                }
-              }}
-                className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap ${activeTab === tab.id ? 'bg-gray-100 text-brand-green' : 'text-white/80 hover:text-white hover:bg-white/10'}`}>
+              <button
+                key={tab.id}
+                onClick={() => {
+                  if (activeTab === 'squad' && tab.id !== 'squad' && rosterFormDirty) {
+                    setPendingTab(tab.id);
+                  } else {
+                    setActiveTab(tab.id);
+                  }
+                }}
+                className={`w-full text-left px-4 py-3 text-sm transition-colors border-b last:border-b-0 ${
+                  activeTab === tab.id
+                    ? 'text-brand-green font-semibold bg-brand-green/5'
+                    : 'text-gray-700 hover:text-brand-green hover:bg-gray-50'
+                }`}
+              >
                 {tab.icon} {tab.label}
               </button>
             ))}
           </div>
         </div>
-      </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {activeTab === 'info' && <InfoTab boardId={id!} />}
-        {activeTab === 'pitch' && <PitchTab boardId={id!} />}
-        {activeTab === 'score' && <ScoreTab boardId={id!} />}
-        {activeTab === 'fans' && <FansTab boardId={id!} />}
-        {activeTab === 'squad' && <SquadTab boardId={id!} onDirtyChange={setRosterFormDirty} />}
-        {activeTab === 'invite' && <InviteTab boardId={id!} />}
-        {activeTab === 'events' && <EventsTab boardId={id!} />}
-        {activeTab === 'edit' && (
-          <EditBoardForm
-            board={board}
-            boardId={id!}
-            onClose={() => setActiveTab('info')}
-            onSaved={() => {
-              setActiveTab('info');
-              qc.invalidateQueries({ queryKey: ['board', id] });
-            }}
-          />
-        )}
+        {/* Content */}
+        <div className="ml-64 flex-1 p-6">
+          {activeTab === 'info' && <InfoTab boardId={id!} />}
+          {activeTab === 'pitch' && <PitchTab boardId={id!} />}
+          {activeTab === 'score' && <ScoreTab boardId={id!} />}
+          {activeTab === 'fans' && <FansTab boardId={id!} />}
+          {activeTab === 'squad' && <SquadTab boardId={id!} onDirtyChange={setRosterFormDirty} />}
+          {activeTab === 'invite' && <InviteTab boardId={id!} />}
+          {activeTab === 'events' && <EventsTab boardId={id!} />}
+          {activeTab === 'edit' && (
+            <EditBoardForm
+              board={board}
+              boardId={id!}
+              onClose={() => setActiveTab('info')}
+              onSaved={() => {
+                setActiveTab('info');
+                qc.invalidateQueries({ queryKey: ['board', id] });
+              }}
+            />
+          )}
+        </div>
       </div>
 
       {/* Tab Switch Confirmation */}

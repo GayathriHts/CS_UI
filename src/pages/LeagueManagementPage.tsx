@@ -906,7 +906,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
             <button
               onClick={handleSubmit}
               disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !email.trim()}
-              className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn-primary px-8 py-2 text-sm"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
             </button>
@@ -1741,7 +1741,7 @@ function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClo
             <button
               onClick={handleSubmit}
               disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim()}
-              className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn-primary px-8 py-2 text-sm"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
             </button>
