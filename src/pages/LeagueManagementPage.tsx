@@ -2335,7 +2335,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
           {/* Tournament Name + Win Points */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-800 mb-1">
                 Create Tournament <span className="text-red-500">*</span>
               </label>
               <input
@@ -2345,7 +2345,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-800 mb-1">
                 Win Points for the Match <span className="text-red-500">*</span>
               </label>
               <select
@@ -2533,7 +2533,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 if (hasData) { setShowCancelConfirm(true); return; }
                 if (onClose) onClose();
               }}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
             >
               Cancel
             </button>
@@ -2549,7 +2549,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 createMutation.mutate();
               }}
               disabled={createMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
-              className="px-6 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="btn-primary text-sm px-6"
             >
               {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
             </button>
