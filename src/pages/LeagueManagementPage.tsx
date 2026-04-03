@@ -899,7 +899,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
           <div className="flex justify-end gap-2 mt-6">
             <button
               onClick={handleCancel}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
@@ -1251,8 +1251,8 @@ function UmpireListTab({ boardId }: { boardId: string }) {
           </div>
 
           <div className="flex justify-end gap-2 mt-6">
-            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
@@ -1734,7 +1734,7 @@ function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClo
           <div className="flex justify-end gap-2 mt-6">
             <button
               onClick={handleCancel}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
@@ -2036,8 +2036,8 @@ function GroundListTab() {
           </div>
 
           <div className="flex justify-end gap-2 mt-6">
-            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || updateMutation.isPending} className="px-8 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
@@ -2517,7 +2517,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
 
             <button
               onClick={addGroup}
-              className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 transition-colors"
+              className="btn-primary text-sm px-6"
             >
               + Add Group
             </button>
@@ -2945,7 +2945,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                     </div>
                     <button
                       onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
-                      className="px-6 py-2 bg-green-600 text-white rounded text-sm font-semibold hover:bg-green-700 transition-colors"
+                      className="btn-primary text-sm px-6"
                     >
                       Add
                     </button>
@@ -2976,8 +2976,8 @@ function TournamentsTab({ boardId }: { boardId: string }) {
           </div>
 
           <div className="flex justify-end gap-2 mt-6">
-            <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold hover:bg-gray-400 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editWinPoint.trim() || updateMutation.isPending} className="px-6 py-2 bg-green-700 text-white rounded text-sm font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+            <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editWinPoint.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
@@ -3887,7 +3887,7 @@ function ScheduleTab({ boardId }: { boardId: string }) {
                 if (hasData) { setShowCreateCancelConfirm(true); return; }
                 setShowCreate(false);
               }}
-              className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400 transition-colors"
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
               Cancel
             </button>
