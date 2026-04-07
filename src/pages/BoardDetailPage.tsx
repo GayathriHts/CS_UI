@@ -872,6 +872,44 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
           // Normalize: response may be { success: true, data: {...} } or direct object
           const detail = detailRaw?.data && typeof detailRaw.data === 'object' && !Array.isArray(detailRaw.data)
             ? detailRaw.data : detailRaw;
+
+          // Extract user info from nested captain/viceCaptain/coach objects to enrich user list
+          const extractUser = (obj: any) => {
+            if (!obj || typeof obj !== 'object') return null;
+            const uid = obj.id || obj.Id;
+            const fn = obj.firstName || obj.FirstName || '';
+            const ln = obj.lastName || obj.LastName || '';
+            if (!uid || (!fn && !ln)) return null;
+            return { id: uid, firstName: fn, lastName: ln, email: obj.email || obj.Email || '', userName: obj.userName || obj.UserName || '' };
+          };
+          const usersToEnrich: any[] = [];
+          [detail.captain || detail.Captain, detail.viceCaptain || detail.ViceCaptain, detail.coach || detail.Coach].forEach(obj => {
+            const u = extractUser(obj);
+            if (u) usersToEnrich.push(u);
+          });
+          const membersArr = detail.members?.$values || detail.Members?.$values || detail.members || detail.Members;
+          if (Array.isArray(membersArr)) {
+            membersArr.forEach((m: any) => {
+              const mu = extractUser(m.user || m.User || m);
+              if (mu) usersToEnrich.push(mu);
+            });
+          }
+          if (usersToEnrich.length > 0) {
+            qc.setQueryData(['usersList'], (old: any[] | undefined) => {
+              const existing = old || [];
+              const existingIds = new Set(existing.map((u: any) => u.id));
+              const newUsers = usersToEnrich.filter(u => u.id && !existingIds.has(u.id));
+              const updated = existing.map((u: any) => {
+                const enriched = usersToEnrich.find(e => e.id === u.id);
+                if (enriched && (!u.firstName || !u.lastName) && enriched.firstName) {
+                  return { ...u, firstName: enriched.firstName, lastName: enriched.lastName, userName: enriched.userName || u.userName };
+                }
+                return u;
+              });
+              return [...updated, ...newUsers];
+            });
+          }
+
           return { ...roster, ...detail };
         } catch {
           return roster;
@@ -928,6 +966,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         let last = u.lastName || u.LastName || '';
         const email = u.email || u.Email || u.emailAddress || u.EmailAddress || '';
         const uid = u.id || u.Id || u.userId || u.UserId;
+        const userName = u.userName || u.UserName || '';
         // If firstName/lastName empty, try fullName/name
         if (!first && !last) {
           const fullName = u.fullName || u.FullName || u.name || u.Name || '';
@@ -940,16 +979,15 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         // If name looks like an email, treat it as no name
         if (first.includes('@')) first = '';
         if (last.includes('@')) last = '';
-        // Use userName if no real name found
-        const userName = u.userName || u.UserName || '';
-        if (!first && !last && userName && !userName.includes('@')) {
-          first = userName;
-        }
+
+        console.log('[userList] raw user:', JSON.stringify({ uid, userName, first, last, email, rawFirstName: u.firstName, rawLastName: u.lastName }));
+
         return {
           id: uid,
-          firstName: first || email.split('@')[0] || uid,
-          lastName: last,
+          firstName: first || '',
+          lastName: last || '',
           email,
+          userName,
         };
       });
     },
@@ -1246,14 +1284,73 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         ? detailRaw.data : detailRaw;
       console.log('[startEdit] normalized detail keys:', Object.keys(detail || {}));
 
-      // Use direct ID fields from detail response, fallback to members array
+      // Extract full user objects from the roster detail response (captain, viceCaptain, coach are nested objects)
+      const captainObj = detail.captain || detail.Captain;
+      const viceCaptainObj = detail.viceCaptain || detail.ViceCaptain;
+      const coachObj = detail.coach || detail.Coach;
+
+      // Helper to extract user info from a nested object
+      const extractUserInfo = (obj: any) => {
+        if (!obj || typeof obj !== 'object') return null;
+        return {
+          id: obj.id || obj.Id || '',
+          firstName: obj.firstName || obj.FirstName || '',
+          lastName: obj.lastName || obj.LastName || '',
+          email: obj.email || obj.Email || '',
+          userName: obj.userName || obj.UserName || '',
+        };
+      };
+
+      // Enrich the rosterUserList with user info from the roster detail response
+      const enrichUsers: any[] = [];
+      const captainInfo = extractUserInfo(captainObj);
+      const viceCaptainInfo = extractUserInfo(viceCaptainObj);
+      const coachInfo = extractUserInfo(coachObj);
+      if (captainInfo?.id) enrichUsers.push(captainInfo);
+      if (viceCaptainInfo?.id) enrichUsers.push(viceCaptainInfo);
+      if (coachInfo?.id) enrichUsers.push(coachInfo);
+
+      // Use direct ID fields from detail response, fallback to nested objects, then members array
       const membersRaw = detail.members?.$values || detail.Members?.$values || detail.members || detail.Members;
       const captainFromMembers = Array.isArray(membersRaw) ? membersRaw.find((m: any) => m.role === 'Captain' || m.Role === 'Captain') : undefined;
       const viceCaptainFromMembers = Array.isArray(membersRaw) ? membersRaw.find((m: any) => m.role === 'ViceCaptain' || m.Role === 'ViceCaptain') : undefined;
       const coachFromMembers = Array.isArray(membersRaw) ? membersRaw.find((m: any) => m.role === 'Coach' || m.Role === 'Coach') : undefined;
+
+      // Extract member user details from the members array for display enrichment
+      if (Array.isArray(membersRaw)) {
+        membersRaw.forEach((m: any) => {
+          const memberUser = m.user || m.User;
+          const memberInfo = extractUserInfo(memberUser);
+          if (memberInfo?.id) {
+            enrichUsers.push(memberInfo);
+          } else if (m.userId || m.UserId) {
+            // At least track the userId
+            enrichUsers.push({ id: m.userId || m.UserId, firstName: '', lastName: '', email: '', userName: '' });
+          }
+        });
+      }
+
+      // Merge enriched users into the query cache for rosterUserList
+      if (enrichUsers.length > 0) {
+        qc.setQueryData(['usersList'], (old: any[] | undefined) => {
+          const existing = old || [];
+          const existingIds = new Set(existing.map((u: any) => u.id));
+          const newUsers = enrichUsers.filter(u => u.id && !existingIds.has(u.id) && u.firstName);
+          // Also update existing users that have empty names with real names from roster detail
+          const updated = existing.map((u: any) => {
+            const enriched = enrichUsers.find(e => e.id === u.id);
+            if (enriched && (!u.firstName || !u.lastName) && enriched.firstName) {
+              return { ...u, firstName: enriched.firstName, lastName: enriched.lastName, userName: enriched.userName || u.userName };
+            }
+            return u;
+          });
+          return [...updated, ...newUsers];
+        });
+      }
+
       const membersFromArray = Array.isArray(membersRaw)
         ? membersRaw.filter((m: any) => (m.role || m.Role) === 'Member' || (m.role || m.Role) === 'Player')
-            .map((m: any) => m.userId || m.UserId || m.id || m.Id || m.userName || m.UserName)
+            .map((m: any) => m.userId || m.UserId || m.id || m.Id)
             .filter(Boolean)
         : [];
 
@@ -1283,14 +1380,19 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       const finalMembers = playerIds.length > 0 ? playerIds : membersFromArray.length > 0 ? membersFromArray : cachedMembers;
       const finalLeagueIds = leagueBoardIds.length > 0 ? leagueBoardIds : (Array.isArray(roster.leagueBoardIds) ? roster.leagueBoardIds : []);
 
-      console.log('[startEdit] resolved — members:', finalMembers, 'leagueBoards:', finalLeagueIds);
+      // Resolve IDs: prefer nested object id, then captainId field, then members array
+      const resolvedCaptainId = captainInfo?.id || detail.captainId || detail.CaptainId || captainFromMembers?.userId || captainFromMembers?.UserId || '';
+      const resolvedViceCaptainId = viceCaptainInfo?.id || detail.viceCaptainId || detail.ViceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.UserId || '';
+      const resolvedCoachId = coachInfo?.id || detail.coachId || detail.CoachId || coachFromMembers?.userId || coachFromMembers?.UserId || '';
+
+      console.log('[startEdit] resolved — captain:', resolvedCaptainId, 'vc:', resolvedViceCaptainId, 'coach:', resolvedCoachId, 'members:', finalMembers, 'leagueBoards:', finalLeagueIds);
 
       setShowCreateForm(true);
       setFormData({
         rosterName: detail.name || detail.Name || roster.name || '',
-        captain: detail.captainId || detail.CaptainId || captainFromMembers?.userId || captainFromMembers?.UserId || '',
-        viceCaptain: detail.viceCaptainId || detail.ViceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.UserId || '',
-        coach: detail.coachId || detail.CoachId || coachFromMembers?.userId || coachFromMembers?.UserId || '',
+        captain: resolvedCaptainId,
+        viceCaptain: resolvedViceCaptainId,
+        coach: resolvedCoachId,
         members: finalMembers,
         leagueBoardIds: finalLeagueIds,
       });
@@ -1381,19 +1483,22 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   // Helper to resolve user ID to display name
   const getUserDisplay = (userId: string) => {
     if (!userId) return '';
-    const user = (rosterUserList || []).find((u: any) => u.id === userId);
+    const user = (rosterUserList || []).find((u: any) =>
+      u.id === userId || u.userName === userId || u.email === userId
+    );
     if (!user) return userId;
     const first = (user.firstName || '').trim();
     const last = (user.lastName || '').trim();
     const email = (user.email || '').trim();
     const fullName = `${first} ${last}`.trim();
-    // If the name looks like an email or is the same as the email, just show the email username
-    const isNameAnEmail = fullName.includes('@');
-    if (isNameAnEmail || !fullName) {
-      // Show readable part of email
-      return email ? email.split('@')[0] : userId;
+    // Return real name if available and not an email
+    if (fullName && !fullName.includes('@')) {
+      return fullName;
     }
-    return fullName;
+    // Fall back to userName only if it doesn't look like an email
+    if (user.userName && !user.userName.includes('@')) return user.userName;
+    // Fall back to email prefix
+    return email ? email.split('@')[0] : userId;
   };
 
   const handleAddMember = (userId?: string) => {
@@ -1424,10 +1529,11 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const renderSearchDropdown = (field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
     if (activeSearchField !== field) return null;
+    const matchesUser = (u: any, value: string) => u.id === value || u.userName === value;
     const filtered = (rosterUserList || []).filter((u: any) =>
-      !formData.members.includes(u.id) &&
-      u.id !== formData.captain && u.id !== formData.viceCaptain && u.id !== formData.coach &&
-      (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
+      !formData.members.some(m => matchesUser(u, m)) &&
+      !matchesUser(u, formData.captain) && !matchesUser(u, formData.viceCaptain) && !matchesUser(u, formData.coach) &&
+      (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email} ${u.userName}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
     );
     return (
       <>
@@ -1450,7 +1556,10 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             ) : filtered.length === 0 ? (
               <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
             ) : (
-              filtered.map((u: any) => (
+              filtered.map((u: any) => {
+                const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id);
+                const initial = (u.firstName?.[0] || u.userName?.[0] || '?').toUpperCase();
+                return (
                 <button
                   key={u.id}
                   onClick={() => {
@@ -1464,14 +1573,15 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
                 >
                   <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                    {u.firstName?.[0]}
+                    {initial}
                   </div>
                   <div className="min-w-0">
-                    <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
+                    <span className="block font-medium text-gray-900">{displayName}</span>
                     {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
                   </div>
                 </button>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -1640,15 +1750,16 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                           {rosterUsersLoading ? (
                             <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
                           ) : (() => {
+                            const matchesUser = (u: any, value: string) => u.id === value || u.userName === value;
                             const filtered = (rosterUserList || []).filter((u: any) =>
-                              u.id !== formData.captain && u.id !== formData.viceCaptain && u.id !== formData.coach &&
-                              (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
+                              !matchesUser(u, formData.captain) && !matchesUser(u, formData.viceCaptain) && !matchesUser(u, formData.coach) &&
+                              (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email} ${u.userName}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
                             );
                             return filtered.length === 0 ? (
                               <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
                             ) : (
                               filtered.map((u: any) => {
-                                const isSelected = formData.members.includes(u.id);
+                                const isSelected = formData.members.includes(u.id) || formData.members.includes(u.userName);
                                 return (
                                   <button
                                     key={u.id}
@@ -1669,10 +1780,10 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                                       className="w-4 h-4 text-brand-green border-gray-300 rounded focus:ring-brand-green accent-brand-green"
                                     />
                                     <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                                      {u.firstName?.[0]}
+                                      {(u.firstName?.[0] || u.userName?.[0] || '?').toUpperCase()}
                                     </div>
                                     <div className="min-w-0">
-                                      <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
+                                      <span className="block font-medium text-gray-900">{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id)}</span>
                                       {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
                                     </div>
                                   </button>
@@ -1838,24 +1949,24 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
           {/* Roster Details */}
           <div className="space-y-3 border-t pt-4">
             {/* Captain */}
-            {roster.captainId && (
+            {(roster.captain?.id || roster.captainId) && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">👑 Captain</span>
-                <span className="text-sm text-gray-800">{getUserDisplay(roster.captainId)}</span>
+                <span className="text-sm text-gray-800">{getUserDisplay(roster.captain?.id || roster.captainId)}</span>
               </div>
             )}
             {/* Vice Captain */}
-            {roster.viceCaptainId && (
+            {(roster.viceCaptain?.id || roster.viceCaptainId) && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">⭐ Vice Captain</span>
-                <span className="text-sm text-gray-800">{getUserDisplay(roster.viceCaptainId)}</span>
+                <span className="text-sm text-gray-800">{getUserDisplay(roster.viceCaptain?.id || roster.viceCaptainId)}</span>
               </div>
             )}
             {/* Coach */}
-            {roster.coachId && (
+            {(roster.coach?.id || roster.coachId) && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">📋 Coach</span>
-                <span className="text-sm text-gray-800">{getUserDisplay(roster.coachId)}</span>
+                <span className="text-sm text-gray-800">{getUserDisplay(roster.coach?.id || roster.coachId)}</span>
               </div>
             )}
             {/* Players */}
