@@ -1511,7 +1511,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       homeTeam: homeTeam,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['grounds'] });
+      qc.invalidateQueries({ queryKey: ['grounds', boardId] });
       resetForm();
       setSuccessMsg('Ground created successfully!');
       setErrorMsg('');
@@ -1831,23 +1831,24 @@ function GroundListTab({ boardId }: { boardId: string }) {
   }, [editCountry, editState]);
 
   const { data: grounds, isLoading } = useQuery({
-    queryKey: ['grounds'],
-    queryFn: () => leagueService.getGrounds().then(r => {
+    queryKey: ['grounds', boardId],
+    queryFn: () => leagueService.getGrounds(boardId).then(r => {
       const d = r.data;
       return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
     }),
+    enabled: !!boardId,
   });
   const groundList = Array.isArray(grounds) ? grounds : [];
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => leagueService.deleteGround(id),
+    mutationFn: (id: string) => leagueService.deleteGround(boardId, id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['grounds'] });
+      qc.invalidateQueries({ queryKey: ['grounds', boardId] });
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => leagueService.updateGround(editId!, {
+    mutationFn: () => leagueService.updateGround(boardId, editId!, {
       id: editId!,
       groundId: editId!,
       groundName: editName,
@@ -1861,7 +1862,7 @@ function GroundListTab({ boardId }: { boardId: string }) {
       homeTeam: editHomeTeam,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['grounds'] });
+      qc.invalidateQueries({ queryKey: ['grounds', boardId] });
       setEditId(null);
       setUpdateError('');
       setUpdateSuccess('Ground updated successfully!');
@@ -3328,11 +3329,12 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const normalizedUsers = Array.isArray(userList) ? userList : [];
 
   const { data: grounds } = useQuery({
-    queryKey: ['grounds'],
-    queryFn: () => leagueService.getGrounds().then(r => {
+    queryKey: ['grounds', boardId],
+    queryFn: () => leagueService.getGrounds(boardId).then(r => {
       const d = r.data;
       return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
     }),
+    enabled: !!boardId,
   });
   const { data: umpires } = useQuery({
     queryKey: ['umpires', boardId],

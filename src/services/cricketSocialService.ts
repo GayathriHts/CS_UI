@@ -478,14 +478,14 @@ export const leagueService = {
       landmark: data.landmark ?? '',
       homeTeam: data.homeTeam ?? '',
     }),
-  getGrounds: (page = 1, pageSize = 100) => umpireApi.get('/Ground', { params: { page, pageSize } }),
-  updateGround: (groundId: string, data: {
+  getGrounds: (boardId: string, page = 1, pageSize = 100) => umpireApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
+  updateGround: (boardId: string, groundId: string, data: {
     id: string; groundId: string; groundName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     landmark: string; homeTeam: string;
   }) =>
-    umpireApi.put(`/Ground/${groundId}`, data),
-  deleteGround: (groundId: string) => umpireApi.delete(`/Ground/${groundId}`),
+    umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, data),
+  deleteGround: (boardId: string, groundId: string) => umpireApi.delete(`/boards/${boardId}/Ground/${groundId}`),
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
   getSchedule: (boardId: string, from: string, to: string) =>
