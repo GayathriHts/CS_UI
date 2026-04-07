@@ -172,10 +172,12 @@ export const boardService = {
 
 // ── Rosters ──
 // Endpoints: POST/GET /boards/{boardId}/Rosters, GET/PUT/DELETE /boards/{boardId}/Rosters/{rosterId}
+const DEFAULT_LOGO_URL = 'https://cricketsocial.com/default-logo.png';
+
 export const rosterService = {
   create: (boardId: string, data: {
     name: string;
-    logoUrl?: string;
+    logoUrl?: string | null;
     captainId?: string;
     viceCaptainId?: string;
     coachId?: string;
@@ -183,7 +185,7 @@ export const rosterService = {
     leagueBoardIds?: string[];
   }) => boardApi.post(`/boards/${boardId}/Rosters`, {
     name: data.name,
-    logoUrl: data.logoUrl || ' ',
+    logoUrl: data.logoUrl || DEFAULT_LOGO_URL,
     boardId,
     captainId: data.captainId || '',
     viceCaptainId: data.viceCaptainId || '',
@@ -195,7 +197,7 @@ export const rosterService = {
   getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
   update: (boardId: string, rosterId: string, data: {
     name: string;
-    logoUrl?: string;
+    logoUrl?: string | null;
     captainId?: string;
     viceCaptainId?: string;
     coachId?: string;
@@ -203,7 +205,7 @@ export const rosterService = {
     leagueBoardIds?: string[];
   }) => boardApi.put(`/boards/${boardId}/Rosters/${rosterId}`, {
     name: data.name,
-    ...(data.logoUrl ? { logoUrl: data.logoUrl } : {}),
+    logoUrl: data.logoUrl || DEFAULT_LOGO_URL,
     boardId,
     captainId: data.captainId || '',
     viceCaptainId: data.viceCaptainId || '',

@@ -741,13 +741,14 @@ interface RosterFormData {
   coach: string;
   members: string[];
   leagueBoardIds: string[];
+  logoUrl?: string;
 }
 
 function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RosterFormData>({
-    rosterName: '', captain: '', viceCaptain: '', coach: '', members: [], leagueBoardIds: [],
+    rosterName: '', captain: '', viceCaptain: '', coach: '', members: [], leagueBoardIds: [], logoUrl: '',
   });
   const [newMember, setNewMember] = useState('');
   const [activeSearchField, setActiveSearchField] = useState<'captain' | 'viceCaptain' | 'coach' | 'member' | null>(null);
@@ -930,6 +931,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       try {
         const createRes = await rosterService.create(boardId, {
           name: data.rosterName,
+          logoUrl: data.logoUrl || undefined,
           captainId: data.captain,
           viceCaptainId: data.viceCaptain,
           coachId: data.coach,
@@ -950,7 +952,13 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         throw err;
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (res: any) => {
+      // Store the created rosterId in sessionStorage for future reference
+      const createdData = res?.data?.data || res?.data;
+      const newRosterId = createdData?.id || createdData?.Id || createdData?.rosterId;
+      if (newRosterId) {
+        sessionStorage.setItem('lastCreatedRosterId', newRosterId);
+      }
       showSuccess('Roster created successfully!');
       qc.invalidateQueries({ queryKey: ['board', boardId] });
       // Fetch updated list BEFORE closing the form to avoid flash of empty state
@@ -989,8 +997,14 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const updateRosterMutation = useMutation({
     mutationFn: (data: RosterFormData & { rosterId: string }) => {
-      return rosterService.update(boardId, data.rosterId, {
+      // Use rosterId from param, fallback to sessionStorage
+      const rosterId = data.rosterId || sessionStorage.getItem('editingRosterId') || '';
+      if (!rosterId) {
+        return Promise.reject(new Error('Roster ID is missing'));
+      }
+      return rosterService.update(boardId, rosterId, {
         name: data.rosterName,
+        logoUrl: data.logoUrl || undefined,
         captainId: data.captain,
         viceCaptainId: data.viceCaptain,
         coachId: data.coach,
@@ -1015,11 +1029,28 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   });
 
   const deleteRosterMutation = useMutation({
-    mutationFn: (rosterId: string) => rosterService.delete(boardId, rosterId),
+    mutationFn: (rosterId: string) => {
+      if (!rosterId) {
+        return Promise.reject(new Error('Roster ID is missing'));
+      }
+      return rosterService.delete(boardId, rosterId);
+    },
+    onMutate: async (rosterId: string) => {
+      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      await qc.cancelQueries({ queryKey: ['squad', boardId] });
+      // Snapshot the previous value
+      const previousSquads = qc.getQueryData(['squad', boardId]);
+      // Optimistically remove the roster from the list
+      qc.setQueryData(['squad', boardId], (old: any[] | undefined) =>
+        (old || []).filter((r: any) => (r.id || r.Id) !== rosterId)
+      );
+      return { previousSquads };
+    },
     onSuccess: async () => {
       setDeleteConfirmId(null);
       showSuccess('Roster deleted successfully!');
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+      // Refetch to ensure server state is in sync
       try {
         const rosters = await fetchRosterList();
         qc.setQueryData(['squad', boardId], rosters);
@@ -1027,7 +1058,12 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         await qc.refetchQueries({ queryKey: ['squad', boardId] });
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, _rosterId: string, context: any) => {
+      // Rollback optimistic update on error
+      if (context?.previousSquads) {
+        qc.setQueryData(['squad', boardId], context.previousSquads);
+      }
+      setDeleteConfirmId(null);
       showError(error?.response?.data?.message || error?.response?.data?.title || 'Failed to delete roster.');
     },
   });
@@ -1041,6 +1077,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     setRosterFieldSearch('');
     setActiveSearchField(null);
     setErrors({});
+    sessionStorage.removeItem('editingRosterId');
     onDirtyChange?.(false);
   };
 
@@ -1052,6 +1089,8 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
     setEditLoading(true);
     setEditingRosterId(rid);
+    // Store rosterId in sessionStorage for the update call
+    sessionStorage.setItem('editingRosterId', rid);
 
     try {
       // Call GET /boards/{boardId}/Rosters/{rosterId} to fetch fresh details
@@ -1075,6 +1114,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         coach: detail.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
         members: detail.playerIds || membersFromArray,
         leagueBoardIds: detail.leagueBoardIds || [],
+        logoUrl: detail.logoUrl || detail.LogoUrl || roster.logoUrl || '',
       });
     } catch {
       // Fallback to cached roster data if API call fails
@@ -1091,6 +1131,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         coach: roster.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
         members: roster.playerIds || membersFromArray,
         leagueBoardIds: roster.leagueBoardIds || [],
+        logoUrl: roster.logoUrl || roster.LogoUrl || '',
       });
     } finally {
       setEditLoading(false);
@@ -1589,10 +1630,10 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {deleteConfirmId === roster.id ? (
+              {deleteConfirmId === (roster.id || roster.Id) ? (
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-red-600">Delete?</span>
-                  <button onClick={() => deleteRosterMutation.mutate(roster.id)} disabled={deleteRosterMutation.isPending}
+                  <button onClick={() => deleteRosterMutation.mutate(roster.id || roster.Id)} disabled={deleteRosterMutation.isPending}
                     className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600">Yes</button>
                   <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">No</button>
                 </div>
@@ -1607,7 +1648,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                       </svg>
                     )}
                   </button>
-                  <button onClick={() => setDeleteConfirmId(roster.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
+                  <button onClick={() => setDeleteConfirmId(roster.id || roster.Id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
