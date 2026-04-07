@@ -407,7 +407,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         </div>
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-          <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field" rows={3} />
+          <textarea value={description} maxLength={1000} onChange={(e) => setDescription(e.target.value)} className="input-field resize-none" rows={3} />
         </div>
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
