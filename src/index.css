@@ -39,7 +39,7 @@
   }
   .sidebar-item-active {
     @apply flex items-center gap-4 px-4 py-3.5 rounded-lg cursor-pointer
-           bg-brand-green text-white;
+           bg-transparent text-brand-green font-semibold;
   }
 }
 
