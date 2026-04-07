@@ -1295,9 +1295,15 @@ function UmpireListTab({ boardId }: { boardId: string }) {
                           <td className="py-3">{u.city || '-'}</td>
                           <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
-                          <td className="py-3 space-x-2">
-                            <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                            <button onClick={() => setDeleteConfirmId(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button onClick={() => setDeleteConfirmId(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700" title="Delete">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1317,9 +1323,13 @@ function UmpireListTab({ boardId }: { boardId: string }) {
                     <div key={uid} className={`border rounded-lg p-4 ${editId === uid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-medium text-gray-800">{u.umpireName || u.name || '-'}</h3>
-                        <div className="space-x-2">
-                          <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => setDeleteConfirmId(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(uid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700" title="Delete">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
@@ -2086,9 +2096,15 @@ function GroundListTab({ boardId }: { boardId: string }) {
                           <td className="py-3">{g.state || '-'}</td>
                           <td className="py-3">{g.city || '-'}</td>
                           <td className="py-3">{g.homeTeam || '-'}</td>
-                          <td className="py-3 space-x-2">
-                            <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                            <button onClick={() => setDeleteConfirmId(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button onClick={() => setDeleteConfirmId(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700" title="Delete">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -2111,9 +2127,13 @@ function GroundListTab({ boardId }: { boardId: string }) {
                           <span className="text-xl">🏟️</span>
                           <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
                         </div>
-                        <div className="space-x-2">
-                          <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => setDeleteConfirmId(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(gid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700" title="Delete">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       </div>
                     <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
@@ -3028,9 +3048,15 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                               {t.active === 0 ? 'Inactive' : 'Active'}
                             </span>
                           </td>
-                          <td className="py-3 space-x-2">
-                            <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                            <button onClick={() => setDeleteConfirmId(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                          <td className="py-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                              </button>
+                              <button onClick={() => setDeleteConfirmId(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700" title="Delete">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -3051,9 +3077,13 @@ function TournamentsTab({ boardId }: { boardId: string }) {
                     <div key={tid} className={`border rounded-lg p-4 ${editId === tid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-medium text-gray-800">{t.tournamentName || t.name || '-'}</h3>
-                        <div className="space-x-2">
-                          <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
-                          <button onClick={() => setDeleteConfirmId(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700 text-xs font-medium">Delete</button>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(tid)} disabled={deleteMutation.isPending} className="text-red-500 hover:text-red-700" title="Delete">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
