@@ -16,11 +16,11 @@ export async function fetchCountries(): Promise<string[]> {
   if (!res.ok) throw new Error('Failed to fetch countries');
   const json = await res.json();
   if (json.error) throw new Error(json.msg || 'API error');
-  const countries: string[] = json.data.map((c: { name: string }) => c.name).filter((n: string) => ALLOWED_COUNTRIES.includes(n)).sort();
+  const countries: string[] = json.data.map((c: { name: string }) => c.name).filter((n: string) => ALLOWED_COUNTRIES.includes(n)).sort((a: string, b: string) => a.localeCompare(b));
   cache.countries = countries;
   // Also cache states from this same response
   for (const c of json.data) {
-    const stateNames: string[] = (c.states || []).map((s: { name: string }) => s.name).sort();
+    const stateNames: string[] = [...new Set((c.states || []).map((s: { name: string }) => s.name) as string[])].sort((a, b) => a.localeCompare(b));
     cache.states[c.name] = stateNames;
   }
   return countries;
@@ -38,7 +38,7 @@ export async function fetchStates(country: string): Promise<string[]> {
   if (!res.ok) return [];
   const json = await res.json();
   if (json.error) return [];
-  const states: string[] = (json.data?.states || []).map((s: { name: string }) => s.name).sort();
+  const states: string[] = [...new Set((json.data?.states || []).map((s: { name: string }) => s.name) as string[])].sort((a, b) => a.localeCompare(b));
   cache.states[country] = states;
   return states;
 }
@@ -55,7 +55,7 @@ export async function fetchCities(country: string, state: string): Promise<strin
   if (!res.ok) return [];
   const json = await res.json();
   if (json.error) return [];
-  const cities: string[] = (json.data || []).filter((c: string) => c).sort();
+  const cities: string[] = [...new Set((json.data || []).filter((c: string) => c) as string[])].sort((a, b) => a.localeCompare(b));
   cache.cities[key] = cities;
   return cities;
 }
