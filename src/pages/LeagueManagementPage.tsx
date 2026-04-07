@@ -44,8 +44,12 @@ export default function LeagueManagementPage() {
   const { boardId } = useParams<{ boardId: string }>();
   const [activeTab, setActiveTab] = useState<LeagueTab>('dashboard');
   const [expandedSections, setExpandedSections] = useState<SidebarSection[]>([]);
+  const [pendingNav, setPendingNav] = useState<{ tab: LeagueTab; section: SidebarSection } | null>(null);
+  const dirtyRef = useRef(false);
   const qc = useQueryClient();
   const { data: board } = useQuery({ queryKey: ['board', boardId], queryFn: () => boardService.getById(boardId!).then(r => r.data), enabled: !!boardId });
+
+  const onDirtyChange = (dirty: boolean) => { dirtyRef.current = dirty; };
 
   const toggleSection = (section: SidebarSection) => {
     setExpandedSections(prev =>
@@ -54,9 +58,25 @@ export default function LeagueManagementPage() {
   };
 
   const handleTabClick = (tab: LeagueTab, section: SidebarSection) => {
+    if (tab === activeTab) return;
+    if (dirtyRef.current) {
+      setPendingNav({ tab, section });
+      return;
+    }
     setActiveTab(tab);
     if (!expandedSections.includes(section)) {
       setExpandedSections(prev => [...prev, section]);
+    }
+  };
+
+  const confirmNavigation = () => {
+    if (pendingNav) {
+      dirtyRef.current = false;
+      setActiveTab(pendingNav.tab);
+      if (!expandedSections.includes(pendingNav.section)) {
+        setExpandedSections(prev => [...prev, pendingNav.section]);
+      }
+      setPendingNav(null);
     }
   };
 
@@ -130,10 +150,10 @@ export default function LeagueManagementPage() {
         {/* Content */}
         <div className={`ml-64 flex-1 ${activeTab === 'edit' ? '' : 'p-6'}`}>
           {activeTab === 'dashboard' && <LeagueLandingTab boardId={boardId!} />}
-          {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} />}
-          {activeTab === 'ground-list' && <GroundListTab boardId={boardId!} />}
-          {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} />}
-          {activeTab === 'schedule' && <ScheduleTab boardId={boardId!} />}
+          {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} onDirtyChange={onDirtyChange} />}
+          {activeTab === 'ground-list' && <GroundListTab boardId={boardId!} onDirtyChange={onDirtyChange} />}
+          {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} onDirtyChange={onDirtyChange} />}
+          {activeTab === 'schedule' && <ScheduleTab boardId={boardId!} onDirtyChange={onDirtyChange} />}
           {activeTab === 'cancel-game' && <CancelGameTab boardId={boardId!} />}
           {activeTab === 'applications' && <ApplicationsTab boardId={boardId!} />}
           {activeTab === 'invoices' && <InvoicesTab boardId={boardId!} />}
@@ -150,6 +170,26 @@ export default function LeagueManagementPage() {
           )}
         </div>
       </div>
+
+      {/* Unsaved changes warning modal */}
+      {pendingNav && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPendingNav(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center mb-3">
+                <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Unsaved Changes</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to leave? Any unsaved data will be lost.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setPendingNav(null)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">Stay</button>
+                <button onClick={confirmNavigation} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Discard & Leave</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -938,7 +978,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
 }
 
 // ── UMPIRE LIST TAB ──
-function UmpireListTab({ boardId }: { boardId: string }) {
+function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -996,6 +1036,8 @@ function UmpireListTab({ boardId }: { boardId: string }) {
     setCitiesLoading(true);
     fetchCities(editCountry, editState).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
   }, [editCountry, editState]);
+
+  useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
 
   const { data: umpires, isLoading } = useQuery({
     queryKey: ['umpires', boardId],
@@ -1790,7 +1832,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 }
 
 // ── GROUND LIST TAB ──
-function GroundListTab({ boardId }: { boardId: string }) {
+function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -1839,6 +1881,8 @@ function GroundListTab({ boardId }: { boardId: string }) {
     setCitiesLoading(true);
     fetchCities(editCountry, editState).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
   }, [editCountry, editState]);
+
+  useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
 
   const { data: grounds, isLoading } = useQuery({
     queryKey: ['grounds', boardId],
@@ -2209,7 +2253,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const [name, setName] = useState('');
   const [winPoints, setWinPoints] = useState('2');
   const [umpireOption, setUmpireOption] = useState<'list' | 'buddy'>('list');
-  const [groups, setGroups] = useState<TrophyGroup[]>([{ name: 'group A', teamIds: [] }]);
+  const [groups, setGroups] = useState<TrophyGroup[]>([{ name: '', teamIds: [] }]);
   const [teamSearches, setTeamSearches] = useState<string[]>(['']);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -2295,7 +2339,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
       qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
-      setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']);
+      setName(''); setWinPoints('2'); setGroups([{ name: '', teamIds: [] }]); setTeamSearches(['']);
       setSuccessMsg('Tournament created successfully!');
       setErrorMsg('');
       setTimeout(() => { setSuccessMsg(''); if (onClose) onClose(); }, 4000);
@@ -2307,8 +2351,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   });
 
   const addGroup = () => {
-    const letter = String.fromCharCode(65 + groups.length);
-    setGroups([...groups, { name: `group ${letter}`, teamIds: [] }]);
+    setGroups([...groups, { name: '', teamIds: [] }]);
     setTeamSearches([...teamSearches, '']);
   };
 
@@ -2554,7 +2597,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
           <div className="flex justify-end gap-2 mt-6">
             <button
               onClick={() => {
-                const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== 'group A' || g.teamIds.length > 0) || groups.length > 1;
+                const hasData = name.trim() || winPoints !== '2' || groups.some(g => g.name.trim() !== '' || g.teamIds.length > 0) || groups.length > 1;
                 if (hasData) { setShowCancelConfirm(true); return; }
                 if (onClose) onClose();
               }}
@@ -2597,7 +2640,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
               <div className="flex gap-3 w-full">
                 <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
-                <button onClick={() => { setShowCancelConfirm(false); setName(''); setWinPoints('2'); setGroups([{ name: 'group A', teamIds: [] }]); setTeamSearches(['']); setErrorMsg(''); setSuccessMsg(''); if (onClose) onClose(); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
+                <button onClick={() => { setShowCancelConfirm(false); setName(''); setWinPoints('2'); setGroups([{ name: '', teamIds: [] }]); setTeamSearches(['']); setErrorMsg(''); setSuccessMsg(''); if (onClose) onClose(); }} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
               </div>
             </div>
           </div>
@@ -2640,7 +2683,7 @@ function CancelGameTab({ boardId }: { boardId: string }) {
 }
 
 // ── TOURNAMENTS TAB ──
-function TournamentsTab({ boardId }: { boardId: string }) {
+function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [showCreate, setShowCreate] = useState(false);
@@ -2657,6 +2700,8 @@ function TournamentsTab({ boardId }: { boardId: string }) {
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
 
   // Fetch tournaments from GET /api/v{version}/Tournament (umpireApi)
   const { data: tournaments, isLoading } = useQuery({
@@ -3153,7 +3198,7 @@ function TournamentsTab({ boardId }: { boardId: string }) {
 }
 
 // ── SCHEDULE TAB ──
-function ScheduleTab({ boardId }: { boardId: string }) {
+function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const today = new Date();
   const user = useAuthStore((s) => s.user);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -3223,6 +3268,8 @@ function ScheduleTab({ boardId }: { boardId: string }) {
   const [selectedEditUmpire, setSelectedEditUmpire] = useState<{ id: string; name: string; email?: string } | null>(null);
   const [selectedEditAppScorer, setSelectedEditAppScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
   const [selectedEditPortalScorer, setSelectedEditPortalScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
+
+  useEffect(() => { onDirtyChange?.(showCreate || !!editMatchId); }, [showCreate, editMatchId]);
 
   const qc = useQueryClient();
   const { data: matches } = useQuery({
