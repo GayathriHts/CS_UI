@@ -131,7 +131,7 @@ export default function LeagueManagementPage() {
         <div className={`ml-64 flex-1 ${activeTab === 'edit' ? '' : 'p-6'}`}>
           {activeTab === 'dashboard' && <LeagueLandingTab boardId={boardId!} />}
           {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} />}
-          {activeTab === 'ground-list' && <GroundListTab />}
+          {activeTab === 'ground-list' && <GroundListTab boardId={boardId!} />}
           {activeTab === 'tournaments' && <TournamentsTab boardId={boardId!} />}
           {activeTab === 'schedule' && <ScheduleTab boardId={boardId!} />}
           {activeTab === 'cancel-game' && <CancelGameTab boardId={boardId!} />}
@@ -1387,7 +1387,7 @@ function UmpireListTab({ boardId }: { boardId: string }) {
 }
 
 // ── CREATE GROUND TAB ──
-function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClose?: () => void }) {
+function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onCreated?: () => void; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [address1, setAddress1] = useState('');
   const [address2, setAddress2] = useState('');
@@ -1437,20 +1437,22 @@ function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClo
     fetchCities(country, state).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
   }, [country, state]);
 
-  // Fetch user's boards/teams for home team dropdown
+  // Fetch user's boards/teams for home team dropdown — only boardType 1 (Team)
   const { data: boardsList, isLoading: boardsLoading } = useQuery({
-    queryKey: ['boardsByOwner', user?.id],
+    queryKey: ['boardsByOwner', user?.id, 'type1'],
     queryFn: async () => {
       try {
         const stored = sessionStorage.getItem('recentBoards');
         if (stored) {
           const parsed = JSON.parse(stored);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((b: any) => ({
-              id: b.id || b.Id || b.boardId || '',
-              name: b.name || b.boardName || b.Name || '',
-              logoUrl: b.logoUrl || '',
-            }));
+            return parsed
+              .filter((b: any) => b.boardType === 1 || b.boardType === 'Team')
+              .map((b: any) => ({
+                id: b.id || b.Id || b.boardId || '',
+                name: b.name || b.boardName || b.Name || '',
+                logoUrl: b.logoUrl || '',
+              }));
           }
         }
       } catch {}
@@ -1471,7 +1473,11 @@ function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClo
       const merged: any[] = [];
       for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
         const id = b.id || b.Id || b.boardId || '';
-        if (id && !seen.has(id)) { seen.add(id); merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' }); }
+        const boardType = b.boardType || b.BoardType;
+        if (id && !seen.has(id) && (boardType === 1 || boardType === 'Team')) {
+          seen.add(id);
+          merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' });
+        }
       }
       return merged;
     },
@@ -1492,7 +1498,9 @@ function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClo
   };
 
   const createMutation = useMutation({
-    mutationFn: () => leagueService.createGround({
+    mutationFn: () => boardService.createBoardGround(boardId, {
+      boardId: boardId,
+      groundId: crypto.randomUUID(),
       groundName: name,
       address1: address1,
       address2: address2,
@@ -1773,7 +1781,7 @@ function CreateGroundTab({ onCreated, onClose }: { onCreated?: () => void; onClo
 }
 
 // ── GROUND LIST TAB ──
-function GroundListTab() {
+function GroundListTab({ boardId }: { boardId: string }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -1908,7 +1916,7 @@ function GroundListTab() {
 
       {showCreate && (
         <div className="mb-6">
-          <CreateGroundTab onClose={() => setShowCreate(false)} />
+          <CreateGroundTab boardId={boardId} onClose={() => setShowCreate(false)} />
         </div>
       )}
 

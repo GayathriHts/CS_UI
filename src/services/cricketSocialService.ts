@@ -434,6 +434,12 @@ export const boardDetailService = {
   // Grounds (league boards)
   getBoardGrounds: (boardId: string, page = 1, pageSize = 20) =>
     boardApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
+  createBoardGround: (boardId: string, data: {
+    boardId: string; groundId: string; groundName: string;
+    address1?: string; address2?: string; city?: string; state?: string;
+    country?: string; zipcode?: string; landmark?: string; homeTeam?: string;
+  }) =>
+    boardApi.post(`/boards/${boardId}/Ground`, data),
 };
 
 // ── League Management ──

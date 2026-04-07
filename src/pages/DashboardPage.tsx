@@ -421,7 +421,7 @@ export default function DashboardPage() {
                 title={sidebarCollapsed ? item.label : undefined}
               >
                 {item.iconImg && <img src={item.iconImg} alt="" className="w-10 h-10 object-contain" />}
-                {!sidebarCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+                {!sidebarCollapsed && <span className="font-medium" style={{ fontSize: '22px' }}>{item.label}</span>}
               </button>
             ))}
           </nav>
