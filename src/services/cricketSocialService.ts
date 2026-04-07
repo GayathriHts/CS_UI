@@ -461,11 +461,12 @@ export const leagueService = {
   deleteUmpire: (umpireId: string) => umpireApi.delete(`/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
-    groundName: string; address1?: string; address2?: string;
+    boardId: string; groundName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     landmark?: string; homeTeam?: string;
   }) =>
-    umpireApi.post('/Ground', {
+    umpireApi.post(`/boards/${data.boardId}/Ground`, {
+      boardId: data.boardId,
       groundId: crypto.randomUUID(),
       groundName: data.groundName,
       address1: data.address1 ?? '',

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { boardService, leagueService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
+import { boardService, boardDetailService, leagueService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
 import { fetchCountries, fetchStates, fetchCities, fetchCountryPhoneCodes } from '../services/locationService';
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
 import { useAuthStore } from '../store/slices/authStore';
@@ -1498,9 +1498,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   };
 
   const createMutation = useMutation({
-    mutationFn: () => boardService.createBoardGround(boardId, {
+    mutationFn: () => leagueService.createGround({
       boardId: boardId,
-      groundId: crypto.randomUUID(),
       groundName: name,
       address1: address1,
       address2: address2,
@@ -2069,10 +2068,9 @@ function GroundListTab({ boardId }: { boardId: string }) {
                   <thead>
                     <tr className="border-b text-left text-gray-700 font-bold text-sm">
                       <th className="pb-3">Ground Name</th>
-                      <th className="pb-3">City</th>
-                      <th className="pb-3">State</th>
                       <th className="pb-3">Country</th>
-                      <th className="pb-3">Address</th>
+                      <th className="pb-3">State</th>
+                      <th className="pb-3">City</th>
                       <th className="pb-3">Home Team</th>
                       <th className="pb-3">Actions</th>
                     </tr>
@@ -2083,10 +2081,9 @@ function GroundListTab({ boardId }: { boardId: string }) {
                       return (
                         <tr key={gid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === gid ? 'bg-blue-50' : ''}`}>
                           <td className="py-3 font-medium">{g.groundName || '-'}</td>
-                          <td className="py-3">{g.city || '-'}</td>
-                          <td className="py-3">{g.state || '-'}</td>
                           <td className="py-3">{g.country || '-'}</td>
-                          <td className="py-3 text-xs">{g.address1 || '-'}</td>
+                          <td className="py-3">{g.state || '-'}</td>
+                          <td className="py-3">{g.city || '-'}</td>
                           <td className="py-3">{g.homeTeam || '-'}</td>
                           <td className="py-3 space-x-2">
                             <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700 text-xs font-medium">Edit</button>
@@ -2096,7 +2093,7 @@ function GroundListTab({ boardId }: { boardId: string }) {
                       );
                     })}
                     {(!groundList.length) && (
-                      <tr><td colSpan={7} className="py-8 text-center text-gray-400">No grounds created yet.</td></tr>
+                      <tr><td colSpan={6} className="py-8 text-center text-gray-400">No grounds created yet.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -2119,10 +2116,9 @@ function GroundListTab({ boardId }: { boardId: string }) {
                         </div>
                       </div>
                     <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                      <div><span className="text-gray-400">City:</span> {g.city || '-'}</div>
-                      <div><span className="text-gray-400">State:</span> {g.state || '-'}</div>
                       <div><span className="text-gray-400">Country:</span> {g.country || '-'}</div>
-                      <div><span className="text-gray-400">Address:</span> {g.address1 || '-'}</div>
+                      <div><span className="text-gray-400">State:</span> {g.state || '-'}</div>
+                      <div><span className="text-gray-400">City:</span> {g.city || '-'}</div>
                       <div><span className="text-gray-400">Home Team:</span> {g.homeTeam || '-'}</div>
                     </div>
                   </div>
