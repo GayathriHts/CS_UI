@@ -1706,29 +1706,13 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             {/* Add Member — Multi-select checkbox dropdown (last field) */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Add Member <span className="text-red-500">*</span></label>
+                {/* Dropdown trigger (static at top) */}
                 <div className="max-w-sm relative">
                   <div
                     onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
-                    className={`w-full min-h-[42px] px-4 py-2 border rounded-lg focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent cursor-pointer flex flex-wrap items-center gap-1.5 ${errors.members ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                    className={`w-full min-h-[42px] px-4 py-2.5 border rounded-lg focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent cursor-pointer flex items-center ${errors.members ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                   >
-                    {formData.members.length > 0 ? (
-                      formData.members.map((m) => {
-                        return (
-                          <span key={m} className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green text-xs font-medium px-2 py-1 rounded-full">
-                            {getUserDisplay(m)}
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); handleRemoveMember(m); }}
-                              className="hover:text-red-500 transition-colors"
-                            >
-                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                            </button>
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="text-gray-400 text-sm">Select members...</span>
-                    )}
+                    <span className="text-gray-400 text-sm">{formData.members.length > 0 ? `${formData.members.length} member(s) selected` : 'Select members...'}</span>
                     <svg className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                   {activeSearchField === 'member' && (
@@ -1796,6 +1780,23 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                     </>
                   )}
                 </div>
+                {/* Selected members displayed as vertical boxes below the dropdown */}
+                {formData.members.length > 0 && (
+                  <div className="max-w-sm flex flex-col gap-2 mt-2">
+                    {formData.members.map((m) => (
+                      <div key={m} className="flex items-center justify-between bg-brand-green/5 border border-brand-green/20 rounded-lg px-4 py-2.5">
+                        <span className="text-sm font-medium text-gray-800">{getUserDisplay(m)}</span>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveMember(m); }}
+                          className="text-gray-400 hover:text-red-500 transition-colors ml-3"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {errors.members && <p className="text-xs text-red-600 mt-1">{errors.members}</p>}
             </div>
 
