@@ -445,20 +445,20 @@ export const boardDetailService = {
 // ── League Management ──
 export const leagueService = {
   // Umpires (all via umpireApi → port 9004)
-  createUmpire: (_boardId: string, data: {
+  createUmpire: (boardId: string, data: {
     umpireName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     homePhone?: string; workPhone?: string; mobile?: string; email?: string;
   }) =>
-    umpireApi.post('/Umpire', data),
-  getUmpires: (_boardId: string) => umpireApi.get('/Umpire'),
-  updateUmpire: (umpireId: string, data: {
+    umpireApi.post(`/boards/${boardId}/Umpire`, { boardId, ...data }),
+  getUmpires: (boardId: string) => umpireApi.get(`/boards/${boardId}/Umpire`),
+  updateUmpire: (boardId: string, umpireId: string, data: {
     id: string; umpireName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     homePhone: string; workPhone: string; mobile: string; email: string;
   }) =>
-    umpireApi.put(`/Umpire/${umpireId}`, data),
-  deleteUmpire: (umpireId: string) => umpireApi.delete(`/Umpire/${umpireId}`),
+    umpireApi.put(`/boards/${boardId}/Umpire/${umpireId}`, data),
+  deleteUmpire: (boardId: string, umpireId: string) => umpireApi.delete(`/boards/${boardId}/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
     boardId: string; groundName: string; address1?: string; address2?: string;

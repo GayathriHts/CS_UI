@@ -1069,12 +1069,12 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const umpireList = Array.isArray(umpires) ? umpires : [];
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => leagueService.deleteUmpire(id),
+    mutationFn: (id: string) => leagueService.deleteUmpire(boardId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['umpires', boardId] }),
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => leagueService.updateUmpire(editId!, {
+    mutationFn: () => leagueService.updateUmpire(boardId, editId!, {
       id: editId!,
       umpireName: editName,
       address1: editAddress1,
