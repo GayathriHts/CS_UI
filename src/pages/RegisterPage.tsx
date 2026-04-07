@@ -110,6 +110,8 @@ export default function RegisterPage() {
         errs.firstName = 'First Name should not start with a space.';
       } else if (/[^A-Za-z]/.test(firstName)) {
         errs.firstName = 'First Name should only contain alphabets.';
+      } else if (firstName.trim().length < 2) {
+        errs.firstName = 'First Name must be at least 2 characters.';
       } else if (!/^[A-Z]/.test(firstName)) {
         errs.firstName = 'First letter of First Name should be capitalized.';
       }
@@ -119,6 +121,8 @@ export default function RegisterPage() {
         errs.lastName = 'Last Name should not start with a space.';
       } else if (/[^A-Za-z]/.test(lastName)) {
         errs.lastName = 'Last Name should only contain alphabets.';
+      } else if (lastName.trim().length < 2) {
+        errs.lastName = 'Last Name must be at least 2 characters.';
       } else if (!/^[A-Z]/.test(lastName)) {
         errs.lastName = 'First letter of Last Name should be capitalized.';
       }
