@@ -1235,32 +1235,77 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       // Call GET /boards/{boardId}/Rosters/{rosterId} to fetch fresh details
       const detailRes = await rosterService.getById(boardId, rid);
       const detailRaw = detailRes.data as any;
+      console.log('[startEdit] RAW API response:', JSON.stringify(detailRaw));
       // Normalize: response may be { success: true, data: {...} } or direct object
       const detail = detailRaw?.data && typeof detailRaw.data === 'object' && !Array.isArray(detailRaw.data)
         ? detailRaw.data : detailRaw;
+      console.log('[startEdit] normalized detail keys:', Object.keys(detail || {}));
 
       // Use direct ID fields from detail response, fallback to members array
-      const captainFromMembers = detail.members?.find((m: any) => m.role === 'Captain');
-      const viceCaptainFromMembers = detail.members?.find((m: any) => m.role === 'ViceCaptain');
-      const coachFromMembers = detail.members?.find((m: any) => m.role === 'Coach');
-      const membersFromArray = detail.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+      const membersRaw = detail.members?.$values || detail.Members?.$values || detail.members || detail.Members;
+      const captainFromMembers = Array.isArray(membersRaw) ? membersRaw.find((m: any) => m.role === 'Captain' || m.Role === 'Captain') : undefined;
+      const viceCaptainFromMembers = Array.isArray(membersRaw) ? membersRaw.find((m: any) => m.role === 'ViceCaptain' || m.Role === 'ViceCaptain') : undefined;
+      const coachFromMembers = Array.isArray(membersRaw) ? membersRaw.find((m: any) => m.role === 'Coach' || m.Role === 'Coach') : undefined;
+      const membersFromArray = Array.isArray(membersRaw)
+        ? membersRaw.filter((m: any) => (m.role || m.Role) === 'Member' || (m.role || m.Role) === 'Player')
+            .map((m: any) => m.userId || m.UserId || m.id || m.Id || m.userName || m.UserName)
+            .filter(Boolean)
+        : [];
+
+      // Normalize playerIds — check all possible field names and formats
+      const rawPlayerIds = detail.playerIds ?? detail.PlayerIds ?? detail.playerids ?? detail.player_ids ?? detail.players;
+      let playerIds: string[] = [];
+      if (Array.isArray(rawPlayerIds)) {
+        playerIds = rawPlayerIds;
+      } else if (rawPlayerIds?.$values && Array.isArray(rawPlayerIds.$values)) {
+        playerIds = rawPlayerIds.$values;
+      }
+      // Similarly for leagueBoardIds
+      const rawLeagueIds = detail.leagueBoardIds ?? detail.LeagueBoardIds ?? detail.leagueboardids ?? detail.league_board_ids;
+      let leagueBoardIds: string[] = [];
+      if (Array.isArray(rawLeagueIds)) {
+        leagueBoardIds = rawLeagueIds;
+      } else if (rawLeagueIds?.$values && Array.isArray(rawLeagueIds.$values)) {
+        leagueBoardIds = rawLeagueIds.$values;
+      }
+
+      // Also check for players from the cached roster object (which was enriched by fetchRosterList)
+      const cachedPlayerIds = roster.playerIds ?? roster.PlayerIds;
+      let cachedMembers: string[] = [];
+      if (Array.isArray(cachedPlayerIds)) cachedMembers = cachedPlayerIds;
+      else if (cachedPlayerIds?.$values) cachedMembers = cachedPlayerIds.$values;
+
+      const finalMembers = playerIds.length > 0 ? playerIds : membersFromArray.length > 0 ? membersFromArray : cachedMembers;
+      const finalLeagueIds = leagueBoardIds.length > 0 ? leagueBoardIds : (Array.isArray(roster.leagueBoardIds) ? roster.leagueBoardIds : []);
+
+      console.log('[startEdit] resolved — members:', finalMembers, 'leagueBoards:', finalLeagueIds);
 
       setShowCreateForm(true);
       setFormData({
-        rosterName: detail.name || roster.name || '',
-        captain: detail.captainId || captainFromMembers?.userId || captainFromMembers?.userName || '',
-        viceCaptain: detail.viceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.userName || '',
-        coach: detail.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
-        members: detail.playerIds || membersFromArray,
-        leagueBoardIds: detail.leagueBoardIds || [],
-        logoUrl: detail.logoUrl || detail.LogoUrl || roster.logoUrl || '',
+        rosterName: detail.name || detail.Name || roster.name || '',
+        captain: detail.captainId || detail.CaptainId || captainFromMembers?.userId || captainFromMembers?.UserId || '',
+        viceCaptain: detail.viceCaptainId || detail.ViceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.UserId || '',
+        coach: detail.coachId || detail.CoachId || coachFromMembers?.userId || coachFromMembers?.UserId || '',
+        members: finalMembers,
+        leagueBoardIds: finalLeagueIds,
       });
     } catch {
       // Fallback to cached roster data if API call fails
-      const captainFromMembers = roster.members?.find((m: any) => m.role === 'Captain');
-      const viceCaptainFromMembers = roster.members?.find((m: any) => m.role === 'ViceCaptain');
-      const coachFromMembers = roster.members?.find((m: any) => m.role === 'Coach');
-      const membersFromArray = roster.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+      const fallbackMembersRaw = roster.members?.$values || roster.members;
+      const captainFromMembers = Array.isArray(fallbackMembersRaw) ? fallbackMembersRaw.find((m: any) => m.role === 'Captain') : undefined;
+      const viceCaptainFromMembers = Array.isArray(fallbackMembersRaw) ? fallbackMembersRaw.find((m: any) => m.role === 'ViceCaptain') : undefined;
+      const coachFromMembers = Array.isArray(fallbackMembersRaw) ? fallbackMembersRaw.find((m: any) => m.role === 'Coach') : undefined;
+      const membersFromArray = Array.isArray(fallbackMembersRaw) ? fallbackMembersRaw.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.id || m.userName) : [];
+
+      let fallbackPlayerIds: string[] = [];
+      if (Array.isArray(roster.playerIds)) fallbackPlayerIds = roster.playerIds;
+      else if (roster.playerIds?.$values) fallbackPlayerIds = roster.playerIds.$values;
+
+      let fallbackLeagueIds: string[] = [];
+      if (Array.isArray(roster.leagueBoardIds)) fallbackLeagueIds = roster.leagueBoardIds;
+      else if (roster.leagueBoardIds?.$values) fallbackLeagueIds = roster.leagueBoardIds.$values;
+
+      console.log('[startEdit fallback] roster:', JSON.stringify({ playerIds: roster.playerIds, members: roster.members }));
 
       setShowCreateForm(true);
       setFormData({
@@ -1268,9 +1313,8 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         captain: roster.captainId || captainFromMembers?.userId || captainFromMembers?.userName || '',
         viceCaptain: roster.viceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.userName || '',
         coach: roster.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
-        members: roster.playerIds || membersFromArray,
-        leagueBoardIds: roster.leagueBoardIds || [],
-        logoUrl: roster.logoUrl || roster.LogoUrl || '',
+        members: fallbackPlayerIds.length > 0 ? fallbackPlayerIds : membersFromArray,
+        leagueBoardIds: fallbackLeagueIds,
       });
     } finally {
       setEditLoading(false);
@@ -1285,6 +1329,18 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     const newErrors: Record<string, string> = {};
     if (!formData.rosterName.trim() || formData.rosterName.trim().length < 2) {
       newErrors.rosterName = 'Roster name must be at least 2 characters';
+    } else {
+      // Check for duplicate roster name (case-insensitive)
+      const trimmedName = formData.rosterName.trim().toLowerCase();
+      const duplicate = (squads || []).find((r: any) => {
+        const existingName = (r.name || r.rosterName || '').trim().toLowerCase();
+        const existingId = r.id || r.Id;
+        // Skip the roster being edited
+        return existingName === trimmedName && existingId !== editingRosterId;
+      });
+      if (duplicate) {
+        newErrors.rosterName = 'A roster with this name already exists';
+      }
     }
     if (!formData.captain) {
       newErrors.captain = 'Captain is required';
@@ -1757,13 +1813,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         <div key={roster.id} className="card mb-6">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-brand-green/10 rounded-xl flex items-center justify-center">
-                {roster.logoUrl && roster.logoUrl.trim() ? (
-                  <img src={roster.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />
-                ) : (
-                  <span className="text-brand-green font-bold text-lg">{(roster.name || roster.rosterName || 'R')[0]}</span>
-                )}
-              </div>
               <div>
                 <h3 className="font-semibold text-gray-800 text-lg">{roster.name || roster.rosterName || 'Unnamed Roster'}</h3>
               </div>
