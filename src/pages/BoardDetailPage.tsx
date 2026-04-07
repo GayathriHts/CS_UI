@@ -116,7 +116,7 @@ export default function BoardDetailPage() {
 
         {/* Content */}
         <div className="ml-64 flex-1 p-6">
-          {activeTab === 'info' && <InfoTab boardId={id!} />}
+          {activeTab === 'info' && <InfoTab boardId={id!} board={board} />}
           {activeTab === 'pitch' && <PitchTab boardId={id!} />}
           {activeTab === 'score' && <ScoreTab boardId={id!} />}
           {activeTab === 'fans' && <FansTab boardId={id!} />}
@@ -536,7 +536,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
 }
 
 // ── INFO TAB ──
-function InfoTab({ boardId }: { boardId: string }) {
+function InfoTab({ boardId, board }: { boardId: string; board?: any }) {
   const [subTab, setSubTab] = useState<InfoSubTab>('about');
   const { data: info } = useQuery({ queryKey: ['boardInfo', boardId], queryFn: () => boardDetailService.getInfo(boardId).then((r: any) => r.data).catch(() => null), retry: false, refetchOnWindowFocus: false });
   const { data: directors } = useQuery({ queryKey: ['directors', boardId], queryFn: () => boardDetailService.getDirectors(boardId).then((r: any) => r.data).catch(() => []), retry: false, refetchOnWindowFocus: false });
@@ -550,11 +550,36 @@ function InfoTab({ boardId }: { boardId: string }) {
   ];
 
   const renderContent = () => {
-    if (!info) return <p className="text-gray-400 text-center py-8">No information available yet.</p>;
-    const contentMap: Record<string, string | undefined> = {
-      about: info.aboutOrganization, history: info.history, rules: info.rulesAndRegulations,
-      awards: info.awardsAndHonors, faq: info.faq,
-    };
+    if (subTab === 'about') {
+      const aboutText = info?.aboutOrganization;
+      const description = board?.description;
+      const city = board?.city;
+      const state = board?.state;
+      const country = board?.country;
+      const locationParts = [city, state, country].filter(Boolean);
+      const location = locationParts.join(', ');
+      const hasContent = aboutText || description || location;
+      if (!hasContent) return <p className="text-gray-400 text-center py-8">No information available yet.</p>;
+      return (
+        <div className="space-y-6">
+          {(aboutText || description) && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Description</h4>
+              <p className="text-gray-700 whitespace-pre-wrap">{aboutText || description}</p>
+            </div>
+          )}
+          {location && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Location</h4>
+              <div className="flex items-center gap-2 text-gray-700">
+                <svg className="w-5 h-5 text-brand-green flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                <span>{location}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
     if (subTab === 'directors') {
       return directors?.length ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -581,6 +606,11 @@ function InfoTab({ boardId }: { boardId: string }) {
         </div>
       ) : <p className="text-gray-400 text-center py-8">No sponsors added yet.</p>;
     }
+    if (!info) return <p className="text-gray-400 text-center py-8">No information available yet.</p>;
+    const contentMap: Record<string, string | undefined> = {
+      history: info.history, rules: info.rulesAndRegulations,
+      awards: info.awardsAndHonors, faq: info.faq,
+    };
     const content = contentMap[subTab];
     return content ? <div className="prose max-w-none text-gray-700 whitespace-pre-wrap">{content}</div>
       : <p className="text-gray-400 text-center py-8">No content available.</p>;
