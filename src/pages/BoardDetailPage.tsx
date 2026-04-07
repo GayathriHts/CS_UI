@@ -989,8 +989,13 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             items.push(b);
           }
         }
-        console.log('League Boards loaded:', items.length);
-        return items.map((b: any) => ({
+        // Filter to only League boards (boardType === 2 or 'League')
+        const leagueOnly = items.filter((b: any) => {
+          const bt = b.boardType ?? b.BoardType ?? b.board_type;
+          return bt === 2 || bt === 'League';
+        });
+        console.log('League Boards loaded:', leagueOnly.length, 'out of', items.length, 'total');
+        return leagueOnly.map((b: any) => ({
           id: b.id || b.Id,
           name: b.name || b.Name || 'Unnamed',
         }));
