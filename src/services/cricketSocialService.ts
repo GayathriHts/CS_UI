@@ -106,15 +106,35 @@ export const boardService = {
     }),
 
 
-  // Get a board by ID — normalizes nested { data: { ... } } wrappers from the API
-  getById: (id: string) => boardApi.get(`/Boards/${id}`, {
-    params: { _t: Date.now() },
-    headers: { 'Cache-Control': 'no-cache' },
-  }).then(r => {
-    const raw = r.data as any;
-    const board = raw?.data && raw.data.id ? raw.data : raw;
-    return { ...r, data: board };
-  }),
+  // Get a board by ID — tries GET /Boards/{id} first, falls back to byowner search
+  // because the GET /Boards/{id} endpoint on the backend may hang/timeout
+  getById: async (id: string) => {
+    try {
+      const r = await boardApi.get(`/Boards/${id}`, {
+        params: { _t: Date.now() },
+        headers: { 'Cache-Control': 'no-cache' },
+        timeout: 8000,
+      });
+      const raw = r.data as any;
+      const board = raw?.data && raw.data.id ? raw.data : raw;
+      return { ...r, data: board };
+    } catch (directErr: any) {
+      // If the direct endpoint fails (timeout, 500, etc.), try finding the board via byowner
+      console.warn('[boardService.getById] Direct fetch failed, trying byowner fallback:', directErr?.message);
+      try {
+        const ownerRes = await boardApi.get('/Boards/byowner', {
+          params: { _t: Date.now() },
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        const raw = ownerRes.data as any;
+        const items = raw?.data || raw?.items || (Array.isArray(raw) ? raw : []);
+        const board = items.find((b: any) => b.id === id);
+        if (board) return { ...ownerRes, data: board };
+      } catch {}
+      // If byowner also fails, throw the original error
+      throw directErr;
+    }
+  },
 
   // Update a board by ID (PUT /api/v1/Boards/{id}) — normalizes nested response
   update: (id: string, data: any) => {
@@ -156,18 +176,40 @@ export const rosterService = {
   create: (boardId: string, data: {
     name: string;
     logoUrl?: string;
+    captainId?: string;
+    viceCaptainId?: string;
+    coachId?: string;
+    playerIds?: string[];
+    leagueBoardIds?: string[];
   }) => boardApi.post(`/boards/${boardId}/Rosters`, {
     name: data.name,
     logoUrl: data.logoUrl || ' ',
+    boardId,
+    captainId: data.captainId || '',
+    viceCaptainId: data.viceCaptainId || '',
+    coachId: data.coachId || '',
+    playerIds: data.playerIds || [],
+    leagueBoardIds: data.leagueBoardIds || [],
   }) as Promise<{ data: Roster }>,
   getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
   getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
   update: (boardId: string, rosterId: string, data: {
     name: string;
     logoUrl?: string;
+    captainId?: string;
+    viceCaptainId?: string;
+    coachId?: string;
+    playerIds?: string[];
+    leagueBoardIds?: string[];
   }) => boardApi.put(`/boards/${boardId}/Rosters/${rosterId}`, {
     name: data.name,
     ...(data.logoUrl ? { logoUrl: data.logoUrl } : {}),
+    boardId,
+    captainId: data.captainId || '',
+    viceCaptainId: data.viceCaptainId || '',
+    coachId: data.coachId || '',
+    playerIds: data.playerIds || [],
+    leagueBoardIds: data.leagueBoardIds || [],
   }) as Promise<{ data: Roster }>,
   delete: (boardId: string, rosterId: string) => boardApi.delete(`/boards/${boardId}/Rosters/${rosterId}`),
 };
@@ -367,6 +409,9 @@ export const boardDetailService = {
   // Invite
   invite: (boardId: string, data: { email: string; message?: string }) => boardApi.post(`/boards/${boardId}/invite`, data),
   searchBuddies: (boardId: string, q: string) => boardApi.get(`/boards/${boardId}/buddies/search`, { params: { q } }),
+  // Grounds (league boards)
+  getBoardGrounds: (boardId: string, page = 1, pageSize = 20) =>
+    boardApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
 };
 
 // ── League Management ──

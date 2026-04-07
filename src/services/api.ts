@@ -25,6 +25,7 @@ const boardApi = {
     const token = getBoardToken();
 
     return axios.get(BOARD_API_BASE_URL + url, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -39,6 +40,7 @@ const boardApi = {
     const token = getBoardToken();
 
     return axios.post(BOARD_API_BASE_URL + url, data, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -54,6 +56,7 @@ const boardApi = {
     const token = getBoardToken();
 
     return axios.put(BOARD_API_BASE_URL + url, data, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -69,6 +72,7 @@ const boardApi = {
     const token = getBoardToken();
 
     return axios.delete(BOARD_API_BASE_URL + url, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -85,6 +89,7 @@ const umpireApi = {
   post: (url: string, data: any, config: BoardApiConfig = {}) => {
     const token = getBoardToken();
     return axios.post(UMPIRE_API_BASE_URL + url, data, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -96,6 +101,7 @@ const umpireApi = {
   get: (url: string, config: BoardApiConfig = {}) => {
     const token = getBoardToken();
     return axios.get(UMPIRE_API_BASE_URL + url, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -106,6 +112,7 @@ const umpireApi = {
   put: (url: string, data: any, config: BoardApiConfig = {}) => {
     const token = getBoardToken();
     return axios.put(UMPIRE_API_BASE_URL + url, data, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),
@@ -117,6 +124,7 @@ const umpireApi = {
   delete: (url: string, config: BoardApiConfig = {}) => {
     const token = getBoardToken();
     return axios.delete(UMPIRE_API_BASE_URL + url, {
+      timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),

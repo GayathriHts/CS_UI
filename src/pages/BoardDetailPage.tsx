@@ -740,13 +740,14 @@ interface RosterFormData {
   viceCaptain: string;
   coach: string;
   members: string[];
+  leagueBoardIds: string[];
 }
 
 function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const [formData, setFormData] = useState<RosterFormData>({
-    rosterName: '', captain: '', viceCaptain: '', coach: '', members: [],
+    rosterName: '', captain: '', viceCaptain: '', coach: '', members: [], leagueBoardIds: [],
   });
   const [newMember, setNewMember] = useState('');
   const [activeSearchField, setActiveSearchField] = useState<'captain' | 'viceCaptain' | 'coach' | 'member' | null>(null);
@@ -764,10 +765,27 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const { data: squads, isLoading } = useQuery({
     queryKey: ['squad', boardId],
-    queryFn: () => boardDetailService.getSquad(boardId).then(r => {
-      console.log('Squad query result:', r.data);
-      return r.data;
-    }),
+    queryFn: async () => {
+      const listRes = await boardDetailService.getSquad(boardId);
+      const rosterList = listRes.data || [];
+      console.log('Squad list result:', rosterList);
+      // Fetch full details for each roster using GET /boards/{boardId}/Rosters/{rosterId}
+      const detailed = await Promise.all(
+        rosterList.map(async (roster: any) => {
+          try {
+            const detailRes = await rosterService.getById(boardId, roster.id);
+            const raw = detailRes.data as any;
+            // Normalize: response may be { success: true, data: {...} } or direct object
+            const detail = raw?.data && typeof raw.data === 'object' && !Array.isArray(raw.data) ? raw.data : raw;
+            console.log('Roster detail for', roster.id, ':', detail);
+            return { ...roster, ...detail };
+          } catch {
+            return roster;
+          }
+        })
+      );
+      return detailed;
+    },
   });
 
   // Load user list for autocomplete (same as co-owner)
@@ -776,21 +794,90 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     queryFn: async () => {
       const r = await userService.list();
       const raw = r.data as any;
+      console.log('User list raw response:', raw);
       const list = Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.items) ? raw.items : Array.isArray(raw?.users) ? raw.users : Array.isArray(raw?.result) ? raw.result : raw ? [raw] : [];
+      console.log('User list parsed:', list.length, 'users');
       return list.map((u: any) => {
-        const first = u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '';
-        const last = u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '';
-        const email = u.email || u.emailAddress || '';
+        let first = u.firstName || u.FirstName || '';
+        let last = u.lastName || u.LastName || '';
+        const email = u.email || u.Email || u.emailAddress || u.EmailAddress || '';
+        const uid = u.id || u.Id || u.userId || u.UserId;
+        // If firstName/lastName empty, try fullName/name
+        if (!first && !last) {
+          const fullName = u.fullName || u.FullName || u.name || u.Name || '';
+          if (fullName && !fullName.includes('@')) {
+            const parts = fullName.split(' ');
+            first = parts[0] || '';
+            last = parts.slice(1).join(' ') || '';
+          }
+        }
+        // If name looks like an email, treat it as no name
+        if (first.includes('@')) first = '';
+        if (last.includes('@')) last = '';
+        // Use userName if no real name found
+        const userName = u.userName || u.UserName || '';
+        if (!first && !last && userName && !userName.includes('@')) {
+          first = userName;
+        }
         return {
-          id: u.id || u.Id || u.userId || u.UserId,
-          firstName: first || email.split('@')[0] || email,
+          id: uid,
+          firstName: first || email.split('@')[0] || uid,
           lastName: last,
           email,
         };
       });
     },
-    enabled: activeSearchField !== null,
   });
+
+  // Load all boards for the League Board field
+  const { data: boardGroundsList, isLoading: boardGroundsLoading } = useQuery({
+    queryKey: ['allBoardsForLeague'],
+    queryFn: async () => {
+      try {
+        const userId = useAuthStore.getState().user?.id;
+        if (!userId) return [];
+        const [ownerRes, coOwnerRes] = await Promise.all([
+          boardService.getByOwner(userId).catch(() => ({ data: null })),
+          boardService.getByOwner(undefined, userId).catch(() => ({ data: null })),
+        ]);
+
+        const extractItems = (raw: any): any[] => {
+          if (!raw) return [];
+          if (raw?.items) return raw.items;
+          if (Array.isArray(raw)) return raw;
+          if (raw?.data?.items) return raw.data.items;
+          if (raw?.data && Array.isArray(raw.data)) return raw.data;
+          return [];
+        };
+
+        const ownerItems = extractItems(ownerRes.data);
+        const coOwnerItems = extractItems(coOwnerRes.data);
+
+        // Merge and deduplicate
+        const seen = new Set<string>();
+        const items: any[] = [];
+        for (const b of [...ownerItems, ...coOwnerItems]) {
+          const bid = b.id || b.Id;
+          if (bid && !seen.has(bid)) {
+            seen.add(bid);
+            items.push(b);
+          }
+        }
+        console.log('League Boards loaded:', items.length);
+        return items.map((b: any) => ({
+          id: b.id || b.Id,
+          name: b.name || b.Name || 'Unnamed',
+        }));
+      } catch (err) {
+        console.error('Failed to load league boards:', err);
+        return [];
+      }
+    },
+    enabled: showCreateForm,
+  });
+
+  const [leagueBoardSearchField, setLeagueBoardSearchField] = useState(false);
+  const [leagueBoardSearch, setLeagueBoardSearch] = useState('');
 
   const createRosterMutation = useMutation({
     mutationFn: async (data: RosterFormData) => {
@@ -803,6 +890,11 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       try {
         const createRes = await rosterService.create(boardId, {
           name: data.rosterName,
+          captainId: data.captain,
+          viceCaptainId: data.viceCaptain,
+          coachId: data.coach,
+          playerIds: data.members,
+          leagueBoardIds: data.leagueBoardIds,
         });
         return createRes;
       } catch (err: any) {
@@ -849,6 +941,11 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     mutationFn: (data: RosterFormData & { rosterId: string }) => {
       return rosterService.update(boardId, data.rosterId, {
         name: data.rosterName,
+        captainId: data.captain,
+        viceCaptainId: data.viceCaptain,
+        coachId: data.coach,
+        playerIds: data.members,
+        leagueBoardIds: data.leagueBoardIds,
       });
     },
     onSuccess: () => {
@@ -878,7 +975,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   const resetForm = () => {
     setShowCreateForm(false);
     setEditingRosterId(null);
-    setFormData({ rosterName: '', captain: '', viceCaptain: '', coach: '', members: [] });
+    setFormData({ rosterName: '', captain: '', viceCaptain: '', coach: '', members: [], leagueBoardIds: [] });
     setNewMember('');
     setSearchTerm('');
     setRosterFieldSearch('');
@@ -888,18 +985,21 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   };
 
   const startEdit = (roster: any) => {
-    const captain = roster.members?.find((m: any) => m.role === 'Captain');
-    const viceCaptain = roster.members?.find((m: any) => m.role === 'ViceCaptain');
-    const coach = roster.members?.find((m: any) => m.role === 'Coach');
-    const members = roster.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+    // Use direct ID fields from detail response, fallback to members array
+    const captainFromMembers = roster.members?.find((m: any) => m.role === 'Captain');
+    const viceCaptainFromMembers = roster.members?.find((m: any) => m.role === 'ViceCaptain');
+    const coachFromMembers = roster.members?.find((m: any) => m.role === 'Coach');
+    const membersFromArray = roster.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+
     setEditingRosterId(roster.id);
     setShowCreateForm(true);
     setFormData({
       rosterName: roster.name || '',
-      captain: captain?.userId || captain?.userName || '',
-      viceCaptain: viceCaptain?.userId || viceCaptain?.userName || '',
-      coach: coach?.userId || coach?.userName || '',
-      members,
+      captain: roster.captainId || captainFromMembers?.userId || captainFromMembers?.userName || '',
+      viceCaptain: roster.viceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.userName || '',
+      coach: roster.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
+      members: roster.playerIds || membersFromArray,
+      leagueBoardIds: roster.leagueBoardIds || [],
     });
     setErrors({});
     // Scroll to form
@@ -910,6 +1010,21 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     const newErrors: Record<string, string> = {};
     if (!formData.rosterName.trim() || formData.rosterName.trim().length < 2) {
       newErrors.rosterName = 'Roster name must be at least 2 characters';
+    }
+    if (!formData.captain) {
+      newErrors.captain = 'Captain is required';
+    }
+    if (!formData.viceCaptain) {
+      newErrors.viceCaptain = 'Vice Captain is required';
+    }
+    if (!formData.coach) {
+      newErrors.coach = 'Coach is required';
+    }
+    if (formData.members.length === 0) {
+      newErrors.members = 'At least one member is required';
+    }
+    if (formData.leagueBoardIds.length === 0) {
+      newErrors.leagueBoardIds = 'At least one league board is required';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -927,13 +1042,30 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const isSubmitting = createRosterMutation.isPending || updateRosterMutation.isPending;
 
+  // Helper to resolve user ID to display name
+  const getUserDisplay = (userId: string) => {
+    if (!userId) return '';
+    const user = (rosterUserList || []).find((u: any) => u.id === userId);
+    if (!user) return userId;
+    const first = (user.firstName || '').trim();
+    const last = (user.lastName || '').trim();
+    const email = (user.email || '').trim();
+    const fullName = `${first} ${last}`.trim();
+    // If the name looks like an email or is the same as the email, just show the email username
+    const isNameAnEmail = fullName.includes('@');
+    if (isNameAnEmail || !fullName) {
+      // Show readable part of email
+      return email ? email.split('@')[0] : userId;
+    }
+    return fullName;
+  };
+
   const handleAddMember = (userId?: string) => {
     const id = userId || newMember.trim();
     if (id && !formData.members.includes(id) && id !== formData.captain && id !== formData.viceCaptain && id !== formData.coach) {
       setFormData(prev => ({ ...prev, members: [...prev.members, id] }));
       setNewMember('');
       setSearchTerm('');
-      setActiveSearchField(null);
       onDirtyChange?.(true);
     }
   };
@@ -1056,7 +1188,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
           <div className="space-y-5">
             {/* Roster Name row */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Roster Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Roster Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={formData.rosterName}
@@ -1068,113 +1200,256 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   setFormData(prev => ({ ...prev, rosterName: val }));
                   onDirtyChange?.(true);
                 }}
-                placeholder="Enter roster name"
+                placeholder=""
                 className={`w-full max-w-sm px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent ${errors.rosterName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
               />
             </div>
             {errors.rosterName && <p className="text-xs text-red-600 ml-36">{errors.rosterName}</p>}
 
-            {/* Add Member / Action header */}
-            <div className="pt-2">
-              <div className="flex items-center justify-between mb-1">
-                <h4 className="font-semibold text-gray-700">Add Member</h4>
+            {/* Captain */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Captain <span className="text-red-500">*</span></label>
+              <div className="relative max-w-sm">
+                <input
+                  type="text"
+                  value={getUserDisplay(formData.captain)}
+                  readOnly
+                  onClick={() => setActiveSearchField(activeSearchField === 'captain' ? null : 'captain')}
+                  placeholder="Search and select captain..."
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.captain ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                />
+                {renderSearchDropdown('captain')}
               </div>
-              <hr className="border-gray-200 mb-4" />
+              {errors.captain && <p className="text-xs text-red-600 mt-1">{errors.captain}</p>}
+            </div>
 
-              {/* Captain */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Captain</label>
-                <div className="relative max-w-sm">
-                  <input
-                    type="text"
-                    value={formData.captain}
-                    readOnly
-                    onClick={() => setActiveSearchField(activeSearchField === 'captain' ? null : 'captain')}
-                    placeholder="Search and select captain..."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
-                  />
-                  {renderSearchDropdown('captain')}
-                </div>
+            {/* Vice Captain */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vice Captain <span className="text-red-500">*</span></label>
+              <div className="relative max-w-sm">
+                <input
+                  type="text"
+                  value={getUserDisplay(formData.viceCaptain)}
+                  readOnly
+                  onClick={() => setActiveSearchField(activeSearchField === 'viceCaptain' ? null : 'viceCaptain')}
+                  placeholder="Search and select vice captain..."
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.viceCaptain ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                />
+                {renderSearchDropdown('viceCaptain')}
               </div>
+              {errors.viceCaptain && <p className="text-xs text-red-600 mt-1">{errors.viceCaptain}</p>}
+            </div>
 
-              {/* Vice Captain */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Vice Captain</label>
-                <div className="relative max-w-sm">
-                  <input
-                    type="text"
-                    value={formData.viceCaptain}
-                    readOnly
-                    onClick={() => setActiveSearchField(activeSearchField === 'viceCaptain' ? null : 'viceCaptain')}
-                    placeholder="Search and select vice captain..."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
-                  />
-                  {renderSearchDropdown('viceCaptain')}
-                </div>
+            {/* Coach */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Coach <span className="text-red-500">*</span></label>
+              <div className="relative max-w-sm">
+                <input
+                  type="text"
+                  value={getUserDisplay(formData.coach)}
+                  readOnly
+                  onClick={() => setActiveSearchField(activeSearchField === 'coach' ? null : 'coach')}
+                  placeholder="Search and select coach..."
+                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.coach ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                />
+                {renderSearchDropdown('coach')}
               </div>
+              {errors.coach && <p className="text-xs text-red-600 mt-1">{errors.coach}</p>}
+            </div>
 
-              {/* Coach */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Coach</label>
-                <div className="relative max-w-sm">
-                  <input
-                    type="text"
-                    value={formData.coach}
-                    readOnly
-                    onClick={() => setActiveSearchField(activeSearchField === 'coach' ? null : 'coach')}
-                    placeholder="Search and select coach..."
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
-                  />
-                  {renderSearchDropdown('coach')}
-                </div>
-              </div>
-
-              {/* Add Member */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Add Member</label>
-                <div className="max-w-sm">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={newMember}
-                      readOnly
-                      onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
-                      placeholder="Search member to add..."
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer"
-                    />
-                    {renderSearchDropdown('member')}
+            {/* Add Member — Multi-select checkbox dropdown (last field) */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Add Member <span className="text-red-500">*</span></label>
+                <div className="max-w-sm relative">
+                  <div
+                    onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
+                    className={`w-full min-h-[42px] px-4 py-2 border rounded-lg focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent cursor-pointer flex flex-wrap items-center gap-1.5 ${errors.members ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  >
+                    {formData.members.length > 0 ? (
+                      formData.members.map((m) => {
+                        return (
+                          <span key={m} className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green text-xs font-medium px-2 py-1 rounded-full">
+                            {getUserDisplay(m)}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); handleRemoveMember(m); }}
+                              className="hover:text-red-500 transition-colors"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-gray-400 text-sm">Select members...</span>
+                    )}
+                    <svg className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
-                </div>
-              </div>
-
-              {/* Added Members List */}
-              {formData.members.length > 0 && (
-                <div className="mt-3 space-y-2">
-                  <p className="text-xs text-gray-500 font-medium">Added Members ({formData.members.length})</p>
-                  {formData.members.map((m, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-gray-50 px-3 py-2 rounded-lg">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                          {idx + 1}
+                  {activeSearchField === 'member' && (
+                    <>
+                      <div className="fixed inset-0 z-[5]" onClick={() => { setActiveSearchField(null); setRosterFieldSearch(''); }} />
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                        <div className="p-2 border-b border-gray-100">
+                          <input
+                            type="text"
+                            value={rosterFieldSearch}
+                            onChange={e => setRosterFieldSearch(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                            placeholder="Search users..."
+                            autoFocus
+                            onClick={e => e.stopPropagation()}
+                          />
                         </div>
-                        <span className="text-sm text-gray-700">{m}</span>
+                        <div className="max-h-48 overflow-y-auto">
+                          {rosterUsersLoading ? (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
+                          ) : (() => {
+                            const filtered = (rosterUserList || []).filter((u: any) =>
+                              u.id !== formData.captain && u.id !== formData.viceCaptain && u.id !== formData.coach &&
+                              (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
+                            );
+                            return filtered.length === 0 ? (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+                            ) : (
+                              filtered.map((u: any) => {
+                                const isSelected = formData.members.includes(u.id);
+                                return (
+                                  <button
+                                    key={u.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isSelected) {
+                                        handleRemoveMember(u.id);
+                                      } else {
+                                        handleAddMember(u.id);
+                                      }
+                                    }}
+                                    className={`w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0 ${isSelected ? 'bg-brand-green/5' : ''}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      readOnly
+                                      className="w-4 h-4 text-brand-green border-gray-300 rounded focus:ring-brand-green accent-brand-green"
+                                    />
+                                    <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                      {u.firstName?.[0]}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <span className="block font-medium text-gray-900">{u.firstName} {u.lastName}</span>
+                                      {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
+                                    </div>
+                                  </button>
+                                );
+                              })
+                            );
+                          })()}
+                        </div>
                       </div>
-                      <button onClick={() => handleRemoveMember(m)} className="text-red-400 hover:text-red-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
+                    </>
+                  )}
                 </div>
-              )}
+                {errors.members && <p className="text-xs text-red-600 mt-1">{errors.members}</p>}
+            </div>
+
+            {/* League Board — Multi-select checkbox dropdown */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">League Board <span className="text-red-500">*</span></label>
+                <div className="max-w-sm relative">
+                  <div
+                    onClick={() => setLeagueBoardSearchField(!leagueBoardSearchField)}
+                    className={`w-full min-h-[42px] px-4 py-2 border rounded-lg focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent cursor-pointer flex flex-wrap items-center gap-1.5 ${errors.leagueBoardIds ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  >
+                    {formData.leagueBoardIds.length > 0 ? (
+                      formData.leagueBoardIds.map((bId) => {
+                        const board = (boardGroundsList || []).find((b: any) => b.id === bId);
+                        return (
+                          <span key={bId} className="inline-flex items-center gap-1 bg-brand-green/10 text-brand-green text-xs font-medium px-2 py-1 rounded-full">
+                            {board ? board.name : bId}
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setFormData(prev => ({ ...prev, leagueBoardIds: prev.leagueBoardIds.filter(id => id !== bId) })); }}
+                              className="hover:text-red-500 transition-colors"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-gray-400 text-sm">Select league boards...</span>
+                    )}
+                    <svg className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                  {leagueBoardSearchField && (
+                    <>
+                      <div className="fixed inset-0 z-[5]" onClick={() => { setLeagueBoardSearchField(false); setLeagueBoardSearch(''); }} />
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                        <div className="p-2 border-b border-gray-100">
+                          <input
+                            type="text"
+                            value={leagueBoardSearch}
+                            onChange={e => setLeagueBoardSearch(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                            placeholder="Search boards..."
+                            autoFocus
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {boardGroundsLoading ? (
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
+                          ) : (() => {
+                            const filtered = (boardGroundsList || []).filter((b: any) =>
+                              !leagueBoardSearch || b.name.toLowerCase().includes(leagueBoardSearch.toLowerCase())
+                            );
+                            return filtered.length === 0 ? (
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                            ) : (
+                              filtered.map((b: any) => {
+                                const isSelected = formData.leagueBoardIds.includes(b.id);
+                                return (
+                                  <button
+                                    key={b.id}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (isSelected) {
+                                        setFormData(prev => ({ ...prev, leagueBoardIds: prev.leagueBoardIds.filter(id => id !== b.id) }));
+                                      } else {
+                                        setFormData(prev => ({ ...prev, leagueBoardIds: [...prev.leagueBoardIds, b.id] }));
+                                        onDirtyChange?.(true);
+                                      }
+                                    }}
+                                    className={`w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0 ${isSelected ? 'bg-brand-green/5' : ''}`}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      readOnly
+                                      className="w-4 h-4 text-brand-green border-gray-300 rounded focus:ring-brand-green accent-brand-green"
+                                    />
+                                    <div className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xs">
+                                      {b.name[0]}
+                                    </div>
+                                    <span className="font-medium text-gray-900">{b.name}</span>
+                                  </button>
+                                );
+                              })
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {errors.leagueBoardIds && <p className="text-xs text-red-600 mt-1">{errors.leagueBoardIds}</p>}
             </div>
 
             {/* Create/Update & Cancel Buttons */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  const hasDirtyData = formData.rosterName || formData.captain || formData.viceCaptain || formData.coach || formData.members.length > 0;
+                  const hasDirtyData = formData.rosterName || formData.captain || formData.viceCaptain || formData.coach || formData.members.length > 0 || formData.leagueBoardIds.length > 0;
                   if (hasDirtyData) { setShowRosterCancelConfirm(true); } else { resetForm(); }
                 }}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
@@ -1208,7 +1483,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-brand-green/10 rounded-xl flex items-center justify-center">
-                {roster.logoUrl ? (
+                {roster.logoUrl && roster.logoUrl.trim() ? (
                   <img src={roster.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover" />
                 ) : (
                   <span className="text-brand-green font-bold text-lg">{(roster.name || roster.rosterName || 'R')[0]}</span>
@@ -1216,7 +1491,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               </div>
               <div>
                 <h3 className="font-semibold text-gray-800 text-lg">{roster.name || roster.rosterName || 'Unnamed Roster'}</h3>
-                <p className="text-xs text-gray-500">{roster.memberCount ?? roster.members?.length ?? 0} members</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -1244,46 +1518,103 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             </div>
           </div>
 
-          {/* Members grouped by role */}
-          {roster.members?.length > 0 ? (
-            <div className="space-y-3">
-              {['Captain', 'ViceCaptain', 'Coach', 'Member'].map(role => {
-                const roleMembers = roster.members.filter((m: any) => m.role === role);
-                if (roleMembers.length === 0) return null;
-                return (
-                  <div key={role}>
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                      {role === 'Captain' ? '👑' : role === 'ViceCaptain' ? '⭐' : role === 'Coach' ? '📋' : '🏏'}{' '}
-                      {role === 'ViceCaptain' ? 'Vice Captain' : role}{roleMembers.length > 1 ? 's' : ''}
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {roleMembers.map((m: any) => (
-                        <div key={m.userId} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 hover:shadow-sm transition-shadow group">
-                          {m.profileImageUrl ? (
-                            <img src={m.profileImageUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-10 h-10 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-sm">
-                              {m.userName[0]}
+          {/* Roster Details */}
+          <div className="space-y-3 border-t pt-4">
+            {/* Captain */}
+            {roster.captainId && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">👑 Captain</span>
+                <span className="text-sm text-gray-800">{getUserDisplay(roster.captainId)}</span>
+              </div>
+            )}
+            {/* Vice Captain */}
+            {roster.viceCaptainId && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">⭐ Vice Captain</span>
+                <span className="text-sm text-gray-800">{getUserDisplay(roster.viceCaptainId)}</span>
+              </div>
+            )}
+            {/* Coach */}
+            {roster.coachId && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">📋 Coach</span>
+                <span className="text-sm text-gray-800">{getUserDisplay(roster.coachId)}</span>
+              </div>
+            )}
+            {/* Players */}
+            {(roster.playerIds || []).length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28 pt-0.5">🏏 Players</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {roster.playerIds.map((pid: string) => (
+                    <span key={pid} className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
+                      {getUserDisplay(pid)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* League Boards */}
+            {(roster.leagueBoardIds || []).length > 0 && (
+              <div className="flex items-start gap-2">
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28 pt-0.5">🏟️ League Boards</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {roster.leagueBoardIds.map((bid: string) => {
+                    const board = (boardGroundsList || []).find((b: any) => b.id === bid);
+                    return (
+                      <span key={bid} className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
+                        {board ? board.name : bid}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Legacy members display (if API returns members array instead) */}
+            {(roster.members || []).length > 0 && !roster.captainId && (
+              <div className="space-y-3">
+                {['Captain', 'ViceCaptain', 'Coach', 'Member'].map(role => {
+                  const roleMembers = (roster.members || []).filter((m: any) => m.role === role);
+                  if (roleMembers.length === 0) return null;
+                  return (
+                    <div key={role}>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+                        {role === 'Captain' ? '👑' : role === 'ViceCaptain' ? '⭐' : role === 'Coach' ? '📋' : '🏏'}{' '}
+                        {role === 'ViceCaptain' ? 'Vice Captain' : role}{roleMembers.length > 1 ? 's' : ''}
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {roleMembers.map((m: any) => (
+                          <div key={m.userId || m.id} className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 hover:shadow-sm transition-shadow group">
+                            {m.profileImageUrl ? (
+                              <img src={m.profileImageUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-10 h-10 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-sm">
+                                {(m.userName || m.name || '?')[0]}
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm text-gray-800 truncate">{m.userName || m.name || 'Unknown'}</p>
+                              <span className={`inline-block text-xs px-2 py-0.5 rounded-full border ${getRoleBadge(m.role)}`}>
+                                {m.role === 'ViceCaptain' ? 'Vice Captain' : m.role}
+                              </span>
                             </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm text-gray-800 truncate">{m.userName}</p>
-                            <span className={`inline-block text-xs px-2 py-0.5 rounded-full border ${getRoleBadge(m.role)}`}>
-                              {m.role === 'ViceCaptain' ? 'Vice Captain' : m.role}
-                            </span>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-6 text-gray-400 border-t">
-              <p className="text-sm">No members in this roster yet.</p>
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!roster.captainId && !roster.viceCaptainId && !roster.coachId && !(roster.playerIds || []).length && !(roster.members || []).length && (
+              <div className="text-center py-4 text-gray-400">
+                <p className="text-sm">No details available for this roster.</p>
+              </div>
+            )}
+          </div>
         </div>
       )) : !isLoading && !showCreateForm && (
         <div className="card text-center py-12 text-gray-400">

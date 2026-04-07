@@ -13,7 +13,7 @@ const menuItems: { id: MenuSection; label: string; icon: string; iconImg?: strin
   { id: 'events', label: 'My Events & Fixtures', icon: '📅', iconImg: '/images/MyEvents.png' },
   { id: 'fans', label: 'My Fans', icon: '👥', iconImg: '/images/MyFans.png' },
   { id: 'fanof', label: 'I Am Fan Of', icon: '⭐', iconImg: '/images/IAmFanOf.png' },
-  { id: 'board', label: 'My Boards', icon: '🏟️', iconImg: '/images/MyBoard.png' },
+  { id: 'board', label: 'My Boards', icon: '🏟️' },
   { id: 'buddies', label: 'My Buddies', icon: '🤝', iconImg: '/images/MyBuddyList.png' },
   { id: 'compare', label: 'Player Compare', icon: '⚖️', iconImg: '/images/PlayerCompare.png' },
   { id: 'book', label: 'Cricket Book', icon: '📖', iconImg: '/images/CricketBook.png' },
@@ -421,12 +421,6 @@ export default function DashboardPage() {
                 className={`${activeMenu === item.id ? 'sidebar-item-active' : 'sidebar-item'} w-full ${sidebarCollapsed ? 'justify-center !px-2' : 'text-left'}`}
                 title={sidebarCollapsed ? item.label : undefined}
               >
-                {item.iconImg ? (
-                  <img src={item.iconImg} alt="" className="w-8 h-8 object-contain flex-shrink-0" 
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                ) : (
-                  <span className="text-2xl flex-shrink-0">{item.icon}</span>
-                )}
                 {!sidebarCollapsed && <span className="text-sm font-medium">{item.label}</span>}
               </button>
             ))}
