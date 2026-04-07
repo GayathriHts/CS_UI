@@ -763,29 +763,62 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   const showSuccess = (msg: string) => { setSuccessMsg(msg); setErrorMsg(null); setTimeout(() => setSuccessMsg(null), 4000); };
   const showError = (msg: string) => { setErrorMsg(msg); setSuccessMsg(null); setTimeout(() => setErrorMsg(null), 5000); };
 
+  // Shared roster fetching logic — used by useQuery and after create/update/delete
+  const fetchRosterList = async () => {
+    const rawRes = await rosterService.getByBoard(boardId);
+    const raw = rawRes.data;
+
+    // Normalize the list from various possible API response shapes
+    let rosterList: any[] = [];
+    if (Array.isArray(raw)) {
+      rosterList = raw;
+    } else if (raw && typeof raw === 'object') {
+      const d = (raw as any).data;
+      const v = (raw as any).$values;
+      const i = (raw as any).items;
+      const r = (raw as any).result;
+      if (Array.isArray(d)) {
+        rosterList = d;
+      } else if (d && Array.isArray(d.$values)) {
+        rosterList = d.$values;
+      } else if (Array.isArray(v)) {
+        rosterList = v;
+      } else if (Array.isArray(i)) {
+        rosterList = i;
+      } else if (Array.isArray(r)) {
+        rosterList = r;
+      } else if (d && typeof d === 'object' && !Array.isArray(d)) {
+        // Single roster object returned, wrap in array
+        rosterList = [d];
+      }
+    }
+    console.log('[fetchRosterList] parsed', rosterList.length, 'rosters from response');
+
+    if (rosterList.length === 0) return [];
+
+    // Fetch full details for each roster using GET /boards/{boardId}/Rosters/{rosterId}
+    const detailed = await Promise.all(
+      rosterList.map(async (roster: any) => {
+        try {
+          const rid = roster.id || roster.Id || roster.rosterId || roster.RosterId;
+          if (!rid) return roster;
+          const detailRes = await rosterService.getById(boardId, rid);
+          const detailRaw = detailRes.data as any;
+          // Normalize: response may be { success: true, data: {...} } or direct object
+          const detail = detailRaw?.data && typeof detailRaw.data === 'object' && !Array.isArray(detailRaw.data)
+            ? detailRaw.data : detailRaw;
+          return { ...roster, ...detail };
+        } catch {
+          return roster;
+        }
+      })
+    );
+    return detailed;
+  };
+
   const { data: squads, isLoading } = useQuery({
     queryKey: ['squad', boardId],
-    queryFn: async () => {
-      const listRes = await boardDetailService.getSquad(boardId);
-      const rosterList = listRes.data || [];
-      console.log('Squad list result:', rosterList);
-      // Fetch full details for each roster using GET /boards/{boardId}/Rosters/{rosterId}
-      const detailed = await Promise.all(
-        rosterList.map(async (roster: any) => {
-          try {
-            const detailRes = await rosterService.getById(boardId, roster.id);
-            const raw = detailRes.data as any;
-            // Normalize: response may be { success: true, data: {...} } or direct object
-            const detail = raw?.data && typeof raw.data === 'object' && !Array.isArray(raw.data) ? raw.data : raw;
-            console.log('Roster detail for', roster.id, ':', detail);
-            return { ...roster, ...detail };
-          } catch {
-            return roster;
-          }
-        })
-      );
-      return detailed;
-    },
+    queryFn: fetchRosterList,
   });
 
   // Load user list for autocomplete (same as co-owner)
@@ -829,7 +862,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     },
   });
 
-  // Load all boards for the League Board field
+  // Load all boards for the League Board field — always enabled so list view can resolve names
   const { data: boardGroundsList, isLoading: boardGroundsLoading } = useQuery({
     queryKey: ['allBoardsForLeague'],
     queryFn: async () => {
@@ -873,7 +906,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         return [];
       }
     },
-    enabled: showCreateForm,
   });
 
   const [leagueBoardSearchField, setLeagueBoardSearchField] = useState(false);
@@ -881,11 +913,19 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const createRosterMutation = useMutation({
     mutationFn: async (data: RosterFormData) => {
-      // Get current roster list before creation attempt
-      const before = await rosterService.getByBoard(boardId).then(r => {
-        const raw = r.data;
-        return Array.isArray(raw) ? raw : Array.isArray((raw as any)?.data) ? (raw as any).data : [];
-      }).catch(() => [] as any[]);
+      // Get current roster list before creation attempt (to detect silent 500 creates)
+      const extractList = (raw: any): any[] => {
+        if (Array.isArray(raw)) return raw;
+        if (Array.isArray(raw?.data)) return raw.data;
+        if (Array.isArray(raw?.data?.$values)) return raw.data.$values;
+        if (Array.isArray(raw?.$values)) return raw.$values;
+        if (Array.isArray(raw?.items)) return raw.items;
+        return [];
+      };
+
+      const before = await rosterService.getByBoard(boardId)
+        .then(r => extractList(r.data))
+        .catch(() => [] as any[]);
 
       try {
         const createRes = await rosterService.create(boardId, {
@@ -900,23 +940,28 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       } catch (err: any) {
         // Server may return 500 but still create the roster — verify by re-fetching
         if (err?.response?.status === 500) {
-          const after = await rosterService.getByBoard(boardId).then(r => {
-            const raw = r.data;
-            return Array.isArray(raw) ? raw : Array.isArray((raw as any)?.data) ? (raw as any).data : [];
-          }).catch(() => [] as any[]);
+          const after = await rosterService.getByBoard(boardId)
+            .then(r => extractList(r.data))
+            .catch(() => [] as any[]);
           if (after.length > before.length) {
-            // Roster was created despite the 500
             return { data: after[after.length - 1] };
           }
         }
         throw err;
       }
     },
-    onSuccess: () => {
-      resetForm();
+    onSuccess: async () => {
       showSuccess('Roster created successfully!');
-      qc.invalidateQueries({ queryKey: ['squad', boardId] });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+      // Fetch updated list BEFORE closing the form to avoid flash of empty state
+      try {
+        const rosters = await fetchRosterList();
+        qc.setQueryData(['squad', boardId], rosters);
+      } catch {
+        await qc.refetchQueries({ queryKey: ['squad', boardId] });
+      }
+      // Now close the form — the list data is already in cache
+      resetForm();
     },
     onError: (error: any) => {
       console.error('Create roster error:', error?.response?.status, JSON.stringify(error?.response?.data));
@@ -933,7 +978,12 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         errMsg = typeof errData.title === 'string' ? errData.title : JSON.stringify(errData.title);
       }
       showError(errMsg);
-      qc.invalidateQueries({ queryKey: ['squad', boardId] });
+      // Refetch roster list in case the roster was actually created despite the error
+      fetchRosterList().then(rosters => {
+        qc.setQueryData(['squad', boardId], rosters);
+      }).catch(() => {
+        qc.invalidateQueries({ queryKey: ['squad', boardId] });
+      });
     },
   });
 
@@ -948,11 +998,16 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         leagueBoardIds: data.leagueBoardIds,
       });
     },
-    onSuccess: () => {
-      resetForm();
+    onSuccess: async () => {
       showSuccess('Roster updated successfully!');
-      qc.invalidateQueries({ queryKey: ['squad', boardId] });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+      try {
+        const rosters = await fetchRosterList();
+        qc.setQueryData(['squad', boardId], rosters);
+      } catch {
+        await qc.refetchQueries({ queryKey: ['squad', boardId] });
+      }
+      resetForm();
     },
     onError: (error: any) => {
       showError(error?.response?.data?.message || error?.response?.data?.title || 'Failed to update roster. Please try again.');
@@ -961,11 +1016,16 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const deleteRosterMutation = useMutation({
     mutationFn: (rosterId: string) => rosterService.delete(boardId, rosterId),
-    onSuccess: () => {
+    onSuccess: async () => {
       setDeleteConfirmId(null);
       showSuccess('Roster deleted successfully!');
-      qc.invalidateQueries({ queryKey: ['squad', boardId] });
       qc.invalidateQueries({ queryKey: ['board', boardId] });
+      try {
+        const rosters = await fetchRosterList();
+        qc.setQueryData(['squad', boardId], rosters);
+      } catch {
+        await qc.refetchQueries({ queryKey: ['squad', boardId] });
+      }
     },
     onError: (error: any) => {
       showError(error?.response?.data?.message || error?.response?.data?.title || 'Failed to delete roster.');
@@ -984,23 +1044,58 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     onDirtyChange?.(false);
   };
 
-  const startEdit = (roster: any) => {
-    // Use direct ID fields from detail response, fallback to members array
-    const captainFromMembers = roster.members?.find((m: any) => m.role === 'Captain');
-    const viceCaptainFromMembers = roster.members?.find((m: any) => m.role === 'ViceCaptain');
-    const coachFromMembers = roster.members?.find((m: any) => m.role === 'Coach');
-    const membersFromArray = roster.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+  const [editLoading, setEditLoading] = useState(false);
 
-    setEditingRosterId(roster.id);
-    setShowCreateForm(true);
-    setFormData({
-      rosterName: roster.name || '',
-      captain: roster.captainId || captainFromMembers?.userId || captainFromMembers?.userName || '',
-      viceCaptain: roster.viceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.userName || '',
-      coach: roster.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
-      members: roster.playerIds || membersFromArray,
-      leagueBoardIds: roster.leagueBoardIds || [],
-    });
+  const startEdit = async (roster: any) => {
+    const rid = roster.id || roster.Id || roster.rosterId || roster.RosterId;
+    if (!rid) return;
+
+    setEditLoading(true);
+    setEditingRosterId(rid);
+
+    try {
+      // Call GET /boards/{boardId}/Rosters/{rosterId} to fetch fresh details
+      const detailRes = await rosterService.getById(boardId, rid);
+      const detailRaw = detailRes.data as any;
+      // Normalize: response may be { success: true, data: {...} } or direct object
+      const detail = detailRaw?.data && typeof detailRaw.data === 'object' && !Array.isArray(detailRaw.data)
+        ? detailRaw.data : detailRaw;
+
+      // Use direct ID fields from detail response, fallback to members array
+      const captainFromMembers = detail.members?.find((m: any) => m.role === 'Captain');
+      const viceCaptainFromMembers = detail.members?.find((m: any) => m.role === 'ViceCaptain');
+      const coachFromMembers = detail.members?.find((m: any) => m.role === 'Coach');
+      const membersFromArray = detail.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+
+      setShowCreateForm(true);
+      setFormData({
+        rosterName: detail.name || roster.name || '',
+        captain: detail.captainId || captainFromMembers?.userId || captainFromMembers?.userName || '',
+        viceCaptain: detail.viceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.userName || '',
+        coach: detail.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
+        members: detail.playerIds || membersFromArray,
+        leagueBoardIds: detail.leagueBoardIds || [],
+      });
+    } catch {
+      // Fallback to cached roster data if API call fails
+      const captainFromMembers = roster.members?.find((m: any) => m.role === 'Captain');
+      const viceCaptainFromMembers = roster.members?.find((m: any) => m.role === 'ViceCaptain');
+      const coachFromMembers = roster.members?.find((m: any) => m.role === 'Coach');
+      const membersFromArray = roster.members?.filter((m: any) => m.role === 'Member').map((m: any) => m.userId || m.userName) || [];
+
+      setShowCreateForm(true);
+      setFormData({
+        rosterName: roster.name || '',
+        captain: roster.captainId || captainFromMembers?.userId || captainFromMembers?.userName || '',
+        viceCaptain: roster.viceCaptainId || viceCaptainFromMembers?.userId || viceCaptainFromMembers?.userName || '',
+        coach: roster.coachId || coachFromMembers?.userId || coachFromMembers?.userName || '',
+        members: roster.playerIds || membersFromArray,
+        leagueBoardIds: roster.leagueBoardIds || [],
+      });
+    } finally {
+      setEditLoading(false);
+    }
+
     setErrors({});
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1503,10 +1598,14 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                 </div>
               ) : (
                 <>
-                  <button onClick={() => startEdit(roster)} className="text-gray-400 hover:text-brand-green transition-colors" title="Edit roster">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
+                  <button onClick={() => startEdit(roster)} disabled={editLoading} className="text-gray-400 hover:text-brand-green transition-colors disabled:opacity-50" title="Edit roster">
+                    {editLoading && editingRosterId === roster.id ? (
+                      <div className="w-5 h-5 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    )}
                   </button>
                   <button onClick={() => setDeleteConfirmId(roster.id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

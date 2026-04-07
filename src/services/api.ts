@@ -25,7 +25,7 @@ const boardApi = {
     const token = getBoardToken();
 
     return axios.get(BOARD_API_BASE_URL + url, {
-      timeout: 15000,
+        timeout: 15000,
       ...config,
       headers: {
         ...(config.headers ?? {}),

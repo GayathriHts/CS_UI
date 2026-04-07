@@ -385,15 +385,28 @@ export const boardDetailService = {
   getSquad: (boardId: string) =>
     boardApi.get(`/boards/${boardId}/Rosters`, {
       params: { _t: Date.now() },
-      headers: { 'Cache-Control': 'no-cache' },
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
     }).then((r: { data: any }) => {
       const raw = r.data;
       console.log('getSquad raw response:', raw);
-      // Normalize: API may return array directly, or { data: [...] }, or { items: [...] }
-      const list = Array.isArray(raw) ? raw
-        : Array.isArray(raw?.data) ? raw.data
-        : Array.isArray(raw?.items) ? raw.items
-        : raw ? [raw] : [];
+      // Normalize: API may return array directly, or { data: [...] }, or { items: [...] },
+      // or .NET-style { $values: [...] }, or { data: { $values: [...] } }
+      let list: any[];
+      if (Array.isArray(raw)) {
+        list = raw;
+      } else if (Array.isArray(raw?.data)) {
+        list = raw.data;
+      } else if (Array.isArray(raw?.data?.$values)) {
+        list = raw.data.$values;
+      } else if (Array.isArray(raw?.items)) {
+        list = raw.items;
+      } else if (Array.isArray(raw?.$values)) {
+        list = raw.$values;
+      } else if (Array.isArray(raw?.result)) {
+        list = raw.result;
+      } else {
+        list = [];
+      }
       return { data: list as RosterDetail[] };
     }),
   // Following (Fan-Of)
