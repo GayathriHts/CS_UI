@@ -391,11 +391,11 @@ export default function DashboardPage() {
 
       <div className="flex pt-14">
         {/* Left Sidebar */}
-        <aside className={`fixed left-0 top-14 bottom-0 bg-white shadow-lg overflow-y-auto transition-all duration-300 flex flex-col ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <aside className={`fixed left-0 top-14 bottom-0 bg-brand-green shadow-lg overflow-y-auto transition-all duration-300 flex flex-col ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
           {/* User Profile Card */}
-          <Link to="/profile" className="block p-4 border-b bg-gradient-to-b from-brand-green/10 to-white hover:from-brand-green/20 transition-colors">
-            <div className={`flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'} mb-3`}>
-              <div className={`${sidebarCollapsed ? 'w-10 h-10 text-sm' : 'w-14 h-14 text-xl'} bg-brand-green rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0 transition-all duration-300`}>
+          <Link to="/profile" className="block p-4 border-b border-white/10 hover:bg-white/5 transition-colors">
+            <div className={`flex flex-col items-center ${sidebarCollapsed ? '' : 'gap-2'}`}>
+              <div className={`${sidebarCollapsed ? 'w-10 h-10 text-sm' : 'w-16 h-16 text-xl'} bg-brand-light rounded-full flex items-center justify-center text-white font-bold shadow-md flex-shrink-0 transition-all duration-300`}>
                 {user?.profileImageUrl ? (
                   <img src={user.profileImageUrl} alt="" className="w-full h-full rounded-full object-cover" />
                 ) : (
@@ -403,10 +403,9 @@ export default function DashboardPage() {
                 )}
               </div>
               {!sidebarCollapsed && (
-                <div>
-                  <p className="font-semibold text-gray-800">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-gray-500">{user?.playerRole}</p>
-                  <p className="text-xs text-brand-green font-medium mt-0.5">View Profile →</p>
+                <div className="text-center">
+                  <p className="font-semibold text-white">{user?.firstName} {user?.lastName}</p>
+                  {user?.playerRole && <p className="text-xs text-white/60">{user.playerRole}</p>}
                 </div>
               )}
             </div>
@@ -421,7 +420,7 @@ export default function DashboardPage() {
                 className={`${activeMenu === item.id ? 'sidebar-item-active' : 'sidebar-item'} w-full ${sidebarCollapsed ? 'justify-center !px-2' : 'text-left'}`}
                 title={sidebarCollapsed ? item.label : undefined}
               >
-                {!sidebarCollapsed && <span className="text-sm font-medium">{item.label}</span>}
+                {!sidebarCollapsed && <span className="text-lg font-semibold">{item.label}</span>}
               </button>
             ))}
           </nav>
@@ -430,10 +429,10 @@ export default function DashboardPage() {
           <div className="flex-1" />
 
           {/* Bottom Collapse/Expand Toggle */}
-          <div className="border-t border-gray-200 p-2">
+          <div className="border-t border-white/10 p-2">
             <button
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between px-3'} py-2.5 rounded-lg text-gray-500 hover:bg-gray-100 hover:text-brand-green transition-colors`}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'justify-between px-3'} py-2.5 rounded-lg text-white/60 hover:bg-white/10 hover:text-white transition-colors`}
               title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {!sidebarCollapsed && <span className="text-xs font-medium">Collapse</span>}
@@ -839,12 +838,6 @@ export default function DashboardPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
                       </div>
-                      {boardTypeLabel === 'League' && (
-                        <div
-                          className="mt-3 block w-full text-center bg-brand-green/10 text-brand-green text-sm font-medium py-2 rounded-lg hover:bg-brand-green/20 transition-colors">
-                          ⚙️ Manage Your League
-                        </div>
-                      )}
                     </Link>
                   );
                   })}

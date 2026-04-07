@@ -1871,22 +1871,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                 </div>
               </div>
             )}
-            {/* League Boards */}
-            {(roster.leagueBoardIds || []).length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28 pt-0.5">🏟️ League Boards</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {roster.leagueBoardIds.map((bid: string) => {
-                    const board = (boardGroundsList || []).find((b: any) => b.id === bid);
-                    return (
-                      <span key={bid} className="inline-block bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded-full">
-                        {board ? board.name : bid}
-                      </span>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Legacy members display (if API returns members array instead) */}
             {(roster.members || []).length > 0 && !roster.captainId && (
