@@ -1105,13 +1105,13 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       setEditMobile(rawMobile);
     }
     setEditEmail(u.email || '');
-    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: rawMobile, email: u.email || '' });
+    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: codeMatch ? rawMobile.slice(codeMatch[1].length) : rawMobile, countryCode: codeMatch ? codeMatch[1] : '+1', email: u.email || '' });
     setUpdateError('');
     setUpdateSuccess('');
   };
 
   const cancelEdit = () => {
-    const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editHomePhone !== editOriginal.homePhone || editWorkPhone !== editOriginal.workPhone || editMobile !== editOriginal.mobile || editEmail !== editOriginal.email);
+    const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editHomePhone !== editOriginal.homePhone || editWorkPhone !== editOriginal.workPhone || editMobile !== editOriginal.mobile || editCountryCode !== editOriginal.countryCode || editEmail !== editOriginal.email);
     if (hasChanges) { setShowCancelConfirm(true); return; }
     setEditId(null);
     setUpdateError('');
