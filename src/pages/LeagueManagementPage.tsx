@@ -636,6 +636,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   // Phone codes state
   const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string; flag?: string }[]>([]);
   const [phoneCodesLoading, setPhoneCodesLoading] = useState(false);
+  const [phoneCodeDropdownOpen, setPhoneCodeDropdownOpen] = useState(false);
+  const [phoneCodeSearchText, setPhoneCodeSearchText] = useState('');
 
   // Location cascading dropdown state
   const [countryList, setCountryList] = useState<string[]>([]);
@@ -898,27 +900,34 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
               <div className="flex gap-2">
-                <div className="relative flex items-center">
-                  <img src={countryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="absolute left-2 w-5 h-3.5 object-cover rounded-sm pointer-events-none z-10" />
-                  <select
-                    value={countryCode}
-                    onChange={e => setCountryCode(e.target.value)}
-                    className="input-field w-36 pl-9"
-                    disabled={phoneCodesLoading}
+                <div className="relative">
+                  {phoneCodeDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setPhoneCodeDropdownOpen(false); setPhoneCodeSearchText(''); }} />}
+                  <div
+                    className="input-field text-sm w-36 cursor-pointer flex items-center gap-2"
+                    onClick={() => { if (!phoneCodesLoading) setPhoneCodeDropdownOpen(!phoneCodeDropdownOpen); }}
                   >
-                    {phoneCodesLoading ? (
-                      <option>Loading...</option>
-                    ) : phoneCodeList.length > 0 ? (
-                      phoneCodeList.map(c => (
-                        <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="+91">+91 (IN)</option>
-                        <option value="+1">+1 (US)</option>
-                      </>
-                    )}
-                  </select>
+                    <img src={countryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-5 h-3.5 object-cover rounded-sm" />
+                    <span className="flex-1 text-gray-900">{phoneCodesLoading ? 'Loading...' : (() => { const sel = phoneCodeList.find(c => c.dial_code === countryCode); return sel ? `${sel.dial_code} (${sel.code})` : `${countryCode}`; })()}</span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${phoneCodeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                  {phoneCodeDropdownOpen && (
+                    <div className="absolute z-10 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg">
+                      <div className="p-2 border-b border-gray-100">
+                        <input type="text" value={phoneCodeSearchText} onChange={e => setPhoneCodeSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search code..." autoFocus onClick={e => e.stopPropagation()} />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {(phoneCodeList.length > 0 ? phoneCodeList : [{ name: 'India', code: 'IN', dial_code: '+91', flag: '' }, { name: 'United States', code: 'US', dial_code: '+1', flag: '' }])
+                          .filter(c => !phoneCodeSearchText || c.dial_code.includes(phoneCodeSearchText) || c.code.toLowerCase().includes(phoneCodeSearchText.toLowerCase()) || c.name.toLowerCase().includes(phoneCodeSearchText.toLowerCase()))
+                          .map(c => (
+                          <button key={`${c.code}-${c.dial_code}`} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 flex items-center gap-2 ${countryCode === c.dial_code ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                            onClick={() => { setCountryCode(c.dial_code); setPhoneCodeDropdownOpen(false); setPhoneCodeSearchText(''); }}>
+                            <img src={c.code === 'IN' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-5 h-3.5 object-cover rounded-sm" />
+                            {c.dial_code} ({c.code})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <input
                   value={contactNo}
@@ -1023,6 +1032,8 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const [editPhoneCodeList, setEditPhoneCodeList] = useState<{ name: string; code: string; dial_code: string; flag?: string }[]>([]);
   const [editPhoneCodesLoading, setEditPhoneCodesLoading] = useState(false);
   const [editCountryCode, setEditCountryCode] = useState('+1');
+  const [editPhoneCodeDropdownOpen, setEditPhoneCodeDropdownOpen] = useState(false);
+  const [editPhoneCodeSearchText, setEditPhoneCodeSearchText] = useState('');
 
   useEffect(() => {
     setCountriesLoading(true);
@@ -1266,27 +1277,34 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
               <div className="flex gap-2">
-                <div className="relative flex items-center">
-                  <img src={editCountryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="absolute left-2 w-5 h-3.5 object-cover rounded-sm pointer-events-none z-10" />
-                  <select
-                    value={editCountryCode}
-                    onChange={e => setEditCountryCode(e.target.value)}
-                    className="input-field w-36 pl-9"
-                    disabled={editPhoneCodesLoading}
+                <div className="relative">
+                  {editPhoneCodeDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setEditPhoneCodeDropdownOpen(false); setEditPhoneCodeSearchText(''); }} />}
+                  <div
+                    className="input-field text-sm w-36 cursor-pointer flex items-center gap-2"
+                    onClick={() => { if (!editPhoneCodesLoading) setEditPhoneCodeDropdownOpen(!editPhoneCodeDropdownOpen); }}
                   >
-                    {editPhoneCodesLoading ? (
-                      <option>Loading...</option>
-                    ) : editPhoneCodeList.length > 0 ? (
-                      editPhoneCodeList.map(c => (
-                        <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="+91">+91 (IN)</option>
-                        <option value="+1">+1 (US)</option>
-                      </>
-                    )}
-                  </select>
+                    <img src={editCountryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-5 h-3.5 object-cover rounded-sm" />
+                    <span className="flex-1 text-gray-900">{editPhoneCodesLoading ? 'Loading...' : (() => { const sel = editPhoneCodeList.find(c => c.dial_code === editCountryCode); return sel ? `${sel.dial_code} (${sel.code})` : `${editCountryCode}`; })()}</span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${editPhoneCodeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </div>
+                  {editPhoneCodeDropdownOpen && (
+                    <div className="absolute z-10 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg">
+                      <div className="p-2 border-b border-gray-100">
+                        <input type="text" value={editPhoneCodeSearchText} onChange={e => setEditPhoneCodeSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search code..." autoFocus onClick={e => e.stopPropagation()} />
+                      </div>
+                      <div className="max-h-48 overflow-y-auto">
+                        {(editPhoneCodeList.length > 0 ? editPhoneCodeList : [{ name: 'India', code: 'IN', dial_code: '+91', flag: '' }, { name: 'United States', code: 'US', dial_code: '+1', flag: '' }])
+                          .filter(c => !editPhoneCodeSearchText || c.dial_code.includes(editPhoneCodeSearchText) || c.code.toLowerCase().includes(editPhoneCodeSearchText.toLowerCase()) || c.name.toLowerCase().includes(editPhoneCodeSearchText.toLowerCase()))
+                          .map(c => (
+                          <button key={`${c.code}-${c.dial_code}`} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 flex items-center gap-2 ${editCountryCode === c.dial_code ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                            onClick={() => { setEditCountryCode(c.dial_code); setEditPhoneCodeDropdownOpen(false); setEditPhoneCodeSearchText(''); }}>
+                            <img src={c.code === 'IN' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-5 h-3.5 object-cover rounded-sm" />
+                            {c.dial_code} ({c.code})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <input
                   value={editMobile}
