@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -84,7 +84,7 @@ export default function LeagueManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar title={`League Management — ${board.name}`} backTo="/dashboard" />
+      <Navbar title={`League Management â€” ${board.name}`} backTo="/dashboard" />
 
       <div className="pt-14 flex">
         {/* Sidebar */}
@@ -194,7 +194,7 @@ export default function LeagueManagementPage() {
   );
 }
 
-// ── EDIT LEAGUE MODAL ──
+// â”€â”€ EDIT LEAGUE MODAL â”€â”€
 function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(board.name || '');
   const [boardNameError, setBoardNameError] = useState('');
@@ -321,7 +321,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
       const newCity = updatedBoard?.city ?? city;
       const newState = updatedBoard?.state ?? state;
       const newCountry = updatedBoard?.country ?? country;
-      const newLogoUrl = logoPreview; // always use local state — this is what the user chose
+      const newLogoUrl = logoPreview; // always use local state â€” this is what the user chose
       const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry, logoUrl: newLogoUrl };
       try {
         const pending = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
@@ -413,7 +413,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
           <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
           {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
           <div className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
-            <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
+            <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
           {countryDropdownOpen && (
@@ -432,7 +432,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
           <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
           {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
           <div className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
-            <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
+            <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
           {stateDropdownOpen && (
@@ -451,7 +451,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
           <label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
           {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
           <div className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
-            <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select District / City'}</span>
+            <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
           {cityDropdownOpen && (
@@ -525,7 +525,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
   );
 }
 
-// ── LEAGUE LANDING TAB (default when Manage League is opened) ──
+// â”€â”€ LEAGUE LANDING TAB (default when Manage League is opened) â”€â”€
 function LeagueLandingTab({ boardId }: { boardId: string }) {
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments', boardId],
@@ -576,7 +576,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} Â· {new Date(m.scheduledAt).toLocaleString()}</p>
                   {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
                 </div>
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">View Score</span>
@@ -599,8 +599,8 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
-                  {m.groundName && <p className="text-xs text-gray-400">📍 {m.groundName}</p>}
+                  <p className="text-xs text-gray-500">{m.tournamentName} Â· {new Date(m.scheduledAt).toLocaleString()}</p>
+                  {m.groundName && <p className="text-xs text-gray-400">ðŸ“ {m.groundName}</p>}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                   {m.status}
@@ -616,7 +616,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
   );
 }
 
-// ── CREATE UMPIRE TAB ──
+// â”€â”€ CREATE UMPIRE TAB â”€â”€
 function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
@@ -634,7 +634,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const qc = useQueryClient();
 
   // Phone codes state
-  const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string }[]>([]);
+  const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string; flag?: string }[]>([]);
   const [phoneCodesLoading, setPhoneCodesLoading] = useState(false);
 
   // Location cascading dropdown state
@@ -786,7 +786,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               />
             </div>
 
-            {/* Row 2: Country → State → City cascading dropdowns */}
+            {/* Row 2: Country â†’ State â†’ City cascading dropdowns */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Country <span className="text-red-500">*</span>
@@ -796,7 +796,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''} ${errors.country ? 'border-red-500' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); if (errors.country) setErrors(prev => ({ ...prev, country: '' })); }}
               >
-                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
+                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {countryDropdownOpen && (
@@ -826,7 +826,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''} ${errors.state ? 'border-red-500' : ''}`}
                 onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); if (errors.state) setErrors(prev => ({ ...prev, state: '' })); }}
               >
-                <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
+                <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {stateDropdownOpen && (
@@ -856,7 +856,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''} ${errors.city ? 'border-red-500' : ''}`}
                 onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); if (errors.city) setErrors(prev => ({ ...prev, city: '' })); }}
               >
-                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select City'}</span>
+                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {cityDropdownOpen && (
@@ -894,26 +894,28 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
               <div className="flex gap-2">
-                <select
-                  value={countryCode}
-                  onChange={e => setCountryCode(e.target.value)}
-                  className="input-field w-32"
-                  disabled={phoneCodesLoading}
-                >
-                  {phoneCodesLoading ? (
-                    <option>Loading...</option>
-                  ) : phoneCodeList.length > 0 ? (
-                    phoneCodeList.map(c => (
-                      <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="+1">+1 (US)</option>
-                      <option value="+91">+91 (IN)</option>
-                      <option value="+44">+44 (GB)</option>
-                    </>
-                  )}
-                </select>
+                <div className="relative flex items-center">
+                  <img src={countryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="absolute left-2 w-5 h-3.5 object-cover rounded-sm pointer-events-none z-10" />
+                  <select
+                    value={countryCode}
+                    onChange={e => setCountryCode(e.target.value)}
+                    className="input-field w-36 pl-9"
+                    disabled={phoneCodesLoading}
+                  >
+                    {phoneCodesLoading ? (
+                      <option>Loading...</option>
+                    ) : phoneCodeList.length > 0 ? (
+                      phoneCodeList.map(c => (
+                        <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
                 <input
                   value={contactNo}
                   maxLength={10}
@@ -977,7 +979,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   );
 }
 
-// ── UMPIRE LIST TAB ──
+// â”€â”€ UMPIRE LIST TAB â”€â”€
 function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -1014,7 +1016,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const [citySearchText, setCitySearchText] = useState('');
 
   // Phone codes state for edit
-  const [editPhoneCodeList, setEditPhoneCodeList] = useState<{ name: string; code: string; dial_code: string }[]>([]);
+  const [editPhoneCodeList, setEditPhoneCodeList] = useState<{ name: string; code: string; dial_code: string; flag?: string }[]>([]);
   const [editPhoneCodesLoading, setEditPhoneCodesLoading] = useState(false);
   const [editCountryCode, setEditCountryCode] = useState('+1');
 
@@ -1167,7 +1169,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
             </div>
 
-            {/* Row 2: Country → State → City */}
+            {/* Row 2: Country â†’ State â†’ City */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
@@ -1175,7 +1177,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || 'Select Country'}</span>
+                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {countryDropdownOpen && (
@@ -1202,7 +1204,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 className={`input-field cursor-pointer flex items-center justify-between ${!editCountry || statesLoading ? 'pointer-events-none' : ''}`}
                 onClick={() => { if (editCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
-                <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? 'Select Country first' : statesLoading ? 'Loading states...' : editState || 'Select State'}</span>
+                <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? '' : statesLoading ? 'Loading states...' : editState || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {stateDropdownOpen && (
@@ -1229,7 +1231,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 className={`input-field cursor-pointer flex items-center justify-between ${!editState || citiesLoading ? 'pointer-events-none' : ''}`}
                 onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? 'Select State first' : citiesLoading ? 'Loading...' : editCity || 'Select City'}</span>
+                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {cityDropdownOpen && (
@@ -1258,26 +1260,28 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
               <div className="flex gap-2">
-                <select
-                  value={editCountryCode}
-                  onChange={e => setEditCountryCode(e.target.value)}
-                  className="input-field w-32"
-                  disabled={editPhoneCodesLoading}
-                >
-                  {editPhoneCodesLoading ? (
-                    <option>Loading...</option>
-                  ) : editPhoneCodeList.length > 0 ? (
-                    editPhoneCodeList.map(c => (
-                      <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="+1">+1 (US)</option>
-                      <option value="+91">+91 (IN)</option>
-                      <option value="+44">+44 (GB)</option>
-                    </>
-                  )}
-                </select>
+                <div className="relative flex items-center">
+                  <img src={editCountryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="absolute left-2 w-5 h-3.5 object-cover rounded-sm pointer-events-none z-10" />
+                  <select
+                    value={editCountryCode}
+                    onChange={e => setEditCountryCode(e.target.value)}
+                    className="input-field w-36 pl-9"
+                    disabled={editPhoneCodesLoading}
+                  >
+                    {editPhoneCodesLoading ? (
+                      <option>Loading...</option>
+                    ) : editPhoneCodeList.length > 0 ? (
+                      editPhoneCodeList.map(c => (
+                        <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="+91">+91 (IN)</option>
+                        <option value="+1">+1 (US)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
                 <input
                   value={editMobile}
                   maxLength={10}
@@ -1335,7 +1339,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3">{u.email || '-'}</td>
                           <td className="py-3">{u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}` : '-'}</td>
                           <td className="py-3">{u.city || '-'}</td>
-                          <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
+                          <td className="py-3">{u.rating != null ? `${'â­'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
                           <td className="py-3">
                             <div className="flex items-center gap-2">
@@ -1438,7 +1442,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   );
 }
 
-// ── CREATE GROUND TAB ──
+// â”€â”€ CREATE GROUND TAB â”€â”€
 function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onCreated?: () => void; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [address1, setAddress1] = useState('');
@@ -1489,7 +1493,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     fetchCities(country, state).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
   }, [country, state]);
 
-  // Fetch user's boards/teams for home team dropdown — only boardType 1 (Team)
+  // Fetch user's boards/teams for home team dropdown â€” only boardType 1 (Team)
   const { data: boardsList, isLoading: boardsLoading } = useQuery({
     queryKey: ['boardsByOwner', user?.id, 'type1'],
     queryFn: async () => {
@@ -1627,7 +1631,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <input value={address2} onChange={e => setAddress2(e.target.value)} className="input-field" />
             </div>
 
-            {/* Row 2: Country → State → City cascading dropdowns */}
+            {/* Row 2: Country â†’ State â†’ City cascading dropdowns */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
@@ -1635,7 +1639,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                 className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
+                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {countryDropdownOpen && (
@@ -1662,7 +1666,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                 className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`}
                 onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
-                <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
+                <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {stateDropdownOpen && (
@@ -1689,7 +1693,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                 className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`}
                 onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select City'}</span>
+                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {cityDropdownOpen && (
@@ -1831,7 +1835,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   );
 }
 
-// ── GROUND LIST TAB ──
+// â”€â”€ GROUND LIST TAB â”€â”€
 function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -2001,7 +2005,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
             </div>
 
-            {/* Row 2: Country → State → City */}
+            {/* Row 2: Country â†’ State â†’ City */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
@@ -2009,7 +2013,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || 'Select Country'}</span>
+                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {countryDropdownOpen && (
@@ -2036,7 +2040,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 className={`input-field cursor-pointer flex items-center justify-between ${!editCountry || statesLoading ? 'pointer-events-none' : ''}`}
                 onClick={() => { if (editCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
-                <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? 'Select Country first' : statesLoading ? 'Loading states...' : editState || 'Select State'}</span>
+                <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? '' : statesLoading ? 'Loading states...' : editState || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {stateDropdownOpen && (
@@ -2063,7 +2067,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 className={`input-field cursor-pointer flex items-center justify-between ${!editState || citiesLoading ? 'pointer-events-none' : ''}`}
                 onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? 'Select State first' : citiesLoading ? 'Loading...' : editCity || 'Select City'}</span>
+                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {cityDropdownOpen && (
@@ -2168,7 +2172,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                     <div key={gid} className={`border rounded-lg p-4 ${editId === gid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">🏟️</span>
+                          <span className="text-xl">ðŸŸï¸</span>
                           <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2243,7 +2247,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   );
 }
 
-// ── CREATE TROPHY TAB ──
+// â”€â”€ CREATE TROPHY TAB â”€â”€
 interface TrophyGroup {
   name: string;
   teamIds: string[];
@@ -2256,6 +2260,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const [groups, setGroups] = useState<TrophyGroup[]>([{ name: '', teamIds: [] }]);
   const [teamSearches, setTeamSearches] = useState<string[]>(['']);
   const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(new Set());
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const dropdownTriggerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
@@ -2432,20 +2437,29 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
           <div className="space-y-4">
             {groups.map((group, gIdx) => (
               <div key={gIdx} className="border-2 border-red-500 rounded-lg overflow-hidden">
-                <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setCollapsedGroups(prev => {
+                    const next = new Set(prev);
+                    if (next.has(gIdx)) next.delete(gIdx); else next.add(gIdx);
+                    return next;
+                  })}
+                  className="w-full bg-red-600 text-white px-4 py-2 flex items-center justify-between cursor-pointer"
+                >
                   <span className="font-bold text-sm uppercase">Group {String.fromCharCode(65 + gIdx)}</span>
                   <div className="flex items-center gap-2">
                     {groups.length > 1 && (
-                      <button onClick={() => removeGroup(gIdx)} className="text-white hover:text-red-200 text-lg" title="Remove group">🗑️</button>
+                      <span onClick={(e) => { e.stopPropagation(); removeGroup(gIdx); }} className="text-white hover:text-red-200 text-lg cursor-pointer" title="Remove group">ðŸ—‘ï¸</span>
                     )}
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className={`w-4 h-4 transition-transform duration-200 ${collapsedGroups.has(gIdx) ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </div>
-                </div>
+                </button>
 
+                {!collapsedGroups.has(gIdx) && (
                 <div className="p-4 space-y-4">
-                  {/* Group Name — full width */}
+                  {/* Group Name â€” full width */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Group Name <span className="text-red-500">*</span>
@@ -2457,13 +2471,13 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                     />
                   </div>
 
-                  {/* Team slots — fixed dropdown row + chips row below */}
+                  {/* Team slots â€” fixed dropdown row + chips row below */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Team Board <span className="text-red-500">*</span>
                     </label>
 
-                    {/* Select Team dropdown — always fixed at top, never moves */}
+                    {/* Select Team dropdown â€” always fixed at top, never moves */}
                     <div className="relative w-44 mb-3"
                       ref={el => { dropdownTriggerRefs.current[gIdx] = el; }}
                     >
@@ -2491,7 +2505,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                       </div>
                     </div>
 
-                    {/* Portal dropdown — renders at body level to escape overflow:hidden */}
+                    {/* Portal dropdown â€” renders at body level to escape overflow:hidden */}
                     {openDropdown === gIdx && dropdownPos && ReactDOM.createPortal(
                       <>
                         <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenDropdown(null); setDropdownPos(null); const s = [...teamSearches]; s[gIdx] = ''; setTeamSearches(s); }} />
@@ -2552,7 +2566,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                       document.body
                     )}
 
-                    {/* Selected team chips — separate row, never shifts the dropdown above */}
+                    {/* Selected team chips â€” separate row, never shifts the dropdown above */}
                     {group.teamIds.length > 0 && (
                       <div className="flex flex-wrap gap-3 items-start mt-1">
                         {group.teamIds.map(tid => {
@@ -2561,7 +2575,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                             <div key={tid} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm min-w-[140px] max-w-[180px]">
                               {board?.logoUrl
                                 ? <img src={board.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">🏏</div>
+                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">ðŸ</div>
                               }
                               <span className="text-sm font-medium text-gray-800 truncate flex-1">{board?.name || tid}</span>
                               <button
@@ -2580,6 +2594,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                     )}
                   </div>
                 </div>
+                )}
               </div>
             ))}
 
@@ -2650,7 +2665,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   );
 }
 
-// ── CANCEL GAME BY DATE TAB ──
+// â”€â”€ CANCEL GAME BY DATE TAB â”€â”€
 function CancelGameTab({ boardId }: { boardId: string }) {
   const today = new Date();
   const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
@@ -2682,7 +2697,7 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   );
 }
 
-// ── TOURNAMENTS TAB ──
+// â”€â”€ TOURNAMENTS TAB â”€â”€
 function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -2768,7 +2783,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      // Build payload with ONLY the fields the PUT API accepts — nothing extra
+      // Build payload with ONLY the fields the PUT API accepts â€” nothing extra
       const payload = {
         id: editId!,
         tournamentName: editName.trim(),
@@ -3030,7 +3045,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                             <div className="flex items-center gap-3">
                               {b?.logoUrl
                                 ? <img src={b.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
+                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">ðŸ</div>
                               }
                               <span className="text-sm font-medium">{b?.name || tid}</span>
                             </div>
@@ -3197,7 +3212,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   );
 }
 
-// ── SCHEDULE TAB ──
+// â”€â”€ SCHEDULE TAB â”€â”€
 function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const today = new Date();
   const user = useAuthStore((s) => s.user);
@@ -3277,8 +3292,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
       const d = r.data;
       const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-      console.log('📋 Schedule GET raw response:', d);
-      if (list.length > 0) console.log('📋 First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
+      console.log('ðŸ“‹ Schedule GET raw response:', d);
+      if (list.length > 0) console.log('ðŸ“‹ First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
       return list;
     }),
     enabled: !!from && !!to,
@@ -3344,7 +3359,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
-      console.log('📋 Tournament teams raw response:', d);
+      console.log('ðŸ“‹ Tournament teams raw response:', d);
       const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
       return list.map((t: any) => ({
         id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
@@ -3456,7 +3471,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     );
   };
 
-  // Filter team boards based on search text — use tournament teams when available, else all boards
+  // Filter team boards based on search text â€” use tournament teams when available, else all boards
   const filterTeamBoards = (search: string, excludeId?: string) => {
     const q = search.toLowerCase();
     const source = tournamentTeamList.length > 0 ? tournamentTeamList : teamBoardList;
@@ -3495,7 +3510,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: editPortalScorer || '',
         active: true,
       };
-      console.log('📤 Schedule PUT payload:', JSON.stringify(payload, null, 2));
+      console.log('ðŸ“¤ Schedule PUT payload:', JSON.stringify(payload, null, 2));
       return leagueService.updateSchedule(editMatchId!, payload);
     },
     onSuccess: () => {
@@ -3508,7 +3523,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
       if (respData?.errors) {
         const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
-        msg = msg ? `${msg} — ${ve}` : ve;
+        msg = msg ? `${msg} â€” ${ve}` : ve;
       }
       setEditError(msg || error?.message || 'Failed to update schedule.');
     },
@@ -3541,11 +3556,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: newPortalScorerId || '',
         active: true,
       };
-      console.log('📤 Schedule POST payload:', JSON.stringify(payload, null, 2));
+      console.log('ðŸ“¤ Schedule POST payload:', JSON.stringify(payload, null, 2));
       return tournamentService.createSchedule(payload as any);
     },
     onSuccess: (response: any) => {
-      console.log('✅ Schedule created successfully:', response?.data);
+      console.log('âœ… Schedule created successfully:', response?.data);
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       setCreateError('');
       setCreateSuccess('Schedule created successfully!');
@@ -3553,7 +3568,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       setTimeout(() => setCreateSuccess(''), 4000);
     },
     onError: (error: any) => {
-      console.error('❌ Schedule creation failed:', error?.response?.status, error?.response?.data);
+      console.error('âŒ Schedule creation failed:', error?.response?.status, error?.response?.data);
       const respData = error?.response?.data;
       let msg = '';
       if (typeof respData === 'string') {
@@ -3565,7 +3580,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           const validationErrors = Object.entries(respData.errors)
             .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`)
             .join('; ');
-          msg = msg ? `${msg} — ${validationErrors}` : validationErrors;
+          msg = msg ? `${msg} â€” ${validationErrors}` : validationErrors;
         }
       }
       if (!msg) msg = error?.message || 'Failed to create schedule.';
@@ -3891,7 +3906,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
       {showCreate && (
         <div className="card mb-6">
-          <h3 className="font-semibold mb-4">Create Match Schedule</h3>
+          <h3 className="font-semibold mb-4">Create Match</h3>
           {createError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{createError}</div>}
           {createSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{createSuccess}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -4168,7 +4183,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   );
 }
 
-// ── APPLICATIONS TAB ──
+// â”€â”€ APPLICATIONS TAB â”€â”€
 function ApplicationsTab({ boardId }: { boardId: string }) {
   const [selectedTournament, setSelectedTournament] = useState('');
   const qc = useQueryClient();
@@ -4206,7 +4221,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
                 <tr key={a.id} className="border-b last:border-b-0 hover:bg-gray-50">
                   <td className="py-3 font-medium">{a.teamName}</td>
                   <td className="py-3">{a.paymentAmount ? `$${a.paymentAmount}` : '-'} {a.paymentStatus && <span className="text-xs text-gray-400">({a.paymentStatus})</span>}</td>
-                  <td className="py-3">{a.waiverSigned ? '✅' : '❌'}</td>
+                  <td className="py-3">{a.waiverSigned ? 'âœ…' : 'âŒ'}</td>
                   <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${a.status === 'Approved' ? 'bg-green-100 text-green-700' : a.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{a.status}</span></td>
                   <td className="py-3 text-xs">{new Date(a.submittedAt).toLocaleDateString()}</td>
                   <td className="py-3 space-x-2">
@@ -4226,7 +4241,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
   );
 }
 
-// ── INVOICES TAB ──
+// â”€â”€ INVOICES TAB â”€â”€
 function InvoicesTab({ boardId }: { boardId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState(''); const [description, setDescription] = useState(''); const [dueDate, setDueDate] = useState('');

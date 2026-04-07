@@ -1,12 +1,14 @@
 const COUNTRIES_NOW_BASE = 'https://countriesnow.space/api/v0.1';
 
 // Simple in-memory cache to avoid redundant API calls
-const cache: { countries: string[] | null; states: Record<string, string[]>; cities: Record<string, string[]>; phoneCodes: { name: string; code: string; dial_code: string }[] | null } = {
+const cache: { countries: string[] | null; states: Record<string, string[]>; cities: Record<string, string[]>; phoneCodes: { name: string; code: string; dial_code: string; flag: string }[] | null } = {
   countries: null,
   states: {},
   cities: {},
   phoneCodes: null,
 };
+
+const ALLOWED_COUNTRIES = ['India', 'United States'];
 
 export async function fetchCountries(): Promise<string[]> {
   if (cache.countries) return cache.countries;
@@ -14,7 +16,7 @@ export async function fetchCountries(): Promise<string[]> {
   if (!res.ok) throw new Error('Failed to fetch countries');
   const json = await res.json();
   if (json.error) throw new Error(json.msg || 'API error');
-  const countries: string[] = json.data.map((c: { name: string }) => c.name).sort();
+  const countries: string[] = json.data.map((c: { name: string }) => c.name).filter((n: string) => ALLOWED_COUNTRIES.includes(n)).sort();
   cache.countries = countries;
   // Also cache states from this same response
   for (const c of json.data) {
@@ -58,14 +60,18 @@ export async function fetchCities(country: string, state: string): Promise<strin
   return cities;
 }
 
-export async function fetchCountryPhoneCodes(): Promise<{ name: string; code: string; dial_code: string }[]> {
+const ALLOWED_PHONE_CODES = ['IN', 'US'];
+
+export async function fetchCountryPhoneCodes(): Promise<{ name: string; code: string; dial_code: string; flag: string }[]> {
   if (cache.phoneCodes) return cache.phoneCodes;
   const res = await fetch(`${COUNTRIES_NOW_BASE}/countries/codes`);
   if (!res.ok) throw new Error('Failed to fetch country phone codes');
   const json = await res.json();
   if (json.error) throw new Error(json.msg || 'API error');
+  const flagMap: Record<string, string> = { IN: '🇮🇳', US: '🇺🇸' };
   const codes = (json.data as { name: string; code: string; dial_code: string }[])
-    .filter(c => c.dial_code)
+    .filter(c => c.dial_code && ALLOWED_PHONE_CODES.includes(c.code))
+    .map(c => ({ ...c, flag: flagMap[c.code] || '' }))
     .sort((a, b) => a.name.localeCompare(b.name));
   cache.phoneCodes = codes;
   return codes;

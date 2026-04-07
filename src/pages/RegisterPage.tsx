@@ -29,7 +29,7 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string }[]>([]);
+  const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string; flag?: string }[]>([]);
   const { register, watch, getValues, setValue, trigger, formState: { isSubmitting } } = useForm<RegisterRequest>();
   const watchedFirstName = watch('firstName');
   const watchedLastName = watch('lastName');
@@ -359,14 +359,12 @@ export default function RegisterPage() {
                         <select className="input-field w-24 text-sm" value={countryCode} onChange={(e) => setCountryCode(e.target.value)}>
                           {phoneCodeList.length > 0 ? (
                             phoneCodeList.map(c => (
-                              <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                              <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.flag ? `${c.flag} ` : ''}{c.dial_code} ({c.code})</option>
                             ))
                           ) : (
                             <>
-                              <option>+1</option>
-                              <option>+91</option>
-                              <option>+44</option>
-                              <option>+61</option>
+                              <option value="+91">🇮🇳 +91 (IN)</option>
+                              <option value="+1">🇺🇸 +1 (US)</option>
                             </>
                           )}
                         </select>
