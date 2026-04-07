@@ -193,8 +193,15 @@ export const rosterService = {
     playerIds: data.playerIds || [],
     leagueBoardIds: data.leagueBoardIds || [],
   }) as Promise<{ data: Roster }>,
-  getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`) as Promise<{ data: Roster[] }>,
-  getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`) as Promise<{ data: Roster }>,
+  getByBoard: (boardId: string) => boardApi.get(`/boards/${boardId}/Rosters`, {
+    params: { _t: Date.now() },
+    headers: { 'Cache-Control': 'no-cache' },
+  }) as Promise<{ data: Roster[] }>,
+  getById: (boardId: string, rosterId: string) => boardApi.get(`/boards/${boardId}/Rosters/${rosterId}`, {
+    params: { _t: Date.now() },
+    headers: { 'Cache-Control': 'no-cache' },
+  }) as Promise<{ data: Roster }>,
+
   update: (boardId: string, rosterId: string, data: {
     name: string;
     logoUrl?: string | null;

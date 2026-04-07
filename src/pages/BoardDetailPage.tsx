@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
@@ -759,7 +759,58 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [rosterFieldSearch, setRosterFieldSearch] = useState('');
   const [showRosterCancelConfirm, setShowRosterCancelConfirm] = useState(false);
+  const deletedIdsRef = useRef<Set<string>>(new Set());
+  const createdRostersRef = useRef<any[]>([]);
   const qc = useQueryClient();
+
+  // ── Persist deleted/created roster IDs in sessionStorage so they survive page refresh ──
+  const DELETED_KEY = `deletedRosters_${boardId}`;
+  const CREATED_KEY = `createdRosters_${boardId}`;
+
+  // Load persisted tracking on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(DELETED_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { ids: string[]; ts: number };
+        // Only keep if saved within last 60 seconds (backend propagation window)
+        if (Date.now() - parsed.ts < 60000) {
+          parsed.ids.forEach((id: string) => deletedIdsRef.current.add(id));
+        } else {
+          sessionStorage.removeItem(DELETED_KEY);
+        }
+      }
+    } catch { /* ignore */ }
+    try {
+      const saved = sessionStorage.getItem(CREATED_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as { rosters: any[]; ts: number };
+        if (Date.now() - parsed.ts < 60000) {
+          createdRostersRef.current = parsed.rosters;
+        } else {
+          sessionStorage.removeItem(CREATED_KEY);
+        }
+      }
+    } catch { /* ignore */ }
+  }, [boardId]);
+
+  const persistDeletedIds = () => {
+    const ids = Array.from(deletedIdsRef.current);
+    if (ids.length > 0) {
+      sessionStorage.setItem(DELETED_KEY, JSON.stringify({ ids, ts: Date.now() }));
+    } else {
+      sessionStorage.removeItem(DELETED_KEY);
+    }
+  };
+
+  const persistCreatedRosters = () => {
+    const rosters = createdRostersRef.current;
+    if (rosters.length > 0) {
+      sessionStorage.setItem(CREATED_KEY, JSON.stringify({ rosters, ts: Date.now() }));
+    } else {
+      sessionStorage.removeItem(CREATED_KEY);
+    }
+  };
 
   const showSuccess = (msg: string) => { setSuccessMsg(msg); setErrorMsg(null); setTimeout(() => setSuccessMsg(null), 4000); };
   const showError = (msg: string) => { setErrorMsg(msg); setSuccessMsg(null); setTimeout(() => setErrorMsg(null), 5000); };
@@ -767,7 +818,14 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   // Shared roster fetching logic — used by useQuery and after create/update/delete
   const fetchRosterList = async () => {
     const rawRes = await rosterService.getByBoard(boardId);
-    const raw = rawRes.data;
+    let raw = rawRes.data;
+
+    console.log('[fetchRosterList] raw API response:', JSON.stringify(raw));
+
+    // Handle string responses (server may return JSON as text/plain)
+    if (typeof raw === 'string') {
+      try { raw = JSON.parse(raw); } catch { /* leave as-is */ }
+    }
 
     // Normalize the list from various possible API response shapes
     let rosterList: any[] = [];
@@ -778,6 +836,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       const v = (raw as any).$values;
       const i = (raw as any).items;
       const r = (raw as any).result;
+      const rv = (raw as any).rosters;
       if (Array.isArray(d)) {
         rosterList = d;
       } else if (d && Array.isArray(d.$values)) {
@@ -788,9 +847,14 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         rosterList = i;
       } else if (Array.isArray(r)) {
         rosterList = r;
+      } else if (Array.isArray(rv)) {
+        rosterList = rv;
       } else if (d && typeof d === 'object' && !Array.isArray(d)) {
         // Single roster object returned, wrap in array
         rosterList = [d];
+      } else if ((raw as any).id || (raw as any).Id) {
+        // Single roster object at top level
+        rosterList = [raw];
       }
     }
     console.log('[fetchRosterList] parsed', rosterList.length, 'rosters from response');
@@ -814,12 +878,40 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         }
       })
     );
-    return detailed;
+    // Filter out recently deleted rosters that backend might still return
+    const filtered = detailed.filter((r: any) => {
+      const rid = r.id || r.Id;
+      return !rid || !deletedIdsRef.current.has(rid);
+    });
+
+    // Merge in any recently created rosters that backend hasn't returned yet
+    const existingIds = new Set(filtered.map((r: any) => r.id || r.Id));
+    const missingCreated = createdRostersRef.current.filter(
+      (cr: any) => !existingIds.has(cr.id) && !deletedIdsRef.current.has(cr.id)
+    );
+    const merged = [...filtered, ...missingCreated];
+
+    // If backend now returns all created rosters, clear the tracking
+    if (missingCreated.length === 0 && createdRostersRef.current.length > 0) {
+      console.log('[fetchRosterList] Backend caught up — clearing created roster tracking');
+      createdRostersRef.current = [];
+      sessionStorage.removeItem(CREATED_KEY);
+    }
+    // If backend no longer returns deleted rosters, clear the tracking
+    if (detailed.every((r: any) => !deletedIdsRef.current.has(r.id || r.Id)) && deletedIdsRef.current.size > 0) {
+      console.log('[fetchRosterList] Backend caught up — clearing deleted roster tracking');
+      deletedIdsRef.current.clear();
+      sessionStorage.removeItem(DELETED_KEY);
+    }
+
+    return merged;
   };
 
   const { data: squads, isLoading } = useQuery({
     queryKey: ['squad', boardId],
     queryFn: fetchRosterList,
+    refetchOnWindowFocus: false,
+    staleTime: 10000,
   });
 
   // Load user list for autocomplete (same as co-owner)
@@ -914,62 +1006,76 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
   const createRosterMutation = useMutation({
     mutationFn: async (data: RosterFormData) => {
-      // Get current roster list before creation attempt (to detect silent 500 creates)
-      const extractList = (raw: any): any[] => {
-        if (Array.isArray(raw)) return raw;
-        if (Array.isArray(raw?.data)) return raw.data;
-        if (Array.isArray(raw?.data?.$values)) return raw.data.$values;
-        if (Array.isArray(raw?.$values)) return raw.$values;
-        if (Array.isArray(raw?.items)) return raw.items;
-        return [];
-      };
-
-      const before = await rosterService.getByBoard(boardId)
-        .then(r => extractList(r.data))
-        .catch(() => [] as any[]);
-
-      try {
-        const createRes = await rosterService.create(boardId, {
-          name: data.rosterName,
-          logoUrl: data.logoUrl || undefined,
-          captainId: data.captain,
-          viceCaptainId: data.viceCaptain,
-          coachId: data.coach,
-          playerIds: data.members,
-          leagueBoardIds: data.leagueBoardIds,
-        });
-        return createRes;
-      } catch (err: any) {
-        // Server may return 500 but still create the roster — verify by re-fetching
-        if (err?.response?.status === 500) {
-          const after = await rosterService.getByBoard(boardId)
-            .then(r => extractList(r.data))
-            .catch(() => [] as any[]);
-          if (after.length > before.length) {
-            return { data: after[after.length - 1] };
-          }
-        }
-        throw err;
-      }
+      const createRes = await rosterService.create(boardId, {
+        name: data.rosterName,
+        logoUrl: data.logoUrl || undefined,
+        captainId: data.captain,
+        viceCaptainId: data.viceCaptain,
+        coachId: data.coach,
+        playerIds: data.members,
+        leagueBoardIds: data.leagueBoardIds,
+      });
+      // Return both the API response and the submitted form data
+      return { res: createRes, submitted: data };
     },
-    onSuccess: async (res: any) => {
-      // Store the created rosterId in sessionStorage for future reference
-      const createdData = res?.data?.data || res?.data;
-      const newRosterId = createdData?.id || createdData?.Id || createdData?.rosterId;
+    onSuccess: async (result: any) => {
+      const { res, submitted } = result;
+      const createdRaw = res?.data?.data || res?.data;
+      const newRosterId = createdRaw?.id || createdRaw?.Id || createdRaw?.rosterId;
       if (newRosterId) {
         sessionStorage.setItem('lastCreatedRosterId', newRosterId);
       }
+
+      // Build optimistic roster from the SUBMITTED data (not from state which will be reset)
+      const optimisticRoster = {
+        id: newRosterId || `temp-${Date.now()}`,
+        name: submitted.rosterName,
+        captainId: submitted.captain,
+        viceCaptainId: submitted.viceCaptain,
+        coachId: submitted.coach,
+        playerIds: submitted.members,
+        leagueBoardIds: submitted.leagueBoardIds,
+        logoUrl: submitted.logoUrl || '',
+        memberCount: submitted.members.length,
+      };
+
+      // Track the created roster so it survives refetches and page refresh
+      createdRostersRef.current = [...createdRostersRef.current, optimisticRoster];
+      persistCreatedRosters();
+
+      // Cancel any in-flight queries to prevent stale data from overwriting
+      await qc.cancelQueries({ queryKey: ['squad', boardId] });
+
+      // Add to cache BEFORE resetting form
+      const currentSquads: any[] = qc.getQueryData(['squad', boardId]) || [];
+      qc.setQueryData(['squad', boardId], [...currentSquads, optimisticRoster]);
+
       showSuccess('Roster created successfully!');
-      qc.invalidateQueries({ queryKey: ['board', boardId] });
-      // Fetch updated list BEFORE closing the form to avoid flash of empty state
-      try {
-        const rosters = await fetchRosterList();
-        qc.setQueryData(['squad', boardId], rosters);
-      } catch {
-        await qc.refetchQueries({ queryKey: ['squad', boardId] });
-      }
-      // Now close the form — the list data is already in cache
       resetForm();
+
+      // Do NOT invalidate ['squad', boardId] here — it triggers an immediate refetch
+      // with stale backend data that overwrites the optimistic roster.
+      // Instead, do a delayed refetch with retry to let backend propagate.
+      const retryRefetch = async (attempt: number) => {
+        try {
+          const rosters = await fetchRosterList();
+          const hasNewRoster = rosters.some((r: any) =>
+            (r.id || r.Id) === newRosterId || r.name === submitted.rosterName
+          );
+          console.log(`[createRoster] refetch attempt ${attempt}: found ${rosters.length} rosters, hasNew=${hasNewRoster}`);
+          if (hasNewRoster) {
+            // Backend has caught up — use the fresh data
+            qc.setQueryData(['squad', boardId], rosters);
+          } else if (attempt < 4) {
+            // Backend hasn't propagated yet — retry after a longer delay
+            setTimeout(() => retryRefetch(attempt + 1), 3000);
+          }
+          // If all retries exhausted, the optimistic data + createdRostersRef keeps showing it
+        } catch {
+          if (attempt < 4) setTimeout(() => retryRefetch(attempt + 1), 3000);
+        }
+      };
+      setTimeout(() => retryRefetch(1), 2000);
     },
     onError: (error: any) => {
       console.error('Create roster error:', error?.response?.status, JSON.stringify(error?.response?.data));
@@ -986,12 +1092,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         errMsg = typeof errData.title === 'string' ? errData.title : JSON.stringify(errData.title);
       }
       showError(errMsg);
-      // Refetch roster list in case the roster was actually created despite the error
-      fetchRosterList().then(rosters => {
-        qc.setQueryData(['squad', boardId], rosters);
-      }).catch(() => {
-        qc.invalidateQueries({ queryKey: ['squad', boardId] });
-      });
     },
   });
 
@@ -1012,16 +1112,32 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         leagueBoardIds: data.leagueBoardIds,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (_res: any, submittedData: RosterFormData & { rosterId: string }) => {
       showSuccess('Roster updated successfully!');
-      qc.invalidateQueries({ queryKey: ['board', boardId] });
-      try {
-        const rosters = await fetchRosterList();
-        qc.setQueryData(['squad', boardId], rosters);
-      } catch {
-        await qc.refetchQueries({ queryKey: ['squad', boardId] });
-      }
+
+      // Cancel stale refetches first
+      await qc.cancelQueries({ queryKey: ['squad', boardId] });
+
+      // Optimistically update the roster in the list using SUBMITTED data (not state)
+      const rid = submittedData.rosterId;
+      qc.setQueryData(['squad', boardId], (old: any[] | undefined) =>
+        (old || []).map((r: any) =>
+          (r.id || r.Id) === rid
+            ? { ...r, name: submittedData.rosterName, captainId: submittedData.captain, viceCaptainId: submittedData.viceCaptain, coachId: submittedData.coach, playerIds: submittedData.members, leagueBoardIds: submittedData.leagueBoardIds }
+            : r
+        )
+      );
       resetForm();
+
+      // Delayed refetch to sync with backend (no immediate invalidation)
+      setTimeout(async () => {
+        try {
+          const rosters = await fetchRosterList();
+          if (rosters.length > 0) {
+            qc.setQueryData(['squad', boardId], rosters);
+          }
+        } catch { /* keep optimistic data */ }
+      }, 3000);
     },
     onError: (error: any) => {
       showError(error?.response?.data?.message || error?.response?.data?.title || 'Failed to update roster. Please try again.');
@@ -1036,7 +1152,13 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       return rosterService.delete(boardId, rosterId);
     },
     onMutate: async (rosterId: string) => {
-      // Cancel any outgoing refetches so they don't overwrite our optimistic update
+      // Track this ID so refetches won't bring it back (even after page refresh)
+      deletedIdsRef.current.add(rosterId);
+      persistDeletedIds();
+      // Also remove from created tracking if it was recently created
+      createdRostersRef.current = createdRostersRef.current.filter((r: any) => r.id !== rosterId);
+      persistCreatedRosters();
+      // Cancel any outgoing refetches
       await qc.cancelQueries({ queryKey: ['squad', boardId] });
       // Snapshot the previous value
       const previousSquads = qc.getQueryData(['squad', boardId]);
@@ -1046,20 +1168,37 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       );
       return { previousSquads };
     },
-    onSuccess: async () => {
+    onSuccess: (_data: any, rosterId: string) => {
       setDeleteConfirmId(null);
       showSuccess('Roster deleted successfully!');
-      qc.invalidateQueries({ queryKey: ['board', boardId] });
-      // Refetch to ensure server state is in sync
-      try {
-        const rosters = await fetchRosterList();
-        qc.setQueryData(['squad', boardId], rosters);
-      } catch {
-        await qc.refetchQueries({ queryKey: ['squad', boardId] });
-      }
+
+      // Do NOT invalidate ['squad', boardId] — it would refetch stale data
+      // The deletedIdsRef filter in fetchRosterList handles stale backend responses.
+      // Do a delayed retry-refetch to confirm backend propagated the delete.
+      const retryRefetch = async (attempt: number) => {
+        try {
+          const rosters = await fetchRosterList();
+          const stillHasDeleted = rosters.some((r: any) => (r.id || r.Id) === rosterId);
+          console.log(`[deleteRoster] refetch attempt ${attempt}: found ${rosters.length} rosters, stillHasDeleted=${stillHasDeleted}`);
+          if (!stillHasDeleted) {
+            // Backend has caught up — safe to use this data and clear tracking
+            deletedIdsRef.current.delete(rosterId);
+            persistDeletedIds();
+            qc.setQueryData(['squad', boardId], rosters);
+          } else if (attempt < 4) {
+            setTimeout(() => retryRefetch(attempt + 1), 3000);
+          }
+          // If all retries exhausted, deletedIdsRef keeps filtering it out
+        } catch {
+          if (attempt < 4) setTimeout(() => retryRefetch(attempt + 1), 3000);
+        }
+      };
+      setTimeout(() => retryRefetch(1), 2000);
     },
-    onError: (error: any, _rosterId: string, context: any) => {
-      // Rollback optimistic update on error
+    onError: (error: any, rosterId: string, context: any) => {
+      // Rollback: remove from deleted tracking and restore cache
+      deletedIdsRef.current.delete(rosterId);
+      persistDeletedIds();
       if (context?.previousSquads) {
         qc.setQueryData(['squad', boardId], context.previousSquads);
       }
@@ -1630,15 +1769,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {deleteConfirmId === (roster.id || roster.Id) ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-red-600">Delete?</span>
-                  <button onClick={() => deleteRosterMutation.mutate(roster.id || roster.Id)} disabled={deleteRosterMutation.isPending}
-                    className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600">Yes</button>
-                  <button onClick={() => setDeleteConfirmId(null)} className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">No</button>
-                </div>
-              ) : (
-                <>
                   <button onClick={() => startEdit(roster)} disabled={editLoading} className="text-gray-400 hover:text-brand-green transition-colors disabled:opacity-50" title="Edit roster">
                     {editLoading && editingRosterId === roster.id ? (
                       <div className="w-5 h-5 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />
@@ -1648,13 +1778,6 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                       </svg>
                     )}
                   </button>
-                  <button onClick={() => setDeleteConfirmId(roster.id || roster.Id)} className="text-gray-400 hover:text-red-500 transition-colors" title="Delete roster">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </>
-              )}
             </div>
           </div>
 
