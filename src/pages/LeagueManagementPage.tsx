@@ -662,6 +662,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
     if (!country) { setStateList([]); setCityList([]); return; }
     setStatesLoading(true);
     fetchStates(country).then(setStateList).catch(() => setStateList([])).finally(() => setStatesLoading(false));
+    const max = country === 'United States' ? 5 : 6;
+    setZipCode(prev => prev.slice(0, max));
   }, [country]);
 
   useEffect(() => {
@@ -678,7 +680,9 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
     if (!country.trim()) newErrors.country = 'Country is required';
     if (!zipCode.trim()) {
       newErrors.zipCode = 'Zip Code is required';
-    } else if (!/^\d{6}$/.test(zipCode.trim())) {
+    } else if (country === 'United States' && !/^\d{5}$/.test(zipCode.trim())) {
+      newErrors.zipCode = 'Zip Code must be exactly 5 digits';
+    } else if (country !== 'United States' && !/^\d{6}$/.test(zipCode.trim())) {
       newErrors.zipCode = 'Zip Code must be exactly 6 digits';
     }
     if (!email.trim()) {
@@ -773,7 +777,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
               <input
                 value={addressLine1}
-                onChange={e => setAddressLine1(e.target.value)}
+                onChange={e => { const v = e.target.value; if (/^[a-zA-Z0-9\s,.\/\-#]*$/.test(v)) setAddressLine1(v); }}
                 className="input-field"
               />
             </div>
@@ -781,7 +785,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
               <input
                 value={addressLine2}
-                onChange={e => setAddressLine2(e.target.value)}
+                onChange={e => { const v = e.target.value; if (/^[a-zA-Z0-9\s,.\/\-#]*$/.test(v)) setAddressLine2(v); }}
                 className="input-field"
               />
             </div>
@@ -885,8 +889,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               <input
                 value={zipCode}
-                maxLength={6}
-                onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
+                maxLength={country === 'United States' ? 5 : 6}
+                onChange={e => { const max = country === 'United States' ? 5 : 6; const v = e.target.value.replace(/\D/g, '').slice(0, max); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
                 className={`input-field ${errors.zipCode ? 'border-red-500' : ''}`}
               />
               {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
@@ -1031,6 +1035,8 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     if (!editCountry) { setStateList([]); setCityList([]); return; }
     setStatesLoading(true);
     fetchStates(editCountry).then(setStateList).catch(() => setStateList([])).finally(() => setStatesLoading(false));
+    const max = editCountry === 'United States' ? 5 : 6;
+    setEditZipcode(prev => prev.slice(0, max));
   }, [editCountry]);
 
   useEffect(() => {
@@ -1255,7 +1261,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             {/* Row 3 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code <span className="text-red-500">*</span></label>
-              <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
+              <input value={editZipcode} maxLength={editCountry === 'United States' ? 5 : 6} onChange={e => { const max = editCountry === 'United States' ? 5 : 6; setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, max)); }} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
@@ -1485,6 +1491,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     if (!country) { setStateList([]); setCityList([]); return; }
     setStatesLoading(true);
     fetchStates(country).then(setStateList).catch(() => setStateList([])).finally(() => setStatesLoading(false));
+    const max = country === 'United States' ? 5 : 6;
+    setZipCode(prev => prev.slice(0, max));
   }, [country]);
 
   useEffect(() => {
@@ -1717,7 +1725,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             {/* Row 3 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
-              <input value={zipCode} maxLength={6} onChange={e => setZipCode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
+              <input value={zipCode} maxLength={country === 'United States' ? 5 : 6} onChange={e => { const max = country === 'United States' ? 5 : 6; setZipCode(e.target.value.replace(/\D/g, '').slice(0, max)); }} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
@@ -1878,6 +1886,8 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     if (!editCountry) { setStateList([]); setCityList([]); return; }
     setStatesLoading(true);
     fetchStates(editCountry).then(setStateList).catch(() => setStateList([])).finally(() => setStatesLoading(false));
+    const max = editCountry === 'United States' ? 5 : 6;
+    setEditZipcode(prev => prev.slice(0, max));
   }, [editCountry]);
 
   useEffect(() => {
@@ -2089,7 +2099,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
-              <input value={editZipcode} maxLength={6} onChange={e => setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, 6))} className="input-field" />
+              <input value={editZipcode} maxLength={editCountry === 'United States' ? 5 : 6} onChange={e => { const max = editCountry === 'United States' ? 5 : 6; setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, max)); }} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>

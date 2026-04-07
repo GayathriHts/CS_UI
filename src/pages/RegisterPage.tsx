@@ -356,18 +356,21 @@ export default function RegisterPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Mobile Number</label>
                       <div className="flex gap-2">
-                        <select className="input-field w-24 text-sm" value={countryCode} onChange={(e) => setCountryCode(e.target.value)}>
-                          {phoneCodeList.length > 0 ? (
-                            phoneCodeList.map(c => (
-                              <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.flag ? `${c.flag} ` : ''}{c.dial_code} ({c.code})</option>
-                            ))
-                          ) : (
-                            <>
-                              <option value="+91">🇮🇳 +91 (IN)</option>
-                              <option value="+1">🇺🇸 +1 (US)</option>
-                            </>
-                          )}
-                        </select>
+                        <div className="relative flex items-center">
+                          <img src={countryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="absolute left-2 w-5 h-3.5 object-cover rounded-sm pointer-events-none z-10" />
+                          <select className="input-field w-32 pl-9 text-sm" value={countryCode} onChange={(e) => setCountryCode(e.target.value)}>
+                            {phoneCodeList.length > 0 ? (
+                              phoneCodeList.map(c => (
+                                <option key={`${c.code}-${c.dial_code}`} value={c.dial_code}>{c.dial_code} ({c.code})</option>
+                              ))
+                            ) : (
+                              <>
+                                <option value="+91">+91 (IN)</option>
+                                <option value="+1">+1 (US)</option>
+                              </>
+                            )}
+                          </select>
+                        </div>
                         <input
                           type="tel"
                           autoComplete="off"
