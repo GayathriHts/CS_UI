@@ -1703,9 +1703,9 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               {errors.coach && <p className="text-xs text-red-600 mt-1">{errors.coach}</p>}
             </div>
 
-            {/* Add Member — Multi-select checkbox dropdown (last field) */}
+            {/* Add Player — Multi-select checkbox dropdown (last field) */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Add Member <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Add Player <span className="text-red-500">*</span></label>
                 {/* Dropdown trigger (static at top) */}
                 <div className="max-w-sm relative">
                   <div
@@ -1800,9 +1800,9 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                 {errors.members && <p className="text-xs text-red-600 mt-1">{errors.members}</p>}
             </div>
 
-            {/* League Board — Multi-select checkbox dropdown */}
+            {/* Affiliate to League — Multi-select checkbox dropdown */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">League Board <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Affiliate to League <span className="text-red-500">*</span></label>
                 <div className="max-w-sm relative">
                   <div
                     onClick={() => setLeagueBoardSearchField(!leagueBoardSearchField)}
@@ -1825,7 +1825,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                         );
                       })
                     ) : (
-                      <span className="text-gray-400 text-sm">Select league boards...</span>
+                      <span className="text-gray-400 text-sm">Select leagues...</span>
                     )}
                     <svg className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
