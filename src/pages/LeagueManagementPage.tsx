@@ -628,6 +628,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const [countryCode, setCountryCode] = useState('+1');
   const [contactNo, setContactNo] = useState('');
   const [email, setEmail] = useState('');
+  const [emailAutoFilled, setEmailAutoFilled] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -643,6 +644,18 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
       const raw = r.data as any;
       return Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.items) ? raw.items : Array.isArray(raw?.users) ? raw.users : [];
     },
+  });
+
+  // Fetch existing umpires for duplicate name check
+  const { data: existingUmpires } = useQuery({
+    queryKey: ['umpires', boardId],
+    queryFn: async () => {
+      const r = await leagueService.getUmpires(boardId);
+      const d = r.data;
+      return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as any[];
+    },
+    enabled: !!boardId,
+    staleTime: 0,
   });
 
   // Phone codes state
@@ -689,6 +702,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!name.trim()) newErrors.name = 'Umpire Name is required';
+    else if ((existingUmpires || []).some((u: any) => (u.umpireName || u.name || '').trim().toLowerCase() === name.trim().toLowerCase())) newErrors.name = 'Umpire name is already used, please select a different name';
     if (!city.trim()) newErrors.city = 'City is required';
     if (!state.trim()) newErrors.state = 'State is required';
     if (!country.trim()) newErrors.country = 'Country is required';
@@ -726,7 +740,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
       qc.invalidateQueries({ queryKey: ['umpires', boardId] });
       setName(''); setAddressLine1(''); setAddressLine2('');
       setCity(''); setState(''); setCountry('');
-      setZipCode(''); setContactNo(''); setEmail('');
+      setZipCode(''); setContactNo(''); setEmail(''); setEmailAutoFilled(false);
       setErrors({});
       setSubmitStatus({ type: 'success', message: 'Umpire created successfully!' });
       if (onClose) onClose();
@@ -755,7 +769,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
     setShowCancelConfirm(false);
     setName(''); setAddressLine1(''); setAddressLine2('');
     setCity(''); setState(''); setCountry('');
-    setZipCode(''); setContactNo(''); setEmail('');
+    setZipCode(''); setContactNo(''); setEmail(''); setEmailAutoFilled(false);
     setErrors({});
     setSubmitStatus(null);
     if (onClose) onClose();
@@ -785,10 +799,24 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <input
                 value={name}
                 onChange={e => {
-                  setName(e.target.value);
-                  setUmpireNameSearch(e.target.value);
+                  const val = e.target.value;
+                  setName(val);
+                  setUmpireNameSearch(val);
                   setUmpireNameDropdownOpen(true);
-                  if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                  setEmailAutoFilled(false);
+                  setEmail('');
+                  const trimmed = val.trim().toLowerCase();
+                  const umpList = existingUmpires || [];
+                  console.log('[DupCheck] existingUmpires count:', umpList.length, 'checking:', trimmed, 'names:', umpList.map((u: any) => u.umpireName || u.name || u.UmpireName || u.Name));
+                  const isDup = trimmed && umpList.some((u: any) => {
+                    const existing = (u.umpireName || u.name || u.UmpireName || u.Name || '').trim().toLowerCase();
+                    return existing === trimmed;
+                  });
+                  if (isDup) {
+                    setErrors(prev => ({ ...prev, name: 'Umpire name is already used, please select a different name' }));
+                  } else {
+                    setErrors(prev => ({ ...prev, name: '' }));
+                  }
                 }}
                 onFocus={() => setUmpireNameDropdownOpen(true)}
                 placeholder=""
@@ -816,9 +844,19 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                               onClick={() => {
                                 setName(displayName);
                                 setEmail(u.email || '');
+                                setEmailAutoFilled(!!(u.email));
                                 setUmpireNameDropdownOpen(false);
                                 setUmpireNameSearch('');
-                                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                                const trimmed = displayName.trim().toLowerCase();
+                                const isDup = trimmed && (existingUmpires || []).some((ump: any) => {
+                                  const existing = (ump.umpireName || ump.name || ump.UmpireName || ump.Name || '').trim().toLowerCase();
+                                  return existing === trimmed;
+                                });
+                                if (isDup) {
+                                  setErrors(prev => ({ ...prev, name: 'Umpire name is already used, please select a different name' }));
+                                } else {
+                                  setErrors(prev => ({ ...prev, name: '' }));
+                                }
                                 if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
                               }}
                               className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
@@ -1009,8 +1047,9 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <input
                 type="email"
                 value={email}
-                onChange={e => { setEmail(e.target.value); if (errors.email) setErrors(prev => ({ ...prev, email: '' })); }}
-                className={`input-field ${errors.email ? 'border-red-500' : ''}`}
+                readOnly={emailAutoFilled}
+                onChange={e => { if (!emailAutoFilled) { setEmail(e.target.value); if (errors.email) setErrors(prev => ({ ...prev, email: '' })); } }}
+                className={`input-field ${errors.email ? 'border-red-500' : ''} ${emailAutoFilled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
@@ -1025,7 +1064,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
             </button>
             <button
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !email.trim()}
+              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !email.trim() || !!errors.name}
               className="btn-primary px-8 py-2 text-sm"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -3564,6 +3603,18 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   useEffect(() => { onDirtyChange?.(showCreate || !!editMatchId); }, [showCreate, editMatchId]);
 
   const qc = useQueryClient();
+
+  // Fetch game types from API
+  const { data: gameTypeOptions } = useQuery({
+    queryKey: ['gameTypes'],
+    queryFn: async () => {
+      const r = await tournamentService.getGameTypes();
+      const d = r.data;
+      const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? (d as any)?.$values ?? [];
+      return list as string[];
+    },
+  });
+
   const { data: matches } = useQuery({
     queryKey: ['schedule', boardId, from, to],
     queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
@@ -3820,15 +3871,15 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const createMatchMutation = useMutation({
     mutationFn: () => {
-      // API expects all fields: GUIDs as value or null, strings as value or ""
+      const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
       const payload = {
-        tournamentId: newTournamentId || null,
+        tournamentId: newTournamentId || EMPTY_GUID,
         gameType: newGameType || '',
-        homeTeamBoardId: newHomeTeamId || null,
-        awayTeamBoardId: newAwayTeamId || null,
-        groundId: newGroundId || null,
+        homeTeamBoardId: newHomeTeamId || EMPTY_GUID,
+        awayTeamBoardId: newAwayTeamId || EMPTY_GUID,
+        groundId: newGroundId || EMPTY_GUID,
         startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : new Date().toISOString(),
-        umpireId: newUmpireId || null,
+        umpireId: newUmpireId || EMPTY_GUID,
         appScorerId: newAppScorerId || '',
         portalScorerId: newPortalScorerId || '',
         active: true,
@@ -4199,9 +4250,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <label className="block text-sm font-medium text-gray-700 mb-1">Game Type <span className="text-red-500">*</span></label>
               <select value={newGameType} onChange={e => { setNewGameType(e.target.value); if (formErrors.gameType) setFormErrors(p => ({ ...p, gameType: '' })); }} className={`input-field ${formErrors.gameType ? 'border-red-500' : ''}`}>
                 <option value="">Select Game Type</option>
-                <option value="T20">T20</option>
-                <option value="ODI">ODI</option>
-                <option value="Test Match">Test Match</option>
+                {(gameTypeOptions || []).map((gt: string) => <option key={gt} value={gt}>{gt}</option>)}
               </select>
               {formErrors.gameType && <p className="text-red-500 text-xs mt-1">{formErrors.gameType}</p>}
             </div>
@@ -4302,9 +4351,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <label className="block text-sm font-medium text-gray-700 mb-1">Game Type <span className="text-red-500">*</span></label>
               <select value={editGameType} onChange={e => setEditGameType(e.target.value)} className="input-field">
                 <option value="">Select Game Type</option>
-                <option value="T20">T20</option>
-                <option value="ODI">ODI</option>
-                <option value="Test Match">Test Match</option>
+                {(gameTypeOptions || []).map((gt: string) => <option key={gt} value={gt}>{gt}</option>)}
               </select>
             </div>
             {renderTeamBoardDropdown(
