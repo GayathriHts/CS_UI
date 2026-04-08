@@ -8,16 +8,16 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 type MenuSection = 'score' | 'pitch' | 'events' | 'fans' | 'fanof' | 'board' | 'buddies' | 'compare' | 'book' | 'invoices';
 
 const menuItems: { id: MenuSection; label: string; icon: string; iconImg?: string }[] = [
-  { id: 'score', label: 'My Score', icon: 'ðŸ“Š', iconImg: '/images/MyScore.png' },
-  { id: 'pitch', label: 'Pitch', icon: 'ðŸ“¢', iconImg: '/images/pitch-icon.png' },
-  { id: 'events', label: 'My Events & Fixtures', icon: 'ðŸ“…', iconImg: '/images/MyEvents.png' },
-  { id: 'fans', label: 'My Fans', icon: 'ðŸ‘¥', iconImg: '/images/MyFans.png' },
-  { id: 'fanof', label: 'I Am Fan Of', icon: 'â­', iconImg: '/images/IAmFanOf.png' },
-  { id: 'board', label: 'My Boards', icon: 'ðŸŸï¸', iconImg: '/images/MyFans.png' },
-  { id: 'buddies', label: 'My Buddies', icon: 'ðŸ¤', iconImg: '/images/MyBuddyList.png' },
-  { id: 'compare', label: 'Player Compare', icon: 'âš–ï¸', iconImg: '/images/PlayerCompare.png' },
-  { id: 'book', label: 'Cricket Book', icon: 'ðŸ“–', iconImg: '/images/CricketBook.png' },
-  { id: 'invoices', label: 'My Invoices', icon: 'ðŸ§¾' },
+  { id: 'score', label: 'My Score', icon: '📊', iconImg: '/images/MyScore.png' },
+  { id: 'pitch', label: 'Pitch', icon: '📢', iconImg: '/images/pitch-icon.png' },
+  { id: 'events', label: 'My Events & Fixtures', icon: '📅', iconImg: '/images/MyEvents.png' },
+  { id: 'fans', label: 'My Fans', icon: '👥', iconImg: '/images/MyFans.png' },
+  { id: 'fanof', label: 'I Am Fan Of', icon: '⭐', iconImg: '/images/IAmFanOf.png' },
+  { id: 'board', label: 'My Boards', icon: '🏟️', iconImg: '/images/MyFans.png' },
+  { id: 'buddies', label: 'My Buddies', icon: '🤝', iconImg: '/images/MyBuddyList.png' },
+  { id: 'compare', label: 'Player Compare', icon: '⚖️', iconImg: '/images/PlayerCompare.png' },
+  { id: 'book', label: 'Cricket Book', icon: '📖', iconImg: '/images/CricketBook.png' },
+  { id: 'invoices', label: 'My Invoices', icon: '🧾' },
 ];
 
 const visibleMenuItems = menuItems.filter((item) => item.id === 'board');
@@ -468,8 +468,8 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex justify-between items-center mt-3 pt-3 border-t">
                     <div className="flex gap-2">
-                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">ðŸ“· Photo</button>
-                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">ðŸŽ¥ Video</button>
+                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">📷 Photo</button>
+                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">🎥 Video</button>
                     </div>
                     <button onClick={() => pitchContent.trim() && postMutation.mutate(pitchContent)} disabled={!pitchContent.trim() || postMutation.isPending}
                       className="btn-primary px-6 py-2 text-sm">{postMutation.isPending ? 'Posting...' : 'Post'}</button>
@@ -491,7 +491,7 @@ export default function DashboardPage() {
                     {post.content && <p className="text-gray-700 mb-3">{post.content}</p>}
                     {post.mediaUrl && <img src={post.mediaUrl} alt="" className="rounded-lg mb-3 w-full" />}
                     <div className="flex gap-6 pt-3 border-t text-sm text-gray-500">
-                      <button onClick={() => likeMutation.mutate(post.id)} className="flex items-center gap-1 hover:text-red-500">â¤ï¸ {post.likesCount}</button>
+                      <button onClick={() => likeMutation.mutate(post.id)} className="flex items-center gap-1 hover:text-red-500">❤️ {post.likesCount}</button>
                       <button
                         onClick={() => {
                           setCommentText('');
@@ -499,9 +499,9 @@ export default function DashboardPage() {
                         }}
                         className="flex items-center gap-1 hover:text-brand-green"
                       >
-                        ðŸ’¬ {post.commentsCount}
+                        💬 {post.commentsCount}
                       </button>
-                      <button className="flex items-center gap-1 hover:text-blue-500">ðŸ”— Share</button>
+                      <button className="flex items-center gap-1 hover:text-blue-500">🔗 Share</button>
                     </div>
 
                     {activeCommentsPostId === post.id && (
@@ -730,7 +730,7 @@ export default function DashboardPage() {
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setSelectedCoOwner(null); }}
                                     className="text-gray-400 hover:text-red-500 font-bold text-sm"
-                                  >Ã—</button>
+                                  >×</button>
                                 </span>
                               ) : (
                                 <span className="text-gray-400">Select Co-Owner</span>
@@ -817,7 +817,7 @@ export default function DashboardPage() {
                           {b.logoUrl ? (
                             <img src={b.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
                           ) : (
-                            <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = 'ðŸŸï¸'; }} />
+                            <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = '🏟️'; }} />
                           )}
                         </div>
                         <div className="flex-1">
@@ -954,10 +954,10 @@ export default function DashboardPage() {
           <div className="mb-6">
             <h3 className="font-semibold text-gray-800 mb-3">Quick Links</h3>
             <div className="space-y-2">
-              <Link to="/feed" className="block text-sm text-gray-600 hover:text-brand-green py-1">ðŸ“¢ Social Feed</Link>
-              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">ðŸ“‹ Leaderboard</a>
-              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">ðŸ† Tournaments</a>
-              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">ðŸ“– Help & Support</a>
+              <Link to="/feed" className="block text-sm text-gray-600 hover:text-brand-green py-1">📢 Social Feed</Link>
+              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">📋 Leaderboard</a>
+              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">🏆 Tournaments</a>
+              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">📖 Help & Support</a>
             </div>
           </div>
 

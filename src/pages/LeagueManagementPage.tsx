@@ -576,7 +576,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} Â· {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
                   {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
                 </div>
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">View Score</span>
@@ -599,8 +599,8 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} Â· {new Date(m.scheduledAt).toLocaleString()}</p>
-                  {m.groundName && <p className="text-xs text-gray-400">ðŸ“ {m.groundName}</p>}
+                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
+                  {m.groundName && <p className="text-xs text-gray-400">📍 {m.groundName}</p>}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                   {m.status}
@@ -1460,7 +1460,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3">{u.email || '-'}</td>
                           <td className="py-3">{u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}`.trim() : '-'}</td>
                           <td className="py-3">{u.city || '-'}</td>
-                          <td className="py-3">{u.rating != null ? `${'â­'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
+                          <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
                           <td className="py-3">
                             <div className="flex items-center gap-2">
@@ -2418,7 +2418,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                     <div key={gid} className={`border rounded-lg p-4 ${editId === gid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">ðŸŸï¸</span>
+                          <span className="text-xl">🏟️</span>
                           <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2695,7 +2695,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   <span className="font-bold text-sm uppercase">Group {String.fromCharCode(65 + gIdx)}</span>
                   <div className="flex items-center gap-2">
                     {groups.length > 1 && (
-                      <span onClick={(e) => { e.stopPropagation(); removeGroup(gIdx); }} className="text-white hover:text-red-200 text-lg cursor-pointer" title="Remove group">ðŸ—‘ï¸</span>
+                      <span onClick={(e) => { e.stopPropagation(); removeGroup(gIdx); }} className="text-white hover:text-red-200 text-lg cursor-pointer" title="Remove group">🗑️</span>
                     )}
                     <svg className={`w-4 h-4 transition-transform duration-200 ${collapsedGroups.has(gIdx) ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -2821,7 +2821,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                             <div key={tid} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm min-w-[140px] max-w-[180px]">
                               {board?.logoUrl
                                 ? <img src={board.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">ðŸ</div>
+                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">🏏</div>
                               }
                               <span className="text-sm font-medium text-gray-800 truncate flex-1">{board?.name || tid}</span>
                               <button
@@ -3291,7 +3291,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                             <div className="flex items-center gap-3">
                               {b?.logoUrl
                                 ? <img src={b.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">ðŸ</div>
+                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
                               }
                               <span className="text-sm font-medium">{b?.name || tid}</span>
                             </div>
@@ -3538,8 +3538,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
       const d = r.data;
       const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-      console.log('ðŸ“‹ Schedule GET raw response:', d);
-      if (list.length > 0) console.log('ðŸ“‹ First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
+      console.log('📋 Schedule GET raw response:', d);
+      if (list.length > 0) console.log('📋 First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
       return list;
     }),
     enabled: !!from && !!to,
@@ -3605,7 +3605,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
-      console.log('ðŸ“‹ Tournament teams raw response:', d);
+      console.log('📋 Tournament teams raw response:', d);
       const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
       return list.map((t: any) => ({
         id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
@@ -3756,7 +3756,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: editPortalScorer || '',
         active: true,
       };
-      console.log('ðŸ“¤ Schedule PUT payload:', JSON.stringify(payload, null, 2));
+      console.log('📤 Schedule PUT payload:', JSON.stringify(payload, null, 2));
       return leagueService.updateSchedule(editMatchId!, payload);
     },
     onSuccess: () => {
@@ -3802,7 +3802,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: newPortalScorerId || '',
         active: true,
       };
-      console.log('ðŸ“¤ Schedule POST payload:', JSON.stringify(payload, null, 2));
+      console.log('📤 Schedule POST payload:', JSON.stringify(payload, null, 2));
       return tournamentService.createSchedule(payload as any);
     },
     onSuccess: (response: any) => {

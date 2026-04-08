@@ -31,6 +31,24 @@ export default function BoardDetailPage() {
   const [pendingTab, setPendingTab] = useState<BoardTab | null>(null);
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [pendingNavigate, setPendingNavigate] = useState<string | null>(null);
+
+  // Block browser back/refresh when roster form is dirty
+  useEffect(() => {
+    if (!rosterFormDirty) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [rosterFormDirty]);
+
+  // Helper: attempt navigation, show confirm if dirty
+  const guardedNavigate = (path: string) => {
+    if (rosterFormDirty) {
+      setPendingNavigate(path);
+    } else {
+      navigate(path);
+    }
+  };
 
   const { data: board, isError } = useQuery({
     queryKey: ['board', id],
@@ -65,7 +83,10 @@ export default function BoardDetailPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar title={`Board Management — ${board.name}`} backTo="/dashboard?tab=board" />
+      <Navbar title={`Board Management — ${board.name}`} backTo="/dashboard?tab=board" onBeforeNavigate={(path) => {
+        if (rosterFormDirty) { setPendingNavigate(path); return false; }
+        return true;
+      }} />
 
       <div className="pt-14 flex">
         {/* Sidebar */}
@@ -80,7 +101,10 @@ export default function BoardDetailPage() {
                 }
               </div>
               <button
-                onClick={() => setActiveTab('edit')}
+                onClick={() => {
+                  if (rosterFormDirty) { setPendingTab('edit'); return; }
+                  setActiveTab('edit');
+                }}
                 className="font-bold text-sm flex items-center gap-1 hover:text-brand-green transition-colors cursor-pointer"
                 title="Edit Board"
               >
@@ -137,6 +161,29 @@ export default function BoardDetailPage() {
         </div>
       </div>
 
+      {/* Route Navigation Confirmation */}
+      {pendingNavigate && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setPendingNavigate(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
+              <p className="text-xs text-gray-500 mb-4">You have unsaved roster data. Are you sure you want to leave?</p>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => setPendingNavigate(null)}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
+                >No, Keep Editing</button>
+                <button
+                  onClick={() => { setRosterFormDirty(false); navigate(pendingNavigate); setPendingNavigate(null); }}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm"
+                >Yes, Discard</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tab Switch Confirmation */}
       {pendingTab && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center">
@@ -144,7 +191,7 @@ export default function BoardDetailPage() {
           <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
             <div className="flex flex-col items-center text-center">
               <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
-              <p className="text-xs text-gray-500 mb-4">You have unsaved roster data. Are you sure you want to leave?</p>
+              <p className="text-xs text-gray-500 mb-4"> Are you sure you want to leave?</p>
               <div className="flex gap-3 w-full">
                 <button
                   onClick={() => setPendingTab(null)}

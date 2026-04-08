@@ -6,12 +6,19 @@ interface NavbarProps {
   backTo?: string;
   rightContent?: React.ReactNode;
   variant?: 'default' | 'dark';
+  onBeforeNavigate?: (path: string) => boolean;
 }
 
-export default function Navbar({ title, backTo, rightContent, variant = 'default' }: NavbarProps) {
+export default function Navbar({ title, backTo, rightContent, variant = 'default', onBeforeNavigate }: NavbarProps) {
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
+
+  const guardedNav = (e: React.MouseEvent, path: string) => {
+    if (onBeforeNavigate && !onBeforeNavigate(path)) {
+      e.preventDefault();
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -26,20 +33,20 @@ export default function Navbar({ title, backTo, rightContent, variant = 'default
         <div className="flex items-center justify-between h-14">
           <div className="flex items-center gap-4">
             {backTo && (
-              <Link to={backTo} className="text-white/80 hover:text-white">
+              <Link to={backTo} onClick={(e) => guardedNav(e, backTo)} className="text-white/80 hover:text-white">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
               </Link>
             )}
-            <Link to="/" className="flex items-center gap-2">
+            <Link to="/" onClick={(e) => guardedNav(e, '/')} className="flex items-center gap-2">
               <img src="/images/cs-logo.png" alt="CricketSocial" className="h-8" />
             </Link>
           </div>
           {title && <h2 className="text-white font-semibold">{title}</h2>}
           <div className="flex items-center gap-3">
             {rightContent}
-            <Link to="/profile" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+            <Link to="/profile" onClick={(e) => guardedNav(e, '/profile')} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
               <div className="w-8 h-8 bg-brand-light rounded-full flex items-center justify-center text-white font-bold text-sm">
                 {user?.firstName?.[0]}{user?.lastName?.[0]}
               </div>
