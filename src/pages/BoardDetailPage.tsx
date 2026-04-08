@@ -940,7 +940,23 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             });
           }
 
-          return { ...roster, ...detail };
+          // Normalize playerIds from various API shapes
+          const rawPids = detail.playerIds ?? detail.PlayerIds ?? detail.playerids ?? detail.player_ids ?? detail.players;
+          let normalizedPlayerIds: string[] = [];
+          if (Array.isArray(rawPids)) {
+            normalizedPlayerIds = rawPids;
+          } else if (rawPids?.$values && Array.isArray(rawPids.$values)) {
+            normalizedPlayerIds = rawPids.$values;
+          }
+          // Also extract player IDs from members array if playerIds is empty
+          if (normalizedPlayerIds.length === 0 && Array.isArray(membersArr)) {
+            normalizedPlayerIds = membersArr
+              .filter((m: any) => (m.role || m.Role) === 'Member' || (m.role || m.Role) === 'Player')
+              .map((m: any) => m.userId || m.UserId || m.id || m.Id)
+              .filter(Boolean);
+          }
+
+          return { ...roster, ...detail, playerIds: normalizedPlayerIds };
         } catch {
           return roster;
         }
@@ -1707,9 +1723,10 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   value={getUserDisplay(formData.captain)}
                   readOnly
                   onClick={() => setActiveSearchField(activeSearchField === 'captain' ? null : 'captain')}
-                  placeholder="Search and select captain..."
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.captain ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  placeholder=""
+                  className={`w-full px-4 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.captain ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                 />
+                <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 {renderSearchDropdown('captain')}
               </div>
               {errors.captain && <p className="text-xs text-red-600 mt-1">{errors.captain}</p>}
@@ -1724,9 +1741,10 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   value={getUserDisplay(formData.viceCaptain)}
                   readOnly
                   onClick={() => setActiveSearchField(activeSearchField === 'viceCaptain' ? null : 'viceCaptain')}
-                  placeholder="Search and select vice captain..."
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.viceCaptain ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  placeholder=""
+                  className={`w-full px-4 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.viceCaptain ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                 />
+                <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 {renderSearchDropdown('viceCaptain')}
               </div>
               {errors.viceCaptain && <p className="text-xs text-red-600 mt-1">{errors.viceCaptain}</p>}
@@ -1741,9 +1759,10 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   value={getUserDisplay(formData.coach)}
                   readOnly
                   onClick={() => setActiveSearchField(activeSearchField === 'coach' ? null : 'coach')}
-                  placeholder="Search and select coach..."
-                  className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.coach ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                  placeholder=""
+                  className={`w-full px-4 pr-10 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent cursor-pointer ${errors.coach ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                 />
+                <svg className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                 {renderSearchDropdown('coach')}
               </div>
               {errors.coach && <p className="text-xs text-red-600 mt-1">{errors.coach}</p>}
@@ -1758,7 +1777,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                     onClick={() => setActiveSearchField(activeSearchField === 'member' ? null : 'member')}
                     className={`w-full min-h-[42px] px-4 py-2.5 border rounded-lg focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent cursor-pointer flex items-center ${errors.members ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                   >
-                    <span className="text-gray-400 text-sm">{formData.members.length > 0 ? `${formData.members.length} member(s) selected` : 'Select members...'}</span>
+                    <span className="text-gray-400 text-sm">{formData.members.length > 0 ? `${formData.members.length} member(s) selected` : ''}</span>
                     <svg className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                   {activeSearchField === 'member' && (
@@ -1871,7 +1890,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                         );
                       })
                     ) : (
-                      <span className="text-gray-400 text-sm">Select leagues...</span>
+                      <span className="text-gray-400 text-sm"></span>
                     )}
                     <svg className="w-4 h-4 text-gray-400 ml-auto flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
@@ -1977,7 +1996,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">
               <div>
-                <h3 className="font-semibold text-gray-800 text-lg">{roster.name || roster.rosterName || 'Unnamed Roster'}</h3>
+                <h3 className="font-semibold text-gray-800 text-lg">{(() => { const n = roster.name || roster.rosterName || 'Unnamed Roster'; return n.charAt(0).toUpperCase() + n.slice(1); })()}</h3>
               </div>
             </div>
             <div className="flex items-center gap-2">
