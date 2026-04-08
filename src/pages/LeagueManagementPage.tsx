@@ -694,9 +694,9 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
     if (!country.trim()) newErrors.country = 'Country is required';
     if (!zipCode.trim()) {
       newErrors.zipCode = 'Zip Code is required';
-    } else if ((country === 'United States' || country === 'India') && !/^\d{5}$/.test(zipCode.trim())) {
+    } else if (country === 'United States' && !/^\d{5}$/.test(zipCode.trim())) {
       newErrors.zipCode = 'Zip Code must be exactly 5 digits';
-    } else if (country !== 'United States' && country !== 'India' && !/^\d{6}$/.test(zipCode.trim())) {
+    } else if (country !== 'United States' && !/^\d{6}$/.test(zipCode.trim())) {
       newErrors.zipCode = 'Zip Code must be exactly 6 digits';
     }
     if (!email.trim()) {
@@ -956,8 +956,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               <input
                 value={zipCode}
-                maxLength={(country === 'United States' || country === 'India') ? 5 : 6}
-                onChange={e => { const max = (country === 'United States' || country === 'India') ? 5 : 6; const v = e.target.value.replace(/\D/g, '').slice(0, max); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
+                maxLength={country === 'United States' ? 5 : 6}
+                onChange={e => { const max = country === 'United States' ? 5 : 6; const v = e.target.value.replace(/\D/g, '').slice(0, max); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
                 className={`input-field ${errors.zipCode ? 'border-red-500' : ''}`}
               />
               {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
