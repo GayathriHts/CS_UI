@@ -719,8 +719,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
       zipcode: zipCode.trim(),
       homePhone: '',
       workPhone: '',
-      mobile: contactNo.trim(),
-      countryCode: contactNo.trim() ? countryCode : '',
+      mobile: contactNo.trim() ? `${countryCode}${contactNo.trim()}` : '',
       email: email.trim(),
     }),
     onSuccess: () => {
@@ -733,7 +732,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
       if (onClose) onClose();
     },
     onError: (err: any) => {
-      const msg = err?.response?.data?.message || err?.response?.data?.title || err?.message || 'Failed to create umpire. Please try again.';
+      const detail = err?.response?.data;
+      const msg = detail?.message || detail?.title || detail?.errors?.[Object.keys(detail?.errors || {})[0]]?.[0] || (err?.response?.status === 500 ? 'Server error. Please check your inputs and try again.' : err?.message) || 'Failed to create umpire. Please try again.';
       setSubmitStatus({ type: 'error', message: msg });
     },
   });

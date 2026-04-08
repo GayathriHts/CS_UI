@@ -448,9 +448,37 @@ export const leagueService = {
   createUmpire: (boardId: string, data: {
     umpireName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
-    homePhone?: string; workPhone?: string; mobile?: string; countryCode?: string; email?: string;
-  }) =>
-    umpireApi.post(`/boards/${boardId}/Umpire`, { boardId, ...data }),
+    homePhone?: string; workPhone?: string; mobile?: string; email?: string;
+  }) => {
+    const payload = {
+      boardId,
+      umpireName: data.umpireName,
+      address1: data.address1 ?? '',
+      address2: data.address2 ?? '',
+      city: data.city ?? '',
+      state: data.state ?? '',
+      country: data.country ?? '',
+      zipcode: data.zipcode ?? '',
+      homePhone: data.homePhone ?? '',
+      workPhone: data.workPhone ?? '',
+      mobile: data.mobile ?? '',
+      email: data.email ?? '',
+    };
+    console.log('[createUmpire] POST /boards/' + boardId + '/Umpire');
+    console.log('[createUmpire] payload:', JSON.stringify(payload, null, 2));
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    console.log('[createUmpire] token present:', !!token, 'length:', token?.length);
+    return umpireApi.post(`/boards/${boardId}/Umpire`, payload).then(res => {
+      console.log('[createUmpire] Success:', res.status, res.data);
+      return res;
+    }).catch(err => {
+      console.error('[createUmpire] Error status:', err?.response?.status);
+      console.error('[createUmpire] Error headers:', JSON.stringify(Object.fromEntries(Object.entries(err?.response?.headers || {}))));
+      console.error('[createUmpire] Error data:', JSON.stringify(err?.response?.data, null, 2));
+      console.error('[createUmpire] Request headers sent:', JSON.stringify(err?.config?.headers));
+      throw err;
+    });
+  },
   getUmpires: (boardId: string) => umpireApi.get(`/boards/${boardId}/Umpire`),
   getUmpireById: (boardId: string, umpireId: string) => umpireApi.get(`/boards/${boardId}/Umpire/${umpireId}`),
   updateUmpire: (boardId: string, umpireId: string, data: {
