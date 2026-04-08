@@ -633,6 +633,18 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
+  // User list for umpire name dropdown
+  const [umpireNameDropdownOpen, setUmpireNameDropdownOpen] = useState(false);
+  const [umpireNameSearch, setUmpireNameSearch] = useState('');
+  const { data: umpireUserList, isLoading: umpireUsersLoading } = useQuery({
+    queryKey: ['usersList'],
+    queryFn: async () => {
+      const r = await userService.list();
+      const raw = r.data as any;
+      return Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.items) ? raw.items : Array.isArray(raw?.users) ? raw.users : [];
+    },
+  });
+
   // Phone codes state
   const [phoneCodeList, setPhoneCodeList] = useState<{ name: string; code: string; dial_code: string; flag?: string }[]>([]);
   const [phoneCodesLoading, setPhoneCodesLoading] = useState(false);
@@ -764,15 +776,71 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
             {/* Row 1 */}
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Umpire Name <span className="text-red-500">*</span>
               </label>
+              {umpireNameDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setUmpireNameDropdownOpen(false); setUmpireNameSearch(''); }} />}
               <input
                 value={name}
-                onChange={e => { setName(e.target.value); if (errors.name) setErrors(prev => ({ ...prev, name: '' })); }}
-                className={`input-field ${errors.name ? 'border-red-500' : ''}`}
+                readOnly
+                onClick={() => setUmpireNameDropdownOpen(!umpireNameDropdownOpen)}
+                placeholder="Search and select user..."
+                className={`input-field cursor-pointer ${errors.name ? 'border-red-500' : ''}`}
               />
+              {umpireNameDropdownOpen && (
+                <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  <div className="p-2 border-b border-gray-100">
+                    <input
+                      type="text"
+                      value={umpireNameSearch}
+                      onChange={e => setUmpireNameSearch(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                      placeholder="Search users..."
+                      autoFocus
+                      onClick={e => e.stopPropagation()}
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto">
+                    {umpireUsersLoading ? (
+                      <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
+                    ) : (() => {
+                      const filtered = (umpireUserList || []).filter((u: any) =>
+                        !umpireNameSearch || `${u.firstName || ''} ${u.lastName || ''} ${u.email || ''} ${u.userName || ''}`.toLowerCase().includes(umpireNameSearch.toLowerCase())
+                      );
+                      return filtered.length === 0 ? (
+                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+                      ) : (
+                        filtered.map((u: any) => {
+                          const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id);
+                          const initial = (u.firstName?.[0] || u.userName?.[0] || '?').toUpperCase();
+                          return (
+                            <button
+                              key={u.id}
+                              onClick={() => {
+                                setName(displayName);
+                                if (u.email && !email) setEmail(u.email);
+                                setUmpireNameDropdownOpen(false);
+                                setUmpireNameSearch('');
+                                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                              }}
+                              className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                            >
+                              <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                {initial}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="block font-medium text-gray-900">{displayName}</span>
+                                {u.email && <span className="block text-xs text-gray-600 truncate">{u.email}</span>}
+                              </div>
+                            </button>
+                          );
+                        })
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
             <div>

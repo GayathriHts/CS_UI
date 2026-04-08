@@ -457,7 +457,7 @@ export const leagueService = {
     city: string; state: string; country: string; zipcode: string;
     homePhone: string; workPhone: string; mobile: string; email: string;
   }) =>
-    umpireApi.put(`/boards/${boardId}/Umpire/${umpireId}`, data),
+    umpireApi.put(`/boards/${boardId}/Umpire/${umpireId}`, { boardId, ...data }),
   deleteUmpire: (boardId: string, umpireId: string) => umpireApi.delete(`/boards/${boardId}/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
