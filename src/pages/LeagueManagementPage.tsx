@@ -815,10 +815,11 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                               key={u.id}
                               onClick={() => {
                                 setName(displayName);
-                                if (u.email && !email) setEmail(u.email);
+                                setEmail(u.email || '');
                                 setUmpireNameDropdownOpen(false);
                                 setUmpireNameSearch('');
                                 if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                                if (errors.email) setErrors(prev => ({ ...prev, email: '' }));
                               }}
                               className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
                             >
