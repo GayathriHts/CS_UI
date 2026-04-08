@@ -1667,9 +1667,13 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                 value={formData.rosterName}
                 onChange={(e) => {
                   let val = e.target.value;
-                  // No leading spaces, only alphanumeric and spaces allowed
-                  if (val.length > 0 && val[0] === ' ') return;
-                  if (!/^[a-zA-Z0-9 ]*$/.test(val)) return;
+                  // No spaces allowed, only alphanumeric
+                  if (/\s/.test(val)) return;
+                  if (!/^[a-zA-Z0-9]*$/.test(val)) return;
+                  // Auto-capitalize first character
+                  if (val.length > 0) {
+                    val = val[0].toUpperCase() + val.slice(1);
+                  }
                   setFormData(prev => ({ ...prev, rosterName: val }));
                   onDirtyChange?.(true);
                   // Inline duplicate check
@@ -1747,7 +1751,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
             {/* Add Player — Multi-select checkbox dropdown (last field) */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Add Player <span className="text-red-500">*</span></label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Add Players <span className="text-red-500">*</span></label>
                 {/* Dropdown trigger (static at top) */}
                 <div className="max-w-sm relative">
                   <div
