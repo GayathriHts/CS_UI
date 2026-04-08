@@ -84,7 +84,7 @@ export default function LeagueManagementPage() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <Navbar title={`League Management â€” ${board.name}`} backTo="/dashboard" />
+      <Navbar title={`League Management - ${board.name}`} backTo="/dashboard" />
 
       <div className="pt-14 flex">
         {/* Sidebar */}
@@ -1082,6 +1082,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editOriginal, setEditOriginal] = useState<any>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Location cascading dropdown state for edit form
   const [countryList, setCountryList] = useState<string[]>([]);
@@ -1171,10 +1172,8 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     },
   });
 
-  const handleEdit = (u: any) => {
-    const uid = u.id || u.umpireId;
-    setEditId(uid);
-    setEditName(u.umpireName || u.name || '');
+  const populateEditFields = (u: any) => {
+    setEditName(u.umpireName || u.name || u.userName || u.fullName || '');
     setEditAddress1(u.address1 || u.addressLine1 || '');
     setEditAddress2(u.address2 || u.addressLine2 || '');
     setEditCity(u.city || '');
@@ -1183,43 +1182,51 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditZipcode(u.zipcode || u.zipCode || '');
     setEditHomePhone(u.homePhone || '');
     setEditWorkPhone(u.workPhone || '');
-    // Use countryCode from API if available; otherwise try to extract from combined mobile
     const rawMobile = u.mobile || u.contactNumber || '';
-    const apiCountryCode = u.countryCode || '';
-    if (apiCountryCode) {
-      setEditCountryCode(apiCountryCode);
-      // If mobile starts with the countryCode, strip it; otherwise use as-is
-      setEditMobile(rawMobile.startsWith(apiCountryCode) ? rawMobile.slice(apiCountryCode.length) : rawMobile);
+    const apiCC = u.countryCode || '';
+    if (apiCC) {
+      setEditCountryCode(apiCC);
+      setEditMobile(rawMobile.startsWith(apiCC) ? rawMobile.slice(apiCC.length) : rawMobile);
     } else if (rawMobile) {
-      // Fallback: match against known dial codes (longer first to avoid partial match)
       const knownCodes = ['+91', '+1'];
       const matched = knownCodes.find(code => rawMobile.startsWith(code));
-      if (matched) {
-        setEditCountryCode(matched);
-        setEditMobile(rawMobile.slice(matched.length));
-      } else {
-        setEditCountryCode('+1');
-        setEditMobile(rawMobile);
-      }
+      if (matched) { setEditCountryCode(matched); setEditMobile(rawMobile.slice(matched.length)); }
+      else { setEditCountryCode('+1'); setEditMobile(rawMobile); }
     } else {
       setEditCountryCode('+1');
       setEditMobile('');
     }
     setEditEmail(u.email || '');
     // Compute parsed values for editOriginal
-    const knownCodesOrig = ['+91', '+1'];
     let parsedCode = '+1';
     let parsedMobile = rawMobile;
-    if (apiCountryCode) {
-      parsedCode = apiCountryCode;
-      parsedMobile = rawMobile.startsWith(apiCountryCode) ? rawMobile.slice(apiCountryCode.length) : rawMobile;
-    } else if (rawMobile) {
-      const m = knownCodesOrig.find(c => rawMobile.startsWith(c));
-      if (m) { parsedCode = m; parsedMobile = rawMobile.slice(m.length); }
-    }
-    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: parsedMobile, countryCode: parsedCode, email: u.email || '' });
+    if (apiCC) { parsedCode = apiCC; parsedMobile = rawMobile.startsWith(apiCC) ? rawMobile.slice(apiCC.length) : rawMobile; }
+    else if (rawMobile) { const m = ['+91', '+1'].find(c => rawMobile.startsWith(c)); if (m) { parsedCode = m; parsedMobile = rawMobile.slice(m.length); } }
+    setEditOriginal({ name: u.umpireName || u.name || u.userName || u.fullName || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: parsedMobile, countryCode: parsedCode, email: u.email || '' });
+  };
+
+  const handleEdit = (u: any) => {
+    const uid = u.id || u.umpireId;
+    setEditId(uid);
     setUpdateError('');
     setUpdateSuccess('');
+    // Pre-fill from list data immediately
+    populateEditFields(u);
+    // Then fetch full data from API to ensure all fields are populated
+    setEditLoading(true);
+    leagueService.getUmpireById(boardId, uid)
+      .then(res => {
+        const raw = res.data as any;
+        const full = raw?.data || raw;
+        if (full && typeof full === 'object') {
+          console.log('Umpire full data from API:', JSON.stringify(full, null, 2));
+          populateEditFields(full);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to fetch umpire details, using list data:', err?.message);
+      })
+      .finally(() => setEditLoading(false));
   };
 
   const cancelEdit = () => {
@@ -1263,6 +1270,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <h2 className="text-base font-bold text-gray-800">Edit Umpire</h2>
           </div>
           <div className="p-6">
+          {editLoading && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">Loading umpire details...</div>}
           {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
             {/* Row 1 */}
@@ -1969,10 +1977,14 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const [editZipcode, setEditZipcode] = useState('');
   const [editLandmark, setEditLandmark] = useState('');
   const [editHomeTeam, setEditHomeTeam] = useState('');
+  const [editSelectedHomeTeam, setEditSelectedHomeTeam] = useState<{ id: string; name: string; logoUrl?: string } | null>(null);
+  const [editHomeTeamSearch, setEditHomeTeamSearch] = useState('');
+  const [editShowHomeTeamDropdown, setEditShowHomeTeamDropdown] = useState(false);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editOriginal, setEditOriginal] = useState<any>(null);
+  const [editLoading, setEditLoading] = useState(false);
 
   // Location cascading dropdown state for edit form
   const [countryList, setCountryList] = useState<string[]>([]);
@@ -2008,6 +2020,33 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   }, [editCountry, editState]);
 
   useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
+
+  // Fetch all team boards for home team edit dropdown
+  const { data: editTeamBoards, isLoading: editTeamsLoading } = useQuery({
+    queryKey: ['allTeamBoards'],
+    queryFn: async () => {
+      try {
+        const res = await boardService.getMyBoards(1, 200);
+        const raw = res.data as any;
+        const items = Array.isArray(raw) ? raw : raw?.data || raw?.items || [];
+        return items
+          .filter((b: any) => (b.boardType === 1 || b.boardType === 'Team'))
+          .map((b: any) => ({
+            id: b.id || b.Id || b.boardId || '',
+            name: b.name || b.boardName || b.Name || '',
+            logoUrl: b.logoUrl || '',
+          }));
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 30000,
+  });
+  const editTeamList = Array.isArray(editTeamBoards) ? editTeamBoards : [];
+  const editFilteredTeams = editTeamList.filter((b: any) => {
+    const q = editHomeTeamSearch.toLowerCase();
+    return !q || b.name?.toLowerCase().includes(q);
+  });
 
   const { data: grounds, isLoading } = useQuery({
     queryKey: ['grounds', boardId],
@@ -2053,8 +2092,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     },
   });
 
-  const handleEdit = (g: any) => {
-    setEditId(g.id || g.groundId);
+  const populateGroundFields = (g: any) => {
     setEditName(g.groundName || '');
     setEditAddress1(g.address1 || '');
     setEditAddress2(g.address2 || '');
@@ -2064,9 +2102,34 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditZipcode(g.zipcode || '');
     setEditLandmark(g.landmark || '');
     setEditHomeTeam(g.homeTeam || '');
+    const matchedTeam = editTeamList.find((b: any) => b.name === (g.homeTeam || ''));
+    setEditSelectedHomeTeam(matchedTeam || (g.homeTeam ? { id: '', name: g.homeTeam, logoUrl: '' } : null));
+    setEditHomeTeamSearch('');
     setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '' });
+  };
+
+  const handleEdit = (g: any) => {
+    const gid = g.id || g.groundId;
+    setEditId(gid);
     setUpdateError('');
     setUpdateSuccess('');
+    // Pre-fill from list data immediately
+    populateGroundFields(g);
+    // Then fetch full data from API
+    setEditLoading(true);
+    leagueService.getGroundById(boardId, gid)
+      .then(res => {
+        const raw = res.data as any;
+        const full = raw?.data || raw;
+        if (full && typeof full === 'object') {
+          console.log('Ground full data from API:', JSON.stringify(full, null, 2));
+          populateGroundFields(full);
+        }
+      })
+      .catch(err => {
+        console.warn('Failed to fetch ground details, using list data:', err?.message);
+      })
+      .finally(() => setEditLoading(false));
   };
 
   const cancelEdit = () => {
@@ -2110,6 +2173,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <h2 className="text-base font-bold text-gray-800">Edit Ground</h2>
           </div>
           <div className="p-6">
+          {editLoading && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">Loading ground details...</div>}
           {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
             {/* Row 1 */}
@@ -2216,9 +2280,74 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
               <input value={editLandmark} onChange={e => setEditLandmark(e.target.value)} className="input-field" />
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
-              <input value={editHomeTeam} onChange={e => setEditHomeTeam(e.target.value)} className="input-field" />
+              {editSelectedHomeTeam ? (
+                <div className="flex items-center gap-2 input-field bg-gray-50">
+                  <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                    {editSelectedHomeTeam.logoUrl
+                      ? <img src={editSelectedHomeTeam.logoUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      : editSelectedHomeTeam.name?.[0]?.toUpperCase() || '?'
+                    }
+                  </div>
+                  <span className="flex-1 text-sm truncate">{editSelectedHomeTeam.name}</span>
+                  <button type="button" onClick={() => { setEditSelectedHomeTeam(null); setEditHomeTeam(''); setEditHomeTeamSearch(''); }} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+                </div>
+              ) : (
+                <>
+                  {editShowHomeTeamDropdown && (
+                    <div className="fixed inset-0 z-[5]" onClick={() => { setEditShowHomeTeamDropdown(false); setEditHomeTeamSearch(''); }} />
+                  )}
+                  <div
+                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
+                    onClick={() => setEditShowHomeTeamDropdown(!editShowHomeTeamDropdown)}
+                  >
+                    <span className="text-gray-400 text-sm">Select Team</span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${editShowHomeTeamDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                  {editShowHomeTeamDropdown && (
+                    <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
+                      <div className="p-2 border-b border-gray-100">
+                        <input
+                          type="text"
+                          value={editHomeTeamSearch}
+                          onChange={e => setEditHomeTeamSearch(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
+                          placeholder="Search teams..."
+                          autoFocus
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      <div className="max-h-60 overflow-y-auto">
+                        {editTeamsLoading ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
+                        ) : editFilteredTeams.length === 0 ? (
+                          <div className="px-4 py-3 text-sm text-gray-500 text-center">No teams found</div>
+                        ) : (
+                          editFilteredTeams.map((b: any) => (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => { setEditSelectedHomeTeam(b); setEditHomeTeam(b.name); setEditShowHomeTeamDropdown(false); setEditHomeTeamSearch(''); }}
+                              className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                            >
+                              <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
+                                {b.logoUrl
+                                  ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                  : b.name?.[0]?.toUpperCase() || '?'
+                                }
+                              </div>
+                              <span className="font-medium text-gray-900">{b.name}</span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

@@ -452,6 +452,7 @@ export const leagueService = {
   }) =>
     umpireApi.post(`/boards/${boardId}/Umpire`, { boardId, ...data }),
   getUmpires: (boardId: string) => umpireApi.get(`/boards/${boardId}/Umpire`),
+  getUmpireById: (boardId: string, umpireId: string) => umpireApi.get(`/boards/${boardId}/Umpire/${umpireId}`),
   updateUmpire: (boardId: string, umpireId: string, data: {
     id: string; umpireName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
@@ -479,6 +480,7 @@ export const leagueService = {
       homeTeam: data.homeTeam ?? '',
     }),
   getGrounds: (boardId: string, page = 1, pageSize = 100) => umpireApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
+  getGroundById: (boardId: string, groundId: string) => umpireApi.get(`/boards/${boardId}/Ground/${groundId}`),
   updateGround: (boardId: string, groundId: string, data: {
     id: string; groundId: string; groundName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
