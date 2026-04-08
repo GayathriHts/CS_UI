@@ -694,9 +694,9 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
     if (!country.trim()) newErrors.country = 'Country is required';
     if (!zipCode.trim()) {
       newErrors.zipCode = 'Zip Code is required';
-    } else if (country === 'United States' && !/^\d{5}$/.test(zipCode.trim())) {
+    } else if ((country === 'United States' || country === 'India') && !/^\d{5}$/.test(zipCode.trim())) {
       newErrors.zipCode = 'Zip Code must be exactly 5 digits';
-    } else if (country !== 'United States' && !/^\d{6}$/.test(zipCode.trim())) {
+    } else if (country !== 'United States' && country !== 'India' && !/^\d{6}$/.test(zipCode.trim())) {
       newErrors.zipCode = 'Zip Code must be exactly 6 digits';
     }
     if (!email.trim()) {
@@ -956,8 +956,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               <input
                 value={zipCode}
-                maxLength={country === 'United States' ? 5 : 6}
-                onChange={e => { const max = country === 'United States' ? 5 : 6; const v = e.target.value.replace(/\D/g, '').slice(0, max); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
+                maxLength={(country === 'United States' || country === 'India') ? 5 : 6}
+                onChange={e => { const max = (country === 'United States' || country === 'India') ? 5 : 6; const v = e.target.value.replace(/\D/g, '').slice(0, max); setZipCode(v); if (errors.zipCode) setErrors(prev => ({ ...prev, zipCode: '' })); }}
                 className={`input-field ${errors.zipCode ? 'border-red-500' : ''}`}
               />
               {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
@@ -978,14 +978,14 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   {phoneCodeDropdownOpen && (
                     <div className="absolute z-10 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg">
                       <div className="p-2 border-b border-gray-100">
-                        <input type="text" value={phoneCodeSearchText} onChange={e => setPhoneCodeSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search code..." autoFocus onClick={e => e.stopPropagation()} />
+                        <input type="text" value={phoneCodeSearchText} onChange={e => setPhoneCodeSearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search code" autoFocus onClick={e => e.stopPropagation()} />
                       </div>
                       <div className="max-h-48 overflow-y-auto">
                         {(phoneCodeList.length > 0 ? phoneCodeList : [{ name: 'India', code: 'IN', dial_code: '+91', flag: '' }, { name: 'United States', code: 'US', dial_code: '+1', flag: '' }])
                           .filter(c => !phoneCodeSearchText || c.dial_code.includes(phoneCodeSearchText) || c.code.toLowerCase().includes(phoneCodeSearchText.toLowerCase()) || c.name.toLowerCase().includes(phoneCodeSearchText.toLowerCase()))
                           .map(c => (
                           <button key={`${c.code}-${c.dial_code}`} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 flex items-center gap-2 ${countryCode === c.dial_code ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                            onClick={() => { setCountryCode(c.dial_code); setPhoneCodeDropdownOpen(false); setPhoneCodeSearchText(''); }}>
+                            onClick={() => { setCountryCode(c.dial_code); setContactNo(prev => prev.slice(0, c.dial_code === '+1' ? 9 : 10)); setPhoneCodeDropdownOpen(false); setPhoneCodeSearchText(''); }}>
                             <img src={c.code === 'IN' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-5 h-3.5 object-cover rounded-sm" />
                             {c.dial_code} ({c.code})
                           </button>
@@ -996,8 +996,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                 </div>
                 <input
                   value={contactNo}
-                  maxLength={10}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setContactNo(v); }}
+                  maxLength={countryCode === '+1' ? 9 : 10}
+                  onChange={e => { const max = countryCode === '+1' ? 9 : 10; const v = e.target.value.replace(/\D/g, '').slice(0, max); setContactNo(v); }}
                   className="flex-1 min-w-0 px-3 h-full text-sm bg-transparent outline-none rounded-r-lg"
                 />
               </div>
