@@ -1647,11 +1647,8 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       {/* Create Roster Button */}
       {!showCreateForm && (
         <div className="mb-6 flex justify-end">
-          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); onDirtyChange?.(true); }} className="btn-primary flex items-center gap-2">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Create New Roster
+          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); onDirtyChange?.(true); }} className="btn-primary text-sm flex items-center gap-2">
+            <span className="text-xl font-bold leading-none">+</span> Create New Roster
           </button>
         </div>
       )}
@@ -1951,7 +1948,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !formData.rosterName.trim() || formData.rosterName.trim().length < 2 || !formData.captain || !formData.viceCaptain || !formData.coach || formData.members.length === 0 || formData.leagueBoardIds.length === 0 || !!errors.rosterName}
                 className="btn-primary text-sm px-6 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting
