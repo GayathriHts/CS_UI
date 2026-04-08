@@ -1730,9 +1730,9 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                 value={formData.rosterName}
                 onChange={(e) => {
                   let val = e.target.value;
-                  // No spaces allowed, only alphanumeric
-                  if (/\s/.test(val)) return;
-                  if (!/^[a-zA-Z0-9]*$/.test(val)) return;
+                  // No leading spaces allowed; spaces allowed after first character; no special characters (only alphanumeric and spaces)
+                  if (val.length > 0 && val[0] === ' ') return;
+                  if (!/^[a-zA-Z0-9 ]*$/.test(val)) return;
                   // Auto-capitalize first character
                   if (val.length > 0) {
                     val = val[0].toUpperCase() + val.slice(1);
