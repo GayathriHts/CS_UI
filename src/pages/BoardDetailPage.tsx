@@ -2017,37 +2017,25 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             {/* Captain */}
             {(roster.captain?.id || roster.captainId) && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">👑 Captain</span>
+                <span className="text-sm font-bold text-gray-700 w-28">Captain</span>
                 <span className="text-sm text-gray-800">{getUserDisplay(roster.captain?.id || roster.captainId)}</span>
               </div>
             )}
             {/* Vice Captain */}
             {(roster.viceCaptain?.id || roster.viceCaptainId) && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">⭐ Vice Captain</span>
+                <span className="text-sm font-bold text-gray-700 w-28">Vice Captain</span>
                 <span className="text-sm text-gray-800">{getUserDisplay(roster.viceCaptain?.id || roster.viceCaptainId)}</span>
               </div>
             )}
             {/* Coach */}
             {(roster.coach?.id || roster.coachId) && (
               <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28">📋 Coach</span>
+                <span className="text-sm font-bold text-gray-700 w-28">Coach</span>
                 <span className="text-sm text-gray-800">{getUserDisplay(roster.coach?.id || roster.coachId)}</span>
               </div>
             )}
-            {/* Players */}
-            {(roster.playerIds || []).length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider w-28 pt-0.5">🏏 Players</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {roster.playerIds.map((pid: string) => (
-                    <span key={pid} className="inline-block bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded-full">
-                      {getUserDisplay(pid)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            {/* Players removed from card display */}
 
             {/* Legacy members display (if API returns members array instead) */}
             {(roster.members || []).length > 0 && !roster.captainId && (
