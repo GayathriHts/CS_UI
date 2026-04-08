@@ -1591,7 +1591,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
               value={rosterFieldSearch}
               onChange={e => setRosterFieldSearch(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-              placeholder="Search users..."
+              placeholder={field === 'coach' ? "Search user" : "Search player"}
               autoFocus
               onClick={e => e.stopPropagation()}
             />
@@ -1600,7 +1600,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             {rosterUsersLoading ? (
               <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
             ) : filtered.length === 0 ? (
-              <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+              <div className="px-4 py-3 text-sm text-gray-500 text-center">{field === 'coach' ? 'No users found' : 'No players found'}</div>
             ) : (
               filtered.map((u: any) => {
                 const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id);
@@ -1790,14 +1790,14 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                             value={rosterFieldSearch}
                             onChange={e => setRosterFieldSearch(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                            placeholder="Search users..."
+                            placeholder="Search player"
                             autoFocus
                             onClick={e => e.stopPropagation()}
                           />
                         </div>
                         <div className="max-h-48 overflow-y-auto">
                           {rosterUsersLoading ? (
-                            <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
+                            <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading players...</div>
                           ) : (() => {
                             const matchesUser = (u: any, value: string) => u.id === value || u.userName === value;
                             const filtered = (rosterUserList || []).filter((u: any) =>
@@ -1805,7 +1805,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                               (!rosterFieldSearch || `${u.firstName} ${u.lastName} ${u.email} ${u.userName}`.toLowerCase().includes(rosterFieldSearch.toLowerCase()))
                             );
                             return filtered.length === 0 ? (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">No players found</div>
                             ) : (
                               filtered.map((u: any) => {
                                 const isSelected = formData.members.includes(u.id) || formData.members.includes(u.userName);
@@ -1904,7 +1904,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                             value={leagueBoardSearch}
                             onChange={e => setLeagueBoardSearch(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                            placeholder="Search boards..."
+                            placeholder="Search boards"
                             autoFocus
                             onClick={e => e.stopPropagation()}
                           />
