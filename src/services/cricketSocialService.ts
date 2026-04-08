@@ -448,14 +448,14 @@ export const leagueService = {
   createUmpire: (boardId: string, data: {
     umpireName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
-    homePhone?: string; workPhone?: string; mobile?: string; email?: string;
+    homePhone?: string; workPhone?: string; mobile?: string; countryCode?: string; email?: string;
   }) =>
     umpireApi.post(`/boards/${boardId}/Umpire`, { boardId, ...data }),
   getUmpires: (boardId: string) => umpireApi.get(`/boards/${boardId}/Umpire`),
   updateUmpire: (boardId: string, umpireId: string, data: {
     id: string; umpireName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
-    homePhone: string; workPhone: string; mobile: string; email: string;
+    homePhone: string; workPhone: string; mobile: string; countryCode: string; email: string;
   }) =>
     umpireApi.put(`/boards/${boardId}/Umpire/${umpireId}`, { boardId, ...data }),
   deleteUmpire: (boardId: string, umpireId: string) => umpireApi.delete(`/boards/${boardId}/Umpire/${umpireId}`),

@@ -719,7 +719,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
       zipcode: zipCode.trim(),
       homePhone: '',
       workPhone: '',
-      mobile: contactNo.trim() ? `${countryCode}${contactNo.trim()}` : '',
+      mobile: contactNo.trim(),
+      countryCode: contactNo.trim() ? countryCode : '',
       email: email.trim(),
     }),
     onSuccess: () => {
@@ -1153,7 +1154,8 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       zipcode: editZipcode,
       homePhone: editHomePhone,
       workPhone: editWorkPhone,
-      mobile: editMobile.trim() ? `${editCountryCode}${editMobile.trim()}` : '',
+      mobile: editMobile.trim(),
+      countryCode: editMobile.trim() ? editCountryCode : '',
       email: editEmail,
     }),
     onSuccess: () => {
@@ -1181,18 +1183,41 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditZipcode(u.zipcode || u.zipCode || '');
     setEditHomePhone(u.homePhone || '');
     setEditWorkPhone(u.workPhone || '');
-    // Extract country code from mobile (e.g. "+91" prefix)
+    // Use countryCode from API if available; otherwise try to extract from combined mobile
     const rawMobile = u.mobile || u.contactNumber || '';
-    const codeMatch = rawMobile.match(/^(\+\d{1,4})/);
-    if (codeMatch) {
-      setEditCountryCode(codeMatch[1]);
-      setEditMobile(rawMobile.slice(codeMatch[1].length));
+    const apiCountryCode = u.countryCode || '';
+    if (apiCountryCode) {
+      setEditCountryCode(apiCountryCode);
+      // If mobile starts with the countryCode, strip it; otherwise use as-is
+      setEditMobile(rawMobile.startsWith(apiCountryCode) ? rawMobile.slice(apiCountryCode.length) : rawMobile);
+    } else if (rawMobile) {
+      // Fallback: match against known dial codes (longer first to avoid partial match)
+      const knownCodes = ['+91', '+1'];
+      const matched = knownCodes.find(code => rawMobile.startsWith(code));
+      if (matched) {
+        setEditCountryCode(matched);
+        setEditMobile(rawMobile.slice(matched.length));
+      } else {
+        setEditCountryCode('+1');
+        setEditMobile(rawMobile);
+      }
     } else {
       setEditCountryCode('+1');
-      setEditMobile(rawMobile);
+      setEditMobile('');
     }
     setEditEmail(u.email || '');
-    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: codeMatch ? rawMobile.slice(codeMatch[1].length) : rawMobile, countryCode: codeMatch ? codeMatch[1] : '+1', email: u.email || '' });
+    // Compute parsed values for editOriginal
+    const knownCodesOrig = ['+91', '+1'];
+    let parsedCode = '+1';
+    let parsedMobile = rawMobile;
+    if (apiCountryCode) {
+      parsedCode = apiCountryCode;
+      parsedMobile = rawMobile.startsWith(apiCountryCode) ? rawMobile.slice(apiCountryCode.length) : rawMobile;
+    } else if (rawMobile) {
+      const m = knownCodesOrig.find(c => rawMobile.startsWith(c));
+      if (m) { parsedCode = m; parsedMobile = rawMobile.slice(m.length); }
+    }
+    setEditOriginal({ name: u.umpireName || u.name || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: parsedMobile, countryCode: parsedCode, email: u.email || '' });
     setUpdateError('');
     setUpdateSuccess('');
   };
@@ -1429,7 +1454,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                         <tr key={uid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === uid ? 'bg-blue-50' : ''}`}>
                           <td className="py-3 font-medium">{u.umpireName || u.name || '-'}</td>
                           <td className="py-3">{u.email || '-'}</td>
-                          <td className="py-3">{u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}` : '-'}</td>
+                          <td className="py-3">{u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}`.trim() : '-'}</td>
                           <td className="py-3">{u.city || '-'}</td>
                           <td className="py-3">{u.rating != null ? `${'â­'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
@@ -1472,7 +1497,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                         <div><span className="text-gray-400">Email:</span> {u.email || '-'}</div>
-                        <div><span className="text-gray-400">Phone:</span> {u.mobile || u.contactNumber || '-'}</div>
+                        <div><span className="text-gray-400">Phone:</span> {u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}`.trim() : '-'}</div>
                         <div><span className="text-gray-400">City:</span> {u.city || '-'}</div>
                         <div><span className="text-gray-400">Rating:</span> {u.rating != null ? Number(u.rating).toFixed(1) : '-'}</div>
                         <div><span className="text-gray-400">Matches:</span> {u.totalMatches ?? '-'}</div>
