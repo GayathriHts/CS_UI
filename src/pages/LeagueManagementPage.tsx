@@ -781,36 +781,31 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Umpire Name <span className="text-red-500">*</span>
               </label>
-              {umpireNameDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setUmpireNameDropdownOpen(false); setUmpireNameSearch(''); }} />}
+              {umpireNameDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => setUmpireNameDropdownOpen(false)} />}
               <input
                 value={name}
-                readOnly
-                onClick={() => setUmpireNameDropdownOpen(!umpireNameDropdownOpen)}
+                onChange={e => {
+                  setName(e.target.value);
+                  setUmpireNameSearch(e.target.value);
+                  setUmpireNameDropdownOpen(true);
+                  if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                }}
+                onFocus={() => setUmpireNameDropdownOpen(true)}
                 placeholder="Search and select user..."
-                className={`input-field cursor-pointer ${errors.name ? 'border-red-500' : ''}`}
+                className={`input-field ${errors.name ? 'border-red-500' : ''}`}
+                autoComplete="off"
               />
-              {umpireNameDropdownOpen && (
+              {umpireNameDropdownOpen && name.trim().length > 0 && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
-                  <div className="p-2 border-b border-gray-100">
-                    <input
-                      type="text"
-                      value={umpireNameSearch}
-                      onChange={e => setUmpireNameSearch(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                      placeholder="Search users..."
-                      autoFocus
-                      onClick={e => e.stopPropagation()}
-                    />
-                  </div>
                   <div className="max-h-48 overflow-y-auto">
                     {umpireUsersLoading ? (
                       <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading users...</div>
                     ) : (() => {
                       const filtered = (umpireUserList || []).filter((u: any) =>
-                        !umpireNameSearch || `${u.firstName || ''} ${u.lastName || ''} ${u.email || ''} ${u.userName || ''}`.toLowerCase().includes(umpireNameSearch.toLowerCase())
+                        `${u.firstName || ''} ${u.lastName || ''} ${u.email || ''} ${u.userName || ''}`.toLowerCase().includes(name.trim().toLowerCase())
                       );
                       return filtered.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No users found</div>
+                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching users — name will be submitted as entered</div>
                       ) : (
                         filtered.map((u: any) => {
                           const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id);
