@@ -1474,7 +1474,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-gray-700 font-bold text-sm">
-                      <th className="pb-3" style={{width:'15%'}}>Name</th>
+                      <th className="pb-3" style={{width:'15%'}}>Umpire Name</th>
                       <th className="pb-3" style={{width:'22%'}}>Email-ID</th>
                       <th className="pb-3" style={{width:'20%'}}>Contact Number</th>
                       <th className="pb-3">Rating</th>
@@ -1493,7 +1493,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
                           <td className="py-3">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4">
                               <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
