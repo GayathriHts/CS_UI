@@ -995,9 +995,9 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   )}
                 </div>
                 <input
-                  value={contactNo}
-                  maxLength={countryCode === '+1' ? 9 : 10}
-                  onChange={e => { const max = countryCode === '+1' ? 9 : 10; const v = e.target.value.replace(/\D/g, '').slice(0, max); setContactNo(v); }}
+                  value={(() => { const d = contactNo; if (countryCode === '+1' && d.length > 0) { const a = d.slice(0,3), b = d.slice(3,6), c = d.slice(6); return d.length <= 3 ? `(${a}` : d.length <= 6 ? `(${a}) ${b}` : `(${a}) ${b}-${c}`; } if (countryCode === '+91' && d.length > 0) { return d.length <= 5 ? d.slice(0,5) : `${d.slice(0,5)} ${d.slice(5)}`; } return d; })()}
+                  maxLength={countryCode === '+1' ? 14 : 11}
+                  onChange={e => { const max = 10; const v = e.target.value.replace(/\D/g, '').slice(0, max); setContactNo(v); }}
                   className="flex-1 min-w-0 px-3 h-full text-sm bg-transparent outline-none rounded-r-lg"
                 />
               </div>
@@ -1133,6 +1133,41 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     enabled: !!boardId,
   });
   const umpireList = Array.isArray(umpires) ? umpires : [];
+
+  const formatPhone = (u: any): string => {
+    const raw = u.mobile || u.contactNumber || '';
+    if (!raw) return '-';
+    const cc = u.countryCode || '';
+    let digits = raw.replace(/\D/g, '');
+    // Strip country code prefix from digits
+    const ccDigits = cc.replace(/\D/g, '');
+    if (ccDigits && digits.startsWith(ccDigits)) {
+      digits = digits.slice(ccDigits.length);
+    }
+    // US format: (XXX) XXX-XXXX
+    if (cc === '+1' && digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    // India format: +91 XXXXX XXXXX
+    if (cc === '+91' && digits.length === 10) {
+      return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+    }
+    // Auto-detect when no countryCode: check if raw starts with 91 and remaining is 10 digits
+    if (!cc) {
+      if (digits.startsWith('91') && digits.length === 12) {
+        const num = digits.slice(2);
+        return `+91 ${num.slice(0, 5)} ${num.slice(5)}`;
+      }
+      if (digits.startsWith('1') && digits.length === 11) {
+        const num = digits.slice(1);
+        return `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}`;
+      }
+      if (digits.length === 10) {
+        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+      }
+    }
+    return cc ? `${cc} ${digits}` : digits || '-';
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => leagueService.deleteUmpire(boardId, id),
@@ -1404,8 +1439,8 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                   )}
                 </div>
                 <input
-                  value={editMobile}
-                  maxLength={10}
+                  value={(() => { const d = editMobile; if (editCountryCode === '+1' && d.length > 0) { const a = d.slice(0,3), b = d.slice(3,6), c = d.slice(6); return d.length <= 3 ? `(${a}` : d.length <= 6 ? `(${a}) ${b}` : `(${a}) ${b}-${c}`; } if (editCountryCode === '+91' && d.length > 0) { return d.length <= 5 ? d.slice(0,5) : `${d.slice(0,5)} ${d.slice(5)}`; } return d; })()}
+                  maxLength={editCountryCode === '+1' ? 14 : 11}
                   onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setEditMobile(v); }}
                   className="input-field flex-1"
                 />
@@ -1439,10 +1474,9 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b text-left text-gray-700 font-bold text-sm">
-                      <th className="pb-3">Name</th>
-                      <th className="pb-3">Email</th>
-                      <th className="pb-3">Phone</th>
-                      <th className="pb-3">City</th>
+                      <th className="pb-3" style={{width:'15%'}}>Name</th>
+                      <th className="pb-3" style={{width:'22%'}}>Email-ID</th>
+                      <th className="pb-3" style={{width:'20%'}}>Contact Number</th>
                       <th className="pb-3">Rating</th>
                       <th className="pb-3">Matches</th>
                       <th className="pb-3">Actions</th>
@@ -1455,8 +1489,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                         <tr key={uid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === uid ? 'bg-blue-50' : ''}`}>
                           <td className="py-3 font-medium">{u.umpireName || u.name || '-'}</td>
                           <td className="py-3">{u.email || '-'}</td>
-                          <td className="py-3">{u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}`.trim() : '-'}</td>
-                          <td className="py-3">{u.city || '-'}</td>
+                          <td className="py-3">{formatPhone(u)}</td>
                           <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
                           <td className="py-3">
@@ -1473,7 +1506,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                       );
                     })}
                     {(!umpireList.length) && (
-                      <tr><td colSpan={7} className="py-8 text-center text-gray-400">No umpires created yet.</td></tr>
+                      <tr><td colSpan={6} className="py-8 text-center text-gray-400">No umpires created yet.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -1498,8 +1531,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                         <div><span className="text-gray-400">Email:</span> {u.email || '-'}</div>
-                        <div><span className="text-gray-400">Phone:</span> {u.mobile || u.contactNumber ? `${u.countryCode || ''} ${u.mobile || u.contactNumber}`.trim() : '-'}</div>
-                        <div><span className="text-gray-400">City:</span> {u.city || '-'}</div>
+                        <div><span className="text-gray-400">Phone:</span> {formatPhone(u)}</div>
                         <div><span className="text-gray-400">Rating:</span> {u.rating != null ? Number(u.rating).toFixed(1) : '-'}</div>
                         <div><span className="text-gray-400">Matches:</span> {u.totalMatches ?? '-'}</div>
                       </div>
