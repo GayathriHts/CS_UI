@@ -791,7 +791,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
                 }}
                 onFocus={() => setUmpireNameDropdownOpen(true)}
-                placeholder="Search and select user..."
+                placeholder=""
                 className={`input-field ${errors.name ? 'border-red-500' : ''}`}
                 autoComplete="off"
               />
@@ -962,18 +962,18 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               />
               {errors.zipCode && <p className="text-red-500 text-xs mt-1">{errors.zipCode}</p>}
             </div>
-            <div>
+            <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-              <div className="flex gap-2">
-                <div className="relative">
+              <div className="flex w-full border border-gray-400 rounded-lg h-[42px] bg-white focus-within:ring-2 focus-within:ring-brand-green focus-within:border-transparent transition-all duration-200">
+                <div className="relative flex-shrink-0">
                   {phoneCodeDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setPhoneCodeDropdownOpen(false); setPhoneCodeSearchText(''); }} />}
                   <div
-                    className="input-field text-sm w-36 cursor-pointer flex items-center gap-2"
+                    className="h-full px-2 text-sm cursor-pointer flex items-center gap-1 border-r border-gray-300 bg-gray-50 hover:bg-gray-100 transition-colors rounded-l-lg"
                     onClick={() => { if (!phoneCodesLoading) setPhoneCodeDropdownOpen(!phoneCodeDropdownOpen); }}
                   >
-                    <img src={countryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-5 h-3.5 object-cover rounded-sm" />
-                    <span className="flex-1 text-gray-900">{phoneCodesLoading ? 'Loading...' : (() => { const sel = phoneCodeList.find(c => c.dial_code === countryCode); return sel ? `${sel.dial_code} (${sel.code})` : `${countryCode}`; })()}</span>
-                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${phoneCodeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    <img src={countryCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-4 h-3 object-cover rounded-sm" />
+                    <span className="text-gray-900 text-xs">{phoneCodesLoading ? '...' : (() => { const sel = phoneCodeList.find(c => c.dial_code === countryCode); return sel ? `${sel.dial_code}` : `${countryCode}`; })()}</span>
+                    <svg className={`w-3 h-3 text-gray-400 transition-transform ${phoneCodeDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                   </div>
                   {phoneCodeDropdownOpen && (
                     <div className="absolute z-10 top-full mt-1 w-52 bg-white border border-gray-200 rounded-lg shadow-lg">
@@ -998,7 +998,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   value={contactNo}
                   maxLength={10}
                   onChange={e => { const v = e.target.value.replace(/\D/g, '').slice(0, 10); setContactNo(v); }}
-                  className="input-field flex-1"
+                  className="flex-1 min-w-0 px-3 h-full text-sm bg-transparent outline-none rounded-r-lg"
                 />
               </div>
             </div>
@@ -1429,9 +1429,6 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
       {!editId && (
       <div className="bg-white rounded-lg shadow-sm">
-        <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800">Umpire List</h2>
-        </div>
         <div className="p-4 sm:p-6">
           {isLoading ? (
             <div className="py-8 text-center text-gray-400">Loading umpires...</div>
