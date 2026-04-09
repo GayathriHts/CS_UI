@@ -34,11 +34,11 @@
     user-select: none;
   }
   .sidebar-item {
-    @apply flex items-center gap-4 px-4 py-3.5 rounded-lg cursor-pointer
+    @apply flex items-center gap-1 px-4 py-3.5 rounded-lg cursor-pointer
            transition-colors duration-200 text-gray-700 hover:bg-cricket-50 hover:text-brand-green;
   }
   .sidebar-item-active {
-    @apply flex items-center gap-4 px-4 py-3.5 rounded-lg cursor-pointer
+    @apply flex items-center gap-1 px-4 py-3.5 rounded-lg cursor-pointer
            bg-transparent text-brand-green font-semibold;
   }
 }

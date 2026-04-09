@@ -13,7 +13,7 @@ const menuItems: { id: MenuSection; label: string; icon: string; iconImg?: strin
   { id: 'events', label: 'My Events & Fixtures', icon: '📅', iconImg: '/images/MyEvents.png' },
   { id: 'fans', label: 'My Fans', icon: '👥', iconImg: '/images/MyFans.png' },
   { id: 'fanof', label: 'I Am Fan Of', icon: '⭐', iconImg: '/images/IAmFanOf.png' },
-  { id: 'board', label: 'My Boards', icon: '🏟️', iconImg: '/images/MyFans.png' },
+  { id: 'board', label: 'My Boards', icon: '🏟️', iconImg: '/images/MyBoard.png' },
   { id: 'buddies', label: 'My Buddies', icon: '🤝', iconImg: '/images/MyBuddyList.png' },
   { id: 'compare', label: 'Player Compare', icon: '⚖️', iconImg: '/images/PlayerCompare.png' },
   { id: 'book', label: 'Cricket Book', icon: '📖', iconImg: '/images/CricketBook.png' },
@@ -420,8 +420,8 @@ export default function DashboardPage() {
                 className={`${activeMenu === item.id ? 'sidebar-item-active' : 'sidebar-item'} w-full ${sidebarCollapsed ? 'justify-center !px-2' : 'text-left'}`}
                 title={sidebarCollapsed ? item.label : undefined}
               >
-                {item.iconImg && <img src={item.iconImg} alt="" className="w-10 h-10 object-contain" />}
-                {!sidebarCollapsed && <span className="font-medium" style={{ fontSize: '22px' }}>{item.label}</span>}
+                {item.iconImg && <img src={item.iconImg} alt="" className="w-16 h-14 object-contain" />}
+                {!sidebarCollapsed && <span className="font-medium" style={{ fontSize: '22px', marginLeft: '-11px' }}>{item.label}</span>}
               </button>
             ))}
           </nav>
@@ -583,7 +583,7 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-bold text-gray-800">My Boards</h2>
                 {!showCreateBoard && (
                   <button onClick={() => setShowCreateBoard(true)} className="btn-primary text-sm flex items-center gap-2">
-                    <span className="text-3xl font-bold leading-none">+</span> Create Board
+                    <span className="text-2xl font-bold leading-none">+</span> Create Board
                   </button>
                 )}
               </div>
