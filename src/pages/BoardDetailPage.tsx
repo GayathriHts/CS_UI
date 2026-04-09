@@ -469,7 +469,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
           {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
+          <div className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
             <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || 'Select Country'}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -488,7 +488,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
           {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
+          <div className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
             <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? 'Select Country first' : statesLoading ? 'Loading states...' : state || 'Select State'}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -507,7 +507,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
           {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
+          <div className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
             <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? 'Select State first' : citiesLoading ? 'Loading...' : city || 'Select District / City'}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>

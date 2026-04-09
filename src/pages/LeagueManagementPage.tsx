@@ -414,7 +414,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
           {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
+          <div className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
             <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -433,7 +433,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
           {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
+          <div className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
             <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -452,7 +452,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
           {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
+          <div className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
             <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -904,7 +904,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''} ${errors.country ? 'border-red-500' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''} ${errors.country ? 'border-red-500' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); if (errors.country) setErrors(prev => ({ ...prev, country: '' })); }}
               >
                 <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
@@ -934,7 +934,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''} ${errors.state ? 'border-red-500' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${errors.state ? 'border-red-500' : ''}`}
                 onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); if (errors.state) setErrors(prev => ({ ...prev, state: '' })); }}
               >
                 <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
@@ -964,7 +964,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''} ${errors.city ? 'border-red-500' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${errors.city ? 'border-red-500' : ''}`}
                 onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); if (errors.city) setErrors(prev => ({ ...prev, city: '' })); }}
               >
                 <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
@@ -1364,7 +1364,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!editCountry && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
                 <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
@@ -1391,7 +1391,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!editCountry || statesLoading ? 'pointer-events-none' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
                 <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? '' : statesLoading ? 'Loading states...' : editState || ''}</span>
@@ -1418,7 +1418,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!editState || citiesLoading ? 'pointer-events-none' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
                 <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
@@ -1799,7 +1799,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
                 <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
@@ -1826,7 +1826,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!country || statesLoading ? 'pointer-events-none' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
                 <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
@@ -1853,7 +1853,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!state || citiesLoading ? 'pointer-events-none' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
                 <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
@@ -2231,7 +2231,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${countriesLoading ? 'opacity-50' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!editCountry && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
                 <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
@@ -2258,7 +2258,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!editCountry || statesLoading ? 'pointer-events-none' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
                 <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? '' : statesLoading ? 'Loading states...' : editState || ''}</span>
@@ -2285,7 +2285,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between ${!editState || citiesLoading ? 'pointer-events-none' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
                 <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
