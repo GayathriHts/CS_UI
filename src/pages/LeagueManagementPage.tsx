@@ -30,19 +30,19 @@ const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueT
   {
     id: 'umpires', label: 'UMPIRES',
     items: [
-      { id: 'umpire-list', label: 'Umpire' },
+      { id: 'umpire-list', label: 'Umpire List' },
     ],
   },
   {
     id: 'grounds', label: 'GROUNDS',
     items: [
-      { id: 'ground-list', label: 'Ground' },
+      { id: 'ground-list', label: 'Ground List' },
     ],
   },
   {
     id: 'trophy', label: 'TOURNAMENTS',
     items: [
-      { id: 'tournaments', label: 'Tournament' },
+      { id: 'tournaments', label: 'Tournament List' },
     ],
   },
   {
@@ -731,8 +731,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
     }
     if (!email.trim()) {
       newErrors.email = 'E-mail ID is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      newErrors.email = 'Enter a valid email address';
+    } else if (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/.test(email.trim())) {
+      newErrors.email = 'Please enter a valid email address';
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -1514,7 +1514,12 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
           <div className="flex justify-end gap-2 mt-6">
             <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
+            <button onClick={() => {
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,3}$/;
+              if (!emailRegex.test(editEmail.trim())) { setUpdateError('Please enter a valid email address'); return; }
+              setUpdateError('');
+              updateMutation.mutate();
+            }} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editEmail.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
@@ -1851,28 +1856,28 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <input value={address1} onChange={e => setAddress1(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
 
-            {/* Row 2: City, State, Country */}
+            {/* Row 2: Country, State, City */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
-              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
+                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {cityDropdownOpen && (
+              {countryDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
                     ))}
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
@@ -1907,26 +1912,26 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
-                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
+                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {countryDropdownOpen && (
+              {cityDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
                     ))}
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
