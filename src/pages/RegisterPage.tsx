@@ -296,7 +296,7 @@ export default function RegisterPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name</label>
                       <input
-                        autoComplete="off"
+                        autoComplete="one-time-code"
                         {...register('firstName', { required: true })}
                         className="input-field"
                         placeholder=""
@@ -317,7 +317,7 @@ export default function RegisterPage() {
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
                       <input
-                        autoComplete="off"
+                        autoComplete="one-time-code"
                         {...register('lastName', { required: true })}
                         className="input-field"
                         placeholder=""
@@ -343,7 +343,7 @@ export default function RegisterPage() {
                       <input
                         id="email"
                         type="email"
-                        autoComplete="off"
+                        autoComplete="one-time-code"
                         {...register('email', { required: activeTab === 'email' })}
                         className="input-field"
                         placeholder=""
@@ -373,7 +373,7 @@ export default function RegisterPage() {
                         </div>
                         <input
                           type="tel"
-                          autoComplete="off"
+                          autoComplete="one-time-code"
                           {...register('phoneNumber', { required: activeTab === 'mobile' })}
                           className="input-field flex-1"
                           placeholder=""
@@ -436,6 +436,7 @@ export default function RegisterPage() {
                     show={showPassword}
                     onToggle={() => setShowPassword(!showPassword)}
                     {...register('password', { required: true, minLength: 8 })}
+                    autoComplete="one-time-code"
                     onCopy={e => e.preventDefault()}
                     onCut={e => e.preventDefault()}
                     onInput={e => {
@@ -454,6 +455,7 @@ export default function RegisterPage() {
                     onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value.replace(/\s/g, ''))}
+                    autoComplete="one-time-code"
                     onCopy={e => e.preventDefault()}
                     onCut={e => e.preventDefault()}
                   />

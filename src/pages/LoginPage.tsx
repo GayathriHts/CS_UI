@@ -221,7 +221,7 @@ export default function LoginPage() {
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
                   <input
                     type="email"
-                    autoComplete="off"
+                    autoComplete="one-time-code"
                     {...register('email', { required: true })}
                     className="input-field"
                    
@@ -236,6 +236,7 @@ export default function LoginPage() {
                     show={showLoginPassword}
                     onToggle={() => setShowLoginPassword(!showLoginPassword)}
                     {...register('password', { required: true })}
+                    autoComplete="one-time-code"
                     placeholder=""
                     onCopy={e => e.preventDefault()}
                     onCut={e => e.preventDefault()}
@@ -309,7 +310,7 @@ export default function LoginPage() {
                 <div className="space-y-5">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
-                    <input type="email" autoComplete="off" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
+                    <input type="email" autoComplete="one-time-code" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)}
                       className="input-field" />
                     {forgotFieldErrors.email && (
                       <div className="text-red-600 text-xs mt-1">{forgotFieldErrors.email}</div>
@@ -350,6 +351,7 @@ export default function LoginPage() {
                       onToggle={() => setShowResetPassword(!showResetPassword)}
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value.replace(/^\s+/, ''))}
+                      autoComplete="one-time-code"
                       onCopy={e => e.preventDefault()}
                       onCut={e => e.preventDefault()}
                     />
@@ -364,6 +366,7 @@ export default function LoginPage() {
                       onToggle={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value.replace(/^\s+/, ''))}
+                      autoComplete="one-time-code"
                       onCopy={e => e.preventDefault()}
                       onCut={e => e.preventDefault()}
                     />
