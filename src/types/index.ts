@@ -384,13 +384,12 @@ export interface Ground {
   landmark?: string;
   homeTeam?: string;
   placeOfGround?: string;
+  additonalDirection?: string;
   additionalDirection?: string;
   groundFacilities?: string;
   pitchDescription?: string;
   wicketType?: string;
-  permitTimeHour?: string;
-  permitTimeMinutes?: string;
-  permitTimeAmPm?: string;
+  permitTime?: string;
 }
 
 // ── League Application ──

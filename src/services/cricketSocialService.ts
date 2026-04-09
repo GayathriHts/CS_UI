@@ -502,11 +502,10 @@ export const leagueService = {
     boardId: string; groundName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     landmark?: string; homeTeam?: string;
-    placeOfGround?: string; additionalDirection?: string; groundFacilities?: string;
-    pitchDescription?: string; wicketType?: string;
-    permitTimeHour?: string; permitTimeMinutes?: string; permitTimeAmPm?: string;
-  }) =>
-    umpireApi.post(`/boards/${data.boardId}/Ground`, {
+    additionalDirection?: string; groundFacilities?: string;
+    pitchDescription?: string; wicketType?: string; permitTime?: string;
+  }) => {
+    const payload = {
       boardId: data.boardId,
       groundId: crypto.randomUUID(),
       groundName: data.groundName,
@@ -518,26 +517,41 @@ export const leagueService = {
       zipcode: data.zipcode ?? '',
       landmark: data.landmark ?? '',
       homeTeam: data.homeTeam ?? '',
-      placeOfGround: data.placeOfGround ?? '',
-      additionalDirection: data.additionalDirection ?? '',
+      additonalDirection: data.additionalDirection ?? '',
       groundFacilities: data.groundFacilities ?? '',
       pitchDescription: data.pitchDescription ?? '',
       wicketType: data.wicketType ?? '',
-      permitTimeHour: data.permitTimeHour ?? '',
-      permitTimeMinutes: data.permitTimeMinutes ?? '',
-      permitTimeAmPm: data.permitTimeAmPm ?? '',
-    }),
+      permitTime: data.permitTime ?? '',
+    };
+    console.log('[createGround] POST /boards/' + data.boardId + '/Ground');
+    console.log('[createGround] payload:', JSON.stringify(payload, null, 2));
+    return umpireApi.post(`/boards/${data.boardId}/Ground`, payload).then(res => {
+      console.log('[createGround] Success:', res.status, res.data);
+      return res;
+    }).catch(err => {
+      console.error('[createGround] Error status:', err?.response?.status);
+      console.error('[createGround] Error data:', JSON.stringify(err?.response?.data, null, 2));
+      console.error('[createGround] Request URL:', err?.config?.url);
+      console.error('[createGround] Request headers:', JSON.stringify(err?.config?.headers));
+      throw err;
+    });
+  },
   getGrounds: (boardId: string, page = 1, pageSize = 100) => umpireApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
   getGroundById: (boardId: string, groundId: string) => umpireApi.get(`/boards/${boardId}/Ground/${groundId}`),
   updateGround: (boardId: string, groundId: string, data: {
     id: string; groundId: string; groundName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     landmark: string; homeTeam: string;
-    placeOfGround?: string; additionalDirection?: string; groundFacilities?: string;
-    pitchDescription?: string; wicketType?: string;
-    permitTimeHour?: string; permitTimeMinutes?: string; permitTimeAmPm?: string;
-  }) =>
-    umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, data),
+    additionalDirection?: string; groundFacilities?: string;
+    pitchDescription?: string; wicketType?: string; permitTime?: string;
+  }) => {
+    // Map to API field name (typo in backend: additonalDirection)
+    const { additionalDirection, ...rest } = data;
+    return umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, {
+      ...rest,
+      additonalDirection: additionalDirection ?? '',
+    });
+  },
   deleteGround: (boardId: string, groundId: string) => umpireApi.delete(`/boards/${boardId}/Ground/${groundId}`),
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),

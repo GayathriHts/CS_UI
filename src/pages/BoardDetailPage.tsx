@@ -838,6 +838,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [rosterFieldSearch, setRosterFieldSearch] = useState('');
   const [showRosterCancelConfirm, setShowRosterCancelConfirm] = useState(false);
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const deletedIdsRef = useRef<Set<string>>(new Set());
   const createdRostersRef = useRef<any[]>([]);
   const qc = useQueryClient();
@@ -1356,6 +1357,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     setErrors({});
     sessionStorage.removeItem('editingRosterId');
     onDirtyChange?.(false);
+    setIsFormDirty(false);
   };
 
   const [editLoading, setEditLoading] = useState(false);
@@ -1603,11 +1605,13 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       setNewMember('');
       setSearchTerm('');
       onDirtyChange?.(true);
+      setIsFormDirty(true);
     }
   };
 
   const handleRemoveMember = (userId: string) => {
     setFormData(prev => ({ ...prev, members: prev.members.filter(m => m !== userId) }));
+    setIsFormDirty(true);
   };
 
   const handleSelectUser = (userId: string, field: 'captain' | 'viceCaptain' | 'coach') => {
@@ -1615,6 +1619,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     setSearchTerm('');
     setActiveSearchField(null);
     onDirtyChange?.(true);
+    setIsFormDirty(true);
   };
 
   const handleFieldSearch = (value: string, field: 'captain' | 'viceCaptain' | 'coach' | 'member') => {
@@ -1741,6 +1746,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   }
                   setFormData(prev => ({ ...prev, rosterName: val }));
                   onDirtyChange?.(true);
+                  setIsFormDirty(true);
                   // Inline duplicate check
                   const trimmed = val.trim().toLowerCase();
                   if (trimmed.length >= 2) {
@@ -1758,6 +1764,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                   }
                 }}
                 placeholder=""
+                maxLength={100}
                 className={`w-full max-w-sm px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-brand-green focus:border-transparent ${errors.rosterName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
               />
               {errors.rosterName && <p className="text-xs text-red-600 mt-1">{errors.rosterName}</p>}
@@ -1980,6 +1987,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
                                       } else {
                                         setFormData(prev => ({ ...prev, leagueBoardIds: [...prev.leagueBoardIds, b.id] }));
                                         onDirtyChange?.(true);
+                                        setIsFormDirty(true);
                                       }
                                     }}
                                     className={`w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0 ${isSelected ? 'bg-brand-green/5' : ''}`}
@@ -2011,8 +2019,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
             <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-200">
               <button
                 onClick={() => {
-                  const hasDirtyData = formData.rosterName || formData.captain || formData.viceCaptain || formData.coach || formData.members.length > 0 || formData.leagueBoardIds.length > 0;
-                  if (hasDirtyData) { setShowRosterCancelConfirm(true); } else { resetForm(); }
+                  if (isFormDirty) { setShowRosterCancelConfirm(true); } else { resetForm(); }
                 }}
                 className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm"
               >

@@ -1207,6 +1207,14 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     if (cc === '+91' && digits.length === 10) {
       return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
     }
+    // Auto-detect using umpire's country field
+    const country = (u.country || '').toLowerCase();
+    if (!cc && digits.length === 10) {
+      if (country === 'india') {
+        return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
+      }
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
     // Auto-detect when no countryCode: check if raw starts with 91 and remaining is 10 digits
     if (!cc) {
       if (digits.startsWith('91') && digits.length === 12) {
@@ -1216,9 +1224,6 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       if (digits.startsWith('1') && digits.length === 11) {
         const num = digits.slice(1);
         return `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}`;
-      }
-      if (digits.length === 10) {
-        return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
       }
     }
     return cc ? `${cc} ${digits}` : digits || '-';
@@ -1672,7 +1677,9 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   const [wicketType, setWicketType] = useState('Regular Turf');
   const [permitHour, setPermitHour] = useState('');
   const [permitMinutes, setPermitMinutes] = useState('');
+  const [permitSeconds, setPermitSeconds] = useState('');
   const [permitAmPm, setPermitAmPm] = useState('AM');
+  const [permitTimezone, setPermitTimezone] = useState('EST');
   const [wicketDropdownOpen, setWicketDropdownOpen] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -1740,30 +1747,33 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     setLandmark(''); setHomeTeam(''); setSelectedHomeTeam(null); setHomeTeamSearch('');
     setPlaceOfGround(''); setAdditionalDirection(''); setGroundFacilities('');
     setPitchDescription(''); setWicketType('Regular Turf');
-    setPermitHour(''); setPermitMinutes(''); setPermitAmPm('AM');
+    setPermitHour(''); setPermitMinutes(''); setPermitSeconds(''); setPermitAmPm('AM'); setPermitTimezone('EST');
   };
 
   const createMutation = useMutation({
-    mutationFn: () => leagueService.createGround({
-      boardId: boardId,
-      groundName: name,
-      address1: address1,
-      address2: address2,
-      city: city,
-      state: state,
-      country: country,
-      zipcode: zipCode,
-      landmark: landmark,
-      homeTeam: homeTeam,
-      placeOfGround: placeOfGround,
-      additionalDirection: additionalDirection,
-      groundFacilities: groundFacilities,
-      pitchDescription: pitchDescription,
-      wicketType: wicketType,
-      permitTimeHour: permitHour,
-      permitTimeMinutes: permitMinutes,
-      permitTimeAmPm: permitAmPm,
-    }),
+    mutationFn: () => {
+      // Build permitTime as single string e.g. "01:30:00 AM EST"
+      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm} ${permitTimezone}` : '';
+      const payload = {
+        boardId: boardId,
+        groundName: name.trim(),
+        address1: address1.trim(),
+        address2: address2.trim(),
+        city: city.trim(),
+        state: state.trim(),
+        country: country.trim(),
+        zipcode: zipCode.trim(),
+        landmark: landmark.trim(),
+        homeTeam: homeTeam.trim(),
+        additionalDirection: additionalDirection.trim(),
+        groundFacilities: groundFacilities.trim(),
+        pitchDescription: pitchDescription.trim(),
+        wicketType: wicketType,
+        permitTime: permitTime,
+      };
+      console.log('Creating ground with payload:', JSON.stringify(payload, null, 2));
+      return leagueService.createGround(payload);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['grounds', boardId] });
       resetForm();
@@ -1776,14 +1786,26 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       }, 1500);
     },
     onError: (err: any) => {
-      setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to create ground. Please try again.');
+      console.error('Create ground error:', err?.response?.status, JSON.stringify(err?.response?.data, null, 2));
+      const detail = err?.response?.data;
+      // Extract the most useful error message from various .NET response shapes
+      // Prioritize specific field errors over generic title
+      const fieldErrors = detail?.errors ? Object.entries(detail.errors).map(([k, v]: [string, any]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ') : '';
+      const msg = fieldErrors
+        || detail?.detail
+        || detail?.message
+        || detail?.title
+        || (typeof detail === 'string' ? detail : '')
+        || err?.message
+        || 'Failed to create ground. Please try again.';
+      setErrorMsg(`${msg}${detail?.status ? ` (Status: ${detail.status})` : ''}`);
       setSuccessMsg('');
     },
   });
 
   const handleSubmit = () => {
     setErrorMsg('');
-    if (!name || !city || !state || !country) {
+    if (!name.trim() || !city.trim() || !state.trim() || !country.trim()) {
       setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country.');
       return;
     }
@@ -2031,28 +2053,42 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                 <input
                   value={permitHour}
                   onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 12)) setPermitHour(v.slice(0, 2)); }}
-                  placeholder="Hour"
+                  placeholder="HH"
                   maxLength={2}
-                  className="input-field w-20 text-center"
+                  className="input-field w-16 text-center"
                 />
+                <span className="text-gray-500 font-bold">:</span>
                 <input
                   value={permitMinutes}
                   onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setPermitMinutes(v.slice(0, 2)); }}
-                  placeholder="Minutes"
+                  placeholder="MM"
                   maxLength={2}
-                  className="input-field w-20 text-center"
+                  className="input-field w-16 text-center"
                 />
-                <div className="relative">
-                  <select
-                    value={permitAmPm}
-                    onChange={e => setPermitAmPm(e.target.value)}
-                    className="input-field w-20 text-center appearance-none cursor-pointer"
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-                <div className="input-field w-16 text-center text-sm text-gray-500 font-medium flex items-center justify-center">EST</div>
+                <span className="text-gray-500 font-bold">:</span>
+                <input
+                  value={permitSeconds}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setPermitSeconds(v.slice(0, 2)); }}
+                  placeholder="SS"
+                  maxLength={2}
+                  className="input-field w-16 text-center"
+                />
+                <select
+                  value={permitAmPm}
+                  onChange={e => setPermitAmPm(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+                <select
+                  value={permitTimezone}
+                  onChange={e => setPermitTimezone(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="EST">EST</option>
+                  <option value="IST">IST</option>
+                </select>
               </div>
             </div>
             <div>{/* spacer */}</div>
@@ -2126,7 +2162,9 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const [editWicketType, setEditWicketType] = useState('Regular Turf');
   const [editPermitHour, setEditPermitHour] = useState('');
   const [editPermitMinutes, setEditPermitMinutes] = useState('');
+  const [editPermitSeconds, setEditPermitSeconds] = useState('');
   const [editPermitAmPm, setEditPermitAmPm] = useState('AM');
+  const [editPermitTimezone, setEditPermitTimezone] = useState('EST');
   const [editWicketDropdownOpen, setEditWicketDropdownOpen] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -2213,27 +2251,27 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => leagueService.updateGround(boardId, editId!, {
-      id: editId!,
-      groundId: editId!,
-      groundName: editName,
-      address1: editAddress1,
-      address2: editAddress2,
-      city: editCity,
-      state: editState,
-      country: editCountry,
-      zipcode: editZipcode,
-      landmark: editLandmark,
-      homeTeam: editHomeTeam,
-      placeOfGround: editPlaceOfGround,
-      additionalDirection: editAdditionalDirection,
-      groundFacilities: editGroundFacilities,
-      pitchDescription: editPitchDescription,
-      wicketType: editWicketType,
-      permitTimeHour: editPermitHour,
-      permitTimeMinutes: editPermitMinutes,
-      permitTimeAmPm: editPermitAmPm,
-    }),
+    mutationFn: () => {
+      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm} ${editPermitTimezone}` : '';
+      return leagueService.updateGround(boardId, editId!, {
+        id: editId!,
+        groundId: editId!,
+        groundName: editName,
+        address1: editAddress1,
+        address2: editAddress2,
+        city: editCity,
+        state: editState,
+        country: editCountry,
+        zipcode: editZipcode,
+        landmark: editLandmark,
+        homeTeam: editHomeTeam,
+        additionalDirection: editAdditionalDirection,
+        groundFacilities: editGroundFacilities,
+        pitchDescription: editPitchDescription,
+        wicketType: editWicketType,
+        permitTime: permitTime,
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['grounds', boardId] });
       setEditId(null);
@@ -2261,14 +2299,21 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditSelectedHomeTeam(matchedTeam || (g.homeTeam ? { id: '', name: g.homeTeam, logoUrl: '' } : null));
     setEditHomeTeamSearch('');
     setEditPlaceOfGround(g.placeOfGround || '');
-    setEditAdditionalDirection(g.additionalDirection || '');
+    // API uses typo "additonalDirection"
+    setEditAdditionalDirection(g.additionalDirection || g.additonalDirection || '');
     setEditGroundFacilities(g.groundFacilities || '');
     setEditPitchDescription(g.pitchDescription || '');
     setEditWicketType(g.wicketType || 'Regular Turf');
-    setEditPermitHour(g.permitTimeHour || '');
-    setEditPermitMinutes(g.permitTimeMinutes || '');
-    setEditPermitAmPm(g.permitTimeAmPm || 'AM');
-    setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '', placeOfGround: g.placeOfGround || '', additionalDirection: g.additionalDirection || '', groundFacilities: g.groundFacilities || '', pitchDescription: g.pitchDescription || '', wicketType: g.wicketType || 'Regular Turf', permitTimeHour: g.permitTimeHour || '', permitTimeMinutes: g.permitTimeMinutes || '', permitTimeAmPm: g.permitTimeAmPm || 'AM' });
+    // Parse permitTime string "HH:MM:SS AM/PM TZ" into separate fields
+    const pt = g.permitTime || '';
+    const ptMatch = pt.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)(?:\s+(EST|IST))?$/i);
+    setEditPermitHour(ptMatch ? ptMatch[1] : '');
+    setEditPermitMinutes(ptMatch ? ptMatch[2] : '');
+    setEditPermitSeconds(ptMatch && ptMatch[3] ? ptMatch[3] : '');
+    setEditPermitAmPm(ptMatch && ptMatch[4] ? ptMatch[4].toUpperCase() : 'AM');
+    setEditPermitTimezone(ptMatch && ptMatch[5] ? ptMatch[5].toUpperCase() : 'EST');
+    const dirVal = g.additionalDirection || g.additonalDirection || '';
+    setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '', placeOfGround: g.placeOfGround || '', additionalDirection: dirVal, groundFacilities: g.groundFacilities || '', pitchDescription: g.pitchDescription || '', wicketType: g.wicketType || 'Regular Turf', permitTimeHour: ptMatch ? ptMatch[1] : '', permitTimeMinutes: ptMatch ? ptMatch[2] : '', permitTimeSeconds: ptMatch && ptMatch[3] ? ptMatch[3] : '', permitTimeAmPm: ptMatch && ptMatch[4] ? ptMatch[4].toUpperCase() : 'AM', permitTimeTimezone: ptMatch && ptMatch[5] ? ptMatch[5].toUpperCase() : 'EST' });
   };
 
   const handleEdit = (g: any) => {
@@ -2555,28 +2600,42 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 <input
                   value={editPermitHour}
                   onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 12)) setEditPermitHour(v.slice(0, 2)); }}
-                  placeholder="Hour"
+                  placeholder="HH"
                   maxLength={2}
-                  className="input-field w-20 text-center"
+                  className="input-field w-16 text-center"
                 />
+                <span className="text-gray-500 font-bold">:</span>
                 <input
                   value={editPermitMinutes}
                   onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setEditPermitMinutes(v.slice(0, 2)); }}
-                  placeholder="Minutes"
+                  placeholder="MM"
                   maxLength={2}
-                  className="input-field w-20 text-center"
+                  className="input-field w-16 text-center"
                 />
-                <div className="relative">
-                  <select
-                    value={editPermitAmPm}
-                    onChange={e => setEditPermitAmPm(e.target.value)}
-                    className="input-field w-20 text-center appearance-none cursor-pointer"
-                  >
-                    <option value="AM">AM</option>
-                    <option value="PM">PM</option>
-                  </select>
-                </div>
-                <div className="input-field w-16 text-center text-sm text-gray-500 font-medium flex items-center justify-center">EST</div>
+                <span className="text-gray-500 font-bold">:</span>
+                <input
+                  value={editPermitSeconds}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setEditPermitSeconds(v.slice(0, 2)); }}
+                  placeholder="SS"
+                  maxLength={2}
+                  className="input-field w-16 text-center"
+                />
+                <select
+                  value={editPermitAmPm}
+                  onChange={e => setEditPermitAmPm(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="AM">AM</option>
+                  <option value="PM">PM</option>
+                </select>
+                <select
+                  value={editPermitTimezone}
+                  onChange={e => setEditPermitTimezone(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="EST">EST</option>
+                  <option value="IST">IST</option>
+                </select>
               </div>
             </div>
             <div>{/* spacer */}</div>
@@ -2901,7 +2960,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   })}
                   className="w-full bg-red-600 text-white px-4 py-2 flex items-center justify-between cursor-pointer"
                 >
-                  <span className="font-bold text-sm uppercase">Group {String.fromCharCode(65 + gIdx)}</span>
+                  <span className="font-bold text-sm uppercase">{group.name || '\u00A0'}</span>
                   <div className="flex items-center gap-2">
                     {groups.length > 1 && (
                       <span onClick={(e) => { e.stopPropagation(); removeGroup(gIdx); }} className="text-white hover:text-red-200 cursor-pointer" title="Remove group">
@@ -3430,7 +3489,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
               {editGroups.map((group, gIdx) => (
                 <div key={group.id} className="border-2 border-red-500 rounded-lg overflow-hidden">
                   <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between">
-                    <span className="font-bold text-sm uppercase">Group {String.fromCharCode(65 + gIdx)}</span>
+                    <span className="font-bold text-sm uppercase">{group.tournamentGroupName || `Group ${String.fromCharCode(65 + gIdx)}`}</span>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
