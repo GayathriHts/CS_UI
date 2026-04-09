@@ -86,6 +86,18 @@ export default function DashboardPage() {
         }
       }
 
+      // Client-side filter: only show boards where the current user is owner or co-owner
+      const uid = user!.id.toLowerCase();
+      items = items.filter((b: any) => {
+        const ownerId = (b.ownerId || b.owneriD || b.OwnerId || b.owner_id || b.createdBy || b.userId || b.ownerid || '').toLowerCase();
+        const coOwnerId = (b.coOwnerId || b.coownerId || b.CoOwnerId || b.co_owner_id || '').toLowerCase();
+        const ownerObj = b.owner;
+        const coOwnerObj = b.coOwner;
+        const ownerObjId = (ownerObj?.id || ownerObj?.Id || '').toLowerCase();
+        const coOwnerObjId = (coOwnerObj?.id || coOwnerObj?.Id || '').toLowerCase();
+        return ownerId === uid || coOwnerId === uid || ownerObjId === uid || coOwnerObjId === uid;
+      });
+
       // Apply pending board edits from sessionStorage (survives refresh + refetch race conditions)
       try {
         const pendingEdits = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
@@ -637,7 +649,7 @@ export default function DashboardPage() {
                     <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
                       {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
                       <div
-                        className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!newBoardCountry && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
+                        className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
                         onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
                       >
                         <span className={newBoardCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : newBoardCountry || ''}</span>
@@ -663,7 +675,7 @@ export default function DashboardPage() {
                     <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
                       {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
                       <div
-                        className={`input-field flex items-center justify-between border-gray-400 ${!newBoardCountry || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                        className={`input-field flex items-center justify-between border-gray-400 ${!newBoardCountry || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                         onClick={() => { if (newBoardCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
                       >
                         <span className={newBoardState ? 'text-gray-900' : 'text-gray-400'}>{!newBoardCountry ? '' : statesLoading ? 'Loading states...' : newBoardState || ''}</span>
@@ -689,7 +701,7 @@ export default function DashboardPage() {
                     <div className="relative"><label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
                       {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
                       <div
-                        className={`input-field flex items-center justify-between border-gray-400 ${!newBoardState || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                        className={`input-field flex items-center justify-between border-gray-400 ${!newBoardState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                         onClick={() => { if (newBoardState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
                       >
                         <span className={newBoardCity ? 'text-gray-900' : 'text-gray-400'}>{!newBoardState ? '' : citiesLoading ? 'Loading...' : newBoardCity || ''}</span>

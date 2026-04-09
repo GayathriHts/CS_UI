@@ -12,6 +12,20 @@ type LeagueTab = 'dashboard' | 'umpire-list' | 'ground-list' | 'schedule' | 'tou
 
 type SidebarSection = 'umpires' | 'grounds' | 'trophy' | 'schedules';
 
+/** Sanitize text input: no leading spaces, auto-capitalize first letter, strip special characters */
+const sanitizeTextInput = (value: string, allowAddressChars = false): string => {
+  let v = value.replace(/^\s+/, '');
+  if (allowAddressChars) {
+    v = v.replace(/[^a-zA-Z0-9\s,.\/#\-]/g, '');
+  } else {
+    v = v.replace(/[^a-zA-Z0-9\s]/g, '');
+  }
+  if (v.length > 0) {
+    v = v.charAt(0).toUpperCase() + v.slice(1);
+  }
+  return v;
+};
+
 const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueTab; label: string }[] }[] = [
   {
     id: 'umpires', label: 'UMPIRES',
@@ -196,7 +210,7 @@ export default function LeagueManagementPage() {
   );
 }
 
-// â”€â”€ EDIT LEAGUE MODAL â”€â”€
+// ── EDIT LEAGUE MODAL ──
 function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(board.name || '');
   const [boardNameError, setBoardNameError] = useState('');
@@ -414,7 +428,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
           {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
-          <div className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
+          <div className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`} onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}>
             <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -433,7 +447,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
           {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
-          <div className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
+          <div className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}>
             <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${stateDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -452,7 +466,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
         <div className="relative">
           <label className="block text-sm font-medium text-gray-700 mb-1">District / City <span className="text-red-500">*</span></label>
           {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
-          <div className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
+          <div className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`} onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}>
             <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </div>
@@ -527,7 +541,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
   );
 }
 
-// â”€â”€ LEAGUE LANDING TAB (default when Manage League is opened) â”€â”€
+// ── LEAGUE LANDING TAB (default when Manage League is opened) ──
 function LeagueLandingTab({ boardId }: { boardId: string }) {
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments', boardId],
@@ -578,7 +592,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} � {new Date(m.scheduledAt).toLocaleString()}</p>
                   {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
                 </div>
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">View Score</span>
@@ -601,8 +615,8 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} · {new Date(m.scheduledAt).toLocaleString()}</p>
-                  {m.groundName && <p className="text-xs text-gray-400">📍 {m.groundName}</p>}
+                  <p className="text-xs text-gray-500">{m.tournamentName} � {new Date(m.scheduledAt).toLocaleString()}</p>
+                  {m.groundName && <p className="text-xs text-gray-400">?? {m.groundName}</p>}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                   {m.status}
@@ -618,7 +632,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
   );
 }
 
-// â”€â”€ CREATE UMPIRE TAB â”€â”€
+// ── CREATE UMPIRE TAB ──
 function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
@@ -801,7 +815,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <input
                 value={name}
                 onChange={e => {
-                  const val = e.target.value;
+                  const val = sanitizeTextInput(e.target.value);
                   setName(val);
                   setUmpireNameSearch(val);
                   setUmpireNameDropdownOpen(true);
@@ -835,7 +849,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                         `${u.firstName || ''} ${u.lastName || ''} ${u.email || ''} ${u.userName || ''}`.toLowerCase().includes(name.trim().toLowerCase())
                       );
                       return filtered.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching users — name will be submitted as entered</div>
+                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching users � name will be submitted as entered</div>
                       ) : (
                         filtered.map((u: any) => {
                           const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id);
@@ -884,7 +898,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
               <input
                 value={addressLine1}
-                onChange={e => { const v = e.target.value; if (/^[a-zA-Z0-9\s,.\/\-#]*$/.test(v)) setAddressLine1(v); }}
+                onChange={e => setAddressLine1(sanitizeTextInput(e.target.value))}
                 className="input-field"
               />
             </div>
@@ -892,19 +906,19 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
               <input
                 value={addressLine2}
-                onChange={e => { const v = e.target.value; if (/^[a-zA-Z0-9\s,.\/\-#]*$/.test(v)) setAddressLine2(v); }}
+                onChange={e => setAddressLine2(sanitizeTextInput(e.target.value))}
                 className="input-field"
               />
             </div>
 
-            {/* Row 2: Country â†’ State â†’ City cascading dropdowns */}
+            {/* Row 2: Country → State → City cascading dropdowns */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Country <span className="text-red-500">*</span>
               </label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''} ${errors.country ? 'border-red-500' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''} ${errors.country ? 'border-red-500' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); if (errors.country) setErrors(prev => ({ ...prev, country: '' })); }}
               >
                 <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
@@ -934,7 +948,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${errors.state ? 'border-red-500' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${errors.state ? 'border-red-500' : ''}`}
                 onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); if (errors.state) setErrors(prev => ({ ...prev, state: '' })); }}
               >
                 <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
@@ -964,7 +978,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               </label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${errors.city ? 'border-red-500' : ''}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'} ${errors.city ? 'border-red-500' : ''}`}
                 onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); if (errors.city) setErrors(prev => ({ ...prev, city: '' })); }}
               >
                 <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
@@ -1098,7 +1112,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   );
 }
 
-// â”€â”€ UMPIRE LIST TAB â”€â”€
+// ── UMPIRE LIST TAB ──
 function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -1348,23 +1362,23 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             {/* Row 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Umpire Name <span className="text-red-500">*</span></label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
+              <input value={editName} onChange={e => setEditName(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
-              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" />
+              <input value={editAddress1} onChange={e => setEditAddress1(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
+              <input value={editAddress2} onChange={e => setEditAddress2(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
 
-            {/* Row 2: Country â†’ State â†’ City */}
+            {/* Row 2: Country → State → City */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!editCountry && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
                 <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
@@ -1391,7 +1405,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
                 <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? '' : statesLoading ? 'Loading states...' : editState || ''}</span>
@@ -1418,7 +1432,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
                 <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
@@ -1531,7 +1545,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3 font-medium">{u.umpireName || u.name || '-'}</td>
                           <td className="py-3">{u.email || '-'}</td>
                           <td className="py-3">{formatPhone(u)}</td>
-                          <td className="py-3">{u.rating != null ? `${'⭐'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
+                          <td className="py-3">{u.rating != null ? `${'?�'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3">{u.totalMatches ?? '-'}</td>
                           <td className="py-3">
                             <div className="flex items-center gap-4">
@@ -1633,7 +1647,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   );
 }
 
-// â”€â”€ CREATE GROUND TAB â”€â”€
+// ── CREATE GROUND TAB ──
 function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onCreated?: () => void; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [address1, setAddress1] = useState('');
@@ -1783,23 +1797,23 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             {/* Row 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name <span className="text-red-500">*</span></label>
-              <input value={name} onChange={e => setName(e.target.value)} className="input-field" />
+              <input value={name} onChange={e => setName(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
-              <input value={address1} onChange={e => setAddress1(e.target.value)} className="input-field" />
+              <input value={address1} onChange={e => setAddress1(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-              <input value={address2} onChange={e => setAddress2(e.target.value)} className="input-field" />
+              <input value={address2} onChange={e => setAddress2(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
 
-            {/* Row 2: Country â†’ State â†’ City cascading dropdowns */}
+            {/* Row 2: Country → State → City cascading dropdowns */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!country && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
                 <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
@@ -1826,7 +1840,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!country || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (country && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
                 <span className={state ? 'text-gray-900' : 'text-gray-400'}>{!country ? '' : statesLoading ? 'Loading states...' : state || ''}</span>
@@ -1853,7 +1867,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
                 <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
@@ -1884,7 +1898,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
-              <input value={landmark} onChange={e => setLandmark(e.target.value)} className="input-field" />
+              <input value={landmark} onChange={e => setLandmark(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
@@ -1998,7 +2012,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   );
 }
 
-// â”€â”€ GROUND LIST TAB â”€â”€
+// ── GROUND LIST TAB ──
 function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -2215,23 +2229,23 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             {/* Row 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name <span className="text-red-500">*</span></label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
+              <input value={editName} onChange={e => setEditName(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
-              <input value={editAddress1} onChange={e => setEditAddress1(e.target.value)} className="input-field" />
+              <input value={editAddress1} onChange={e => setEditAddress1(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-              <input value={editAddress2} onChange={e => setEditAddress2(e.target.value)} className="input-field" />
+              <input value={editAddress2} onChange={e => setEditAddress2(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
 
-            {/* Row 2: Country â†’ State â†’ City */}
+            {/* Row 2: Country → State → City */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${!editCountry && !countriesLoading ? 'bg-gray-100' : ''} ${countriesLoading ? 'bg-gray-100' : ''}`}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
                 onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
                 <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
@@ -2258,7 +2272,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editCountry && !statesLoading) setStateDropdownOpen(!stateDropdownOpen); }}
               >
                 <span className={editState ? 'text-gray-900' : 'text-gray-400'}>{!editCountry ? '' : statesLoading ? 'Loading states...' : editState || ''}</span>
@@ -2285,7 +2299,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
               {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-100 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
                 onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
                 <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
@@ -2314,7 +2328,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
-              <input value={editLandmark} onChange={e => setEditLandmark(e.target.value)} className="input-field" />
+              <input value={editLandmark} onChange={e => setEditLandmark(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
@@ -2458,7 +2472,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                     <div key={gid} className={`border rounded-lg p-4 ${editId === gid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
-                          <span className="text-xl">🏟️</span>
+                          <span className="text-xl">???</span>
                           <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2533,7 +2547,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   );
 }
 
-// â”€â”€ CREATE TROPHY TAB â”€â”€
+// ── CREATE TROPHY TAB ──
 interface TrophyGroup {
   name: string;
   teamIds: string[];
@@ -2838,7 +2852,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                             <div key={tid} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm min-w-[140px] max-w-[180px]">
                               {board?.logoUrl
                                 ? <img src={board.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">🏏</div>
+                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">??</div>
                               }
                               <span className="text-sm font-medium text-gray-800 truncate flex-1">{board?.name || tid}</span>
                               <button
@@ -2928,7 +2942,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   );
 }
 
-// â”€â”€ CANCEL GAME BY DATE TAB â”€â”€
+// ── CANCEL GAME BY DATE TAB ──
 function CancelGameTab({ boardId }: { boardId: string }) {
   const today = new Date();
   const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
@@ -2960,7 +2974,7 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   );
 }
 
-// â”€â”€ TOURNAMENTS TAB â”€â”€
+// ── TOURNAMENTS TAB ──
 function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -3326,7 +3340,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                             <div className="flex items-center gap-3">
                               {b?.logoUrl
                                 ? <img src={b.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">🏏</div>
+                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">??</div>
                               }
                               <span className="text-sm font-medium">{b?.name || tid}</span>
                             </div>
@@ -3488,7 +3502,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   );
 }
 
-// â”€â”€ SCHEDULE TAB â”€â”€
+// ── SCHEDULE TAB ──
 function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const today = new Date();
   const user = useAuthStore((s) => s.user);
@@ -3580,8 +3594,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
       const d = r.data;
       const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-      console.log('📋 Schedule GET raw response:', d);
-      if (list.length > 0) console.log('📋 First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
+      console.log('?? Schedule GET raw response:', d);
+      if (list.length > 0) console.log('?? First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
       return list;
     }),
     enabled: !!from && !!to,
@@ -3647,12 +3661,12 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
-      console.log('📋 Tournament teams raw response:', d);
-      console.log('📋 Tournament teams response type:', typeof d, Array.isArray(d), d ? Object.keys(d) : 'null');
+      console.log('?? Tournament teams raw response:', d);
+      console.log('?? Tournament teams response type:', typeof d, Array.isArray(d), d ? Object.keys(d) : 'null');
       const list = unwrapValues(d);
-      console.log('📋 Tournament teams unwrapped:', list.length, list.slice(0, 2));
+      console.log('?? Tournament teams unwrapped:', list.length, list.slice(0, 2));
       const mapped = list.map(mapTeamItem);
-      console.log('📋 Tournament teams mapped:', mapped.length, mapped.slice(0, 2));
+      console.log('?? Tournament teams mapped:', mapped.length, mapped.slice(0, 2));
       return mapped;
     },
     enabled: !!newTournamentId,
@@ -3665,7 +3679,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      console.log('📋 Edit tournament teams raw response:', d);
+      console.log('?? Edit tournament teams raw response:', d);
       const list = unwrapValues(d);
       return list.map(mapTeamItem);
     },
@@ -3795,7 +3809,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: editPortalScorer || '',
         active: true,
       };
-      console.log('📤 Schedule PUT payload:', JSON.stringify(payload, null, 2));
+      console.log('?? Schedule PUT payload:', JSON.stringify(payload, null, 2));
       return leagueService.updateSchedule(editMatchId!, payload);
     },
     onSuccess: () => {
@@ -3841,11 +3855,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: newPortalScorerId || EMPTY_GUID,
         active: true,
       };
-      console.log('📤 Schedule POST payload:', JSON.stringify(payload, null, 2));
+      console.log('?? Schedule POST payload:', JSON.stringify(payload, null, 2));
       return tournamentService.createSchedule(payload as any);
     },
     onSuccess: (response: any) => {
-      console.log('âœ… Schedule created successfully:', response?.data);
+      console.log('✅ Schedule created successfully:', response?.data);
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       setCreateError('');
       setCreateSuccess('Schedule created successfully!');
@@ -3853,7 +3867,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       setTimeout(() => setCreateSuccess(''), 4000);
     },
     onError: (error: any) => {
-      console.error('âŒ Schedule creation failed:', error?.response?.status, error?.response?.data);
+      console.error('❌ Schedule creation failed:', error?.response?.status, error?.response?.data);
       const respData = error?.response?.data;
       let msg = '';
       if (typeof respData === 'string') {
@@ -4470,7 +4484,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   );
 }
 
-// â”€â”€ APPLICATIONS TAB â”€â”€
+// ── APPLICATIONS TAB ──
 function ApplicationsTab({ boardId }: { boardId: string }) {
   const [selectedTournament, setSelectedTournament] = useState('');
   const qc = useQueryClient();
@@ -4508,7 +4522,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
                 <tr key={a.id} className="border-b last:border-b-0 hover:bg-gray-50">
                   <td className="py-3 font-medium">{a.teamName}</td>
                   <td className="py-3">{a.paymentAmount ? `$${a.paymentAmount}` : '-'} {a.paymentStatus && <span className="text-xs text-gray-400">({a.paymentStatus})</span>}</td>
-                  <td className="py-3">{a.waiverSigned ? 'âœ…' : 'âŒ'}</td>
+                  <td className="py-3">{a.waiverSigned ? '✅' : '❌'}</td>
                   <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${a.status === 'Approved' ? 'bg-green-100 text-green-700' : a.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{a.status}</span></td>
                   <td className="py-3 text-xs">{new Date(a.submittedAt).toLocaleDateString()}</td>
                   <td className="py-3 space-x-2">
@@ -4528,7 +4542,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
   );
 }
 
-// â”€â”€ INVOICES TAB â”€â”€
+// ── INVOICES TAB ──
 function InvoicesTab({ boardId }: { boardId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState(''); const [description, setDescription] = useState(''); const [dueDate, setDueDate] = useState('');
