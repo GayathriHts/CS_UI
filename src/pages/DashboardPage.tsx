@@ -583,7 +583,7 @@ export default function DashboardPage() {
                 <h2 className="text-2xl font-bold text-gray-800">My Boards</h2>
                 {!showCreateBoard && (
                   <button onClick={() => setShowCreateBoard(true)} className="btn-primary text-sm flex items-center gap-2">
-                    <span className="text-xl font-bold leading-none">+</span> Create Board
+                    <span className="text-3xl font-bold leading-none">+</span> Create Board
                   </button>
                 )}
               </div>
