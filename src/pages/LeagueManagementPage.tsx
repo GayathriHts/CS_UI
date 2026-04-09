@@ -2052,7 +2052,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                     <option value="PM">PM</option>
                   </select>
                 </div>
-                <span className="text-sm text-gray-500 font-medium">EST</span>
+                <div className="input-field w-16 text-center text-sm text-gray-500 font-medium flex items-center justify-center">EST</div>
               </div>
             </div>
             <div>{/* spacer */}</div>
@@ -2576,7 +2576,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                     <option value="PM">PM</option>
                   </select>
                 </div>
-                <span className="text-sm text-gray-500 font-medium">EST</span>
+                <div className="input-field w-16 text-center text-sm text-gray-500 font-medium flex items-center justify-center">EST</div>
               </div>
             </div>
             <div>{/* spacer */}</div>
