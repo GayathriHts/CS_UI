@@ -159,6 +159,12 @@ export const boardService = {
     headers: { 'Cache-Control': 'no-cache' },
   }),
 
+  // Get boards by type (e.g. boardType=1 for Team Boards)
+  getByType: (boardType: number, page = 1, pageSize = 50) =>
+    boardApi.get(`/Boards/bytype/${boardType}`, {
+      params: { page, pageSize },
+    }),
+
   // Delete a board by ID
   delete: (id: string) => boardApi.delete(`/Boards/${id}`),
 
@@ -259,7 +265,10 @@ export const tournamentService = {
         id: g.id,
         tournamentGroupName: g.tournamentGroupName,
         active: g.active ?? 1,
-        teamBoardId: g.teamBoardId,
+        teams: g.teamBoardId.map(tid => ({
+          id: crypto.randomUUID(),
+          teamBoardId: tid,
+        })),
       })),
       createdBy: data.createdBy ?? '',
     }),

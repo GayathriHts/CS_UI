@@ -1684,52 +1684,22 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     fetchCities(country, state).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
   }, [country, state]);
 
-  // Fetch user's boards/teams for home team dropdown â€” only boardType 1 (Team)
+  // Fetch Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
   const { data: boardsList, isLoading: boardsLoading } = useQuery({
-    queryKey: ['boardsByOwner', user?.id, 'type1'],
+    queryKey: ['teamBoards'],
     queryFn: async () => {
-      try {
-        const stored = sessionStorage.getItem('recentBoards');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed
-              .filter((b: any) => b.boardType === 1 || b.boardType === 'Team')
-              .map((b: any) => ({
-                id: b.id || b.Id || b.boardId || '',
-                name: b.name || b.boardName || b.Name || '',
-                logoUrl: b.logoUrl || '',
-              }));
-          }
-        }
-      } catch {}
-      const [ownerRes, coOwnerRes] = await Promise.all([
-        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
-        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
-      ]);
-      const extract = (raw: any): any[] => {
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (raw?.items) return raw.items;
-        if (raw?.data?.items) return raw.data.items;
-        if (Array.isArray(raw?.data)) return raw.data;
-        if (Array.isArray(raw?.result)) return raw.result;
-        return [];
-      };
-      const seen = new Set<string>();
-      const merged: any[] = [];
-      for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
-        const id = b.id || b.Id || b.boardId || '';
-        const boardType = b.boardType || b.BoardType;
-        if (id && !seen.has(id) && (boardType === 1 || boardType === 'Team')) {
-          seen.add(id);
-          merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' });
-        }
-      }
-      return merged;
+      const res = await boardService.getByType(1, 1, 50);
+      const raw = res.data as any;
+      console.log('[TeamBoards-Schedule] API response:', raw);
+      const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
+      return (Array.isArray(items) ? items : []).map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+        logoUrl: b.logoUrl || '',
+      }));
     },
-    enabled: !!user?.id,
-    staleTime: 30000,
+    staleTime: 60000,
+    retry: 1,
   });
 
   const teamList = Array.isArray(boardsList) ? boardsList : [];
@@ -2583,60 +2553,34 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
-  // Load boards from sessionStorage (stored by Dashboard) + API fallback
+  // Load Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
+  const [teamBoardError, setTeamBoardError] = useState('');
   const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
-    queryKey: ['boardsByOwner', user?.id],
+    queryKey: ['teamBoards'],
     queryFn: async () => {
-      // 1. Try sessionStorage first (same cache Dashboard uses)
       try {
-        const stored = sessionStorage.getItem('recentBoards');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((b: any) => ({
-              id: b.id || b.Id || b.boardId || '',
-              name: b.name || b.boardName || b.Name || '',
-              logoUrl: b.logoUrl || '',
-              description: b.description || b.city || '',
-            }));
-          }
-        }
-      } catch {}
-
-      // 2. Fallback: fetch from API
-      const [ownerRes, coOwnerRes] = await Promise.all([
-        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
-        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
-      ]);
-      const extract = (raw: any): any[] => {
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (raw?.items) return raw.items;
-        if (raw?.data?.items) return raw.data.items;
-        if (Array.isArray(raw?.data)) return raw.data;
-        if (Array.isArray(raw?.result)) return raw.result;
-        return [];
-      };
-      const ownerItems = extract(ownerRes.data);
-      const coOwnerItems = extract(coOwnerRes.data);
-      const seen = new Set<string>();
-      const merged: any[] = [];
-      for (const b of [...ownerItems, ...coOwnerItems]) {
-        const id = b.id || b.Id || b.boardId || '';
-        if (id && !seen.has(id)) {
-          seen.add(id);
-          merged.push({
-            id,
-            name: b.name || b.boardName || b.Name || '',
-            logoUrl: b.logoUrl || '',
-            description: b.description || b.city || '',
-          });
-        }
+        setTeamBoardError('');
+        const res = await boardService.getByType(1, 1, 50);
+        const raw = res.data as any;
+        console.log('[TeamBoards] API response:', raw);
+        const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
+        const list = Array.isArray(items) ? items : [];
+        console.log('[TeamBoards] Parsed items:', list.length);
+        return list.map((b: any) => ({
+          id: b.id || b.Id || b.boardId || '',
+          name: b.name || b.boardName || b.Name || '',
+          logoUrl: b.logoUrl || '',
+          description: b.description || b.city || '',
+        }));
+      } catch (err) {
+        console.error('[TeamBoards] API error:', err);
+        setTeamBoardError('Failed to load Team Boards. Please try again.');
+        throw err;
       }
-      return merged;
     },
-    enabled: !!user?.id,
-    staleTime: 30000,
+    enabled: false,
+    staleTime: 60000,
+    retry: 1,
   });
 
   const createMutation = useMutation({
@@ -2844,13 +2788,14 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                               onClick={e => e.stopPropagation()}
                             />
                           </div>
+                          {teamBoardError && <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-b border-red-100">{teamBoardError}</div>}
                           <div className="max-h-60 overflow-y-auto">
                             {boardsLoading ? (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />Loading Team Boards...</div>
                             ) : (() => {
                               const filtered = getFilteredBoards(gIdx);
                               return filtered.length === 0 ? (
-                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No Team Boards Available</div>
                               ) : (
                                 filtered.map((b: any) => (
                                   <button
@@ -3046,45 +2991,31 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   });
   const tournamentList = Array.isArray(tournaments) ? tournaments : [];
 
-  // Fetch boards for edit dropdown (same as CreateTrophyTab)
+  // Fetch Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
+  const [editTeamBoardError, setEditTeamBoardError] = useState('');
   const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
-    queryKey: ['boardsByOwner', user?.id],
+    queryKey: ['teamBoards'],
     queryFn: async () => {
       try {
-        const stored = sessionStorage.getItem('recentBoards');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((b: any) => ({
-              id: b.id || b.Id || b.boardId || '',
-              name: b.name || b.boardName || b.Name || '',
-              logoUrl: b.logoUrl || '',
-            }));
-          }
-        }
-      } catch {}
-      const [ownerRes, coOwnerRes] = await Promise.all([
-        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
-        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
-      ]);
-      const extract = (raw: any): any[] => {
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (raw?.items) return raw.items;
-        if (raw?.data?.items) return raw.data.items;
-        if (Array.isArray(raw?.data)) return raw.data;
-        return [];
-      };
-      const seen = new Set<string>();
-      const merged: any[] = [];
-      for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
-        const id = b.id || b.Id || b.boardId || '';
-        if (id && !seen.has(id)) { seen.add(id); merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' }); }
+        setEditTeamBoardError('');
+        const res = await boardService.getByType(1, 1, 50);
+        const raw = res.data as any;
+        console.log('[TeamBoards-Edit] API response:', raw);
+        const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
+        return (Array.isArray(items) ? items : []).map((b: any) => ({
+          id: b.id || b.Id || b.boardId || '',
+          name: b.name || b.boardName || b.Name || '',
+          logoUrl: b.logoUrl || '',
+        }));
+      } catch (err) {
+        console.error('[TeamBoards-Edit] API error:', err);
+        setEditTeamBoardError('Failed to load Team Boards. Please try again.');
+        throw err;
       }
-      return merged;
     },
-    enabled: !!user?.id,
-    staleTime: 30000,
+    enabled: false,
+    staleTime: 60000,
+    retry: 1,
   });
 
   const deleteMutation = useMutation({
@@ -3115,7 +3046,10 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
           id: g.id,
           tournamentGroupName: g.tournamentGroupName,
           active: Number(g.active ?? 0),
-          teamBoardId: Array.isArray(g.teamBoardId) ? g.teamBoardId.filter((tid: string) => typeof tid === 'string' && tid.trim()) : [],
+          teams: (Array.isArray(g.teamBoardId) ? g.teamBoardId.filter((tid: string) => typeof tid === 'string' && tid.trim()) : []).map(tid => ({
+            id: crypto.randomUUID(),
+            teamBoardId: tid,
+          })),
         })),
         modifiedBy: user?.id ?? '',
       };
@@ -3137,7 +3071,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
     },
   });
 
-  const handleEdit = (t: any) => {
+  const handleEdit = async (t: any) => {
     console.log('[EditTournament] Raw GET data:', JSON.stringify(t, null, 2));
     setEditId(t.id);
     setEditOriginal(t);
@@ -3148,14 +3082,19 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
     const rawGroups = Array.isArray(t.groupList) ? t.groupList : [];
     console.log('[EditTournament] Raw groupList:', JSON.stringify(rawGroups, null, 2));
     const groups = rawGroups.map((g: any) => {
-      // Extract teamBoardId robustly: could be string[], object[], single string, or missing
-      const rawTeams = g.teamBoardId || g.teamBoardIds || g.teams || [];
+      // Extract teamBoardId from teams array: [{id, teamBoardId}] per Swagger spec
+      const rawTeams = g.teams || g.teamBoardId || g.teamBoardIds || [];
       let teamIds: string[] = [];
       if (Array.isArray(rawTeams)) {
-        teamIds = rawTeams.map((item: any) => typeof item === 'string' ? item : (item?.id || item?.boardId || '')).filter(Boolean);
+        teamIds = rawTeams.map((item: any) => {
+          if (typeof item === 'string') return item;
+          // Prefer teamBoardId (the actual board ID), fall back to boardId, then id
+          return item?.teamBoardId || item?.boardId || item?.id || '';
+        }).filter(Boolean);
       } else if (typeof rawTeams === 'string' && rawTeams) {
         teamIds = [rawTeams];
       }
+      console.log('[EditTournament] Group', g.tournamentGroupName, 'teamIds:', teamIds);
       return {
         id: g.id || g.groupId || crypto.randomUUID(),
         tournamentGroupName: g.tournamentGroupName || g.groupName || g.name || '',
@@ -3168,7 +3107,8 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
     setEditOpenDropdown(null);
     setUpdateError('');
     setUpdateSuccess('');
-    refetchBoards();
+    // Ensure boards are loaded so selected team names can be resolved
+    await refetchBoards();
   };
 
   const cancelEdit = () => {
@@ -3318,13 +3258,14 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                               onClick={e => e.stopPropagation()}
                             />
                           </div>
+                          {editTeamBoardError && <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-b border-red-100">{editTeamBoardError}</div>}
                           <div className="max-h-60 overflow-y-auto">
                             {boardsLoading ? (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading boards...</div>
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />Loading Team Boards...</div>
                             ) : (() => {
                               const filtered = getFilteredBoardsForEdit(gIdx);
                               return filtered.length === 0 ? (
-                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No boards found</div>
+                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No Team Boards Available</div>
                               ) : (
                                 filtered.map((b: any) => (
                                   <button
@@ -3638,46 +3579,20 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
   const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
 
-  // Load boards from sessionStorage + API fallback (same as CreateTrophyTab / TournamentsTab)
+  // Load Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
   const { data: boardsList } = useQuery({
-    queryKey: ['boardsByOwner', user?.id],
+    queryKey: ['teamBoards'],
     queryFn: async () => {
-      try {
-        const stored = sessionStorage.getItem('recentBoards');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed.map((b: any) => ({
-              id: b.id || b.Id || b.boardId || '',
-              name: b.name || b.boardName || b.Name || '',
-              logoUrl: b.logoUrl || '',
-            }));
-          }
-        }
-      } catch {}
-      const [ownerRes, coOwnerRes] = await Promise.all([
-        boardService.getByOwner(user?.id).catch(() => ({ data: null })),
-        boardService.getByOwner(undefined, user?.id).catch(() => ({ data: null })),
-      ]);
-      const extract = (raw: any): any[] => {
-        if (!raw) return [];
-        if (Array.isArray(raw)) return raw;
-        if (raw?.items) return raw.items;
-        if (raw?.data?.items) return raw.data.items;
-        if (Array.isArray(raw?.data)) return raw.data;
-        if (Array.isArray(raw?.result)) return raw.result;
-        return [];
-      };
-      const seen = new Set<string>();
-      const merged: any[] = [];
-      for (const b of [...extract(ownerRes.data), ...extract(coOwnerRes.data)]) {
-        const id = b.id || b.Id || b.boardId || '';
-        if (id && !seen.has(id)) { seen.add(id); merged.push({ id, name: b.name || b.boardName || '', logoUrl: b.logoUrl || '' }); }
-      }
-      return merged;
+      const res = await boardService.getByType(1, 1, 50);
+      const raw = res.data as any;
+      const items = Array.isArray(raw) ? raw : raw?.items ?? raw?.data ?? Array.isArray(raw?.result) ? raw.result : [];
+      return (Array.isArray(items) ? items : []).map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+        logoUrl: b.logoUrl || '',
+      }));
     },
-    enabled: !!user?.id,
-    staleTime: 30000,
+    staleTime: 60000,
   });
   const allBoards = Array.isArray(boardsList) ? boardsList : [];
 
