@@ -266,7 +266,7 @@ export const tournamentService = {
         tournamentGroupName: g.tournamentGroupName,
         active: g.active ?? 1,
         teams: g.teamBoardId.map(tid => ({
-          id: crypto.randomUUID(),
+          id: null,
           teamBoardId: tid,
         })),
       })),
@@ -276,7 +276,7 @@ export const tournamentService = {
   getTournaments: (page = 1, pageSize = 20) => umpireApi.get('/Tournament', { params: { page, pageSize } }),
   // PUT /api/v{version}/Tournament/{id} — update tournament
   updateTournament: (id: string, data: Record<string, any>) =>
-    umpireApi.put(`/Tournament/${id}`, data),
+    umpireApi.put(`/Tournament/${id}`, data, { timeout: 30000 }),
   // DELETE tournament
   deleteTournament: (id: string) => umpireApi.delete(`/Tournament/${id}`),
   getById: (id: string) => api.get<Tournament>(`/tournaments/${id}`),
@@ -548,6 +548,7 @@ export const leagueService = {
     umpireApi.delete(`/Schedules/${id}`),
   getTeamsByTournament: (tournamentId: string) =>
     umpireApi.get(`/Schedules/dropdowns/${tournamentId}/teams`),
+  getGameTypes: () => umpireApi.get('/Schedules/dropdowns/gametypes'),
   assignUmpire: (matchId: string, umpireId: string) => api.put(`/league/matches/${matchId}/umpire/${umpireId}`),
   assignScorer: (matchId: string, scorerId: string) => api.put(`/league/matches/${matchId}/scorer/${scorerId}`),
   cancelGames: (boardId: string, from: string, to: string) =>

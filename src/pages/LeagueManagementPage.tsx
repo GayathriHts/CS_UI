@@ -2970,7 +2970,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   const [editWinPoint, setEditWinPoint] = useState('2');
   const [editUmpireCheck, setEditUmpireCheck] = useState<number>(1);
   const [editMatchType, setEditMatchType] = useState('league');
-  const [editGroups, setEditGroups] = useState<{ id: string; tournamentGroupName: string; active: number; teamBoardId: string[] }[]>([]);
+  const [editGroups, setEditGroups] = useState<{ id: string; tournamentGroupName: string; active: number; teamBoardId: string[]; originalTeams: { id: string; teamBoardId: string }[] }[]>([]);
   const [editGroupSearches, setEditGroupSearches] = useState<string[]>([]);
   const [editOpenDropdown, setEditOpenDropdown] = useState<number | null>(null);
   const [updateError, setUpdateError] = useState('');
@@ -3030,43 +3030,56 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      // Build payload with ONLY the fields the PUT API accepts â€” nothing extra
+      // Build payload matching PUT /api/v{version}/Tournament/{id} Swagger spec exactly
+      const safeInt = (v: any, fallback?: number) => { const n = Number(v); return Number.isFinite(n) ? n : (fallback ?? 0); };
       const payload = {
-        id: editId!,
-        tournamentName: editName.trim(),
-        winPoint: Number(editWinPoint) || 0,
-        umpireCheck: Number(editOriginal?.umpireCheck ?? 0),
-        active: Number(editOriginal?.active ?? 0),
-        scheduleCoordinator: editOriginal?.scheduleCoordinator ?? true,
-        startNode: Number(editOriginal?.startNode ?? 0),
-        endNode: Number(editOriginal?.endNode ?? 0),
-        recordCount: Number(editOriginal?.recordCount ?? 0),
-        matchType: editMatchType || 'league',
+        id: String(editId!),
+        tournamentName: String(editName.trim()),
+        winPoint: safeInt(editWinPoint),
+        umpireCheck: safeInt(editOriginal?.umpireCheck),
+        active: safeInt(editOriginal?.active),
+        scheduleCoordinator: Boolean(editOriginal?.scheduleCoordinator ?? true),
+        startNode: safeInt(editOriginal?.startNode),
+        endNode: safeInt(editOriginal?.endNode),
+        recordCount: safeInt(editOriginal?.recordCount),
+        matchType: String(editMatchType || 'league'),
         groupList: editGroups.map(g => ({
-          id: g.id,
-          tournamentGroupName: g.tournamentGroupName,
-          active: Number(g.active ?? 0),
-          teams: (Array.isArray(g.teamBoardId) ? g.teamBoardId.filter((tid: string) => typeof tid === 'string' && tid.trim()) : []).map(tid => ({
-            id: crypto.randomUUID(),
-            teamBoardId: tid,
-          })),
+          id: String(g.id),
+          tournamentGroupName: String(g.tournamentGroupName),
+          active: safeInt(g.active),
+          teams: (Array.isArray(g.teamBoardId) ? g.teamBoardId.filter((tid: string) => typeof tid === 'string' && tid.trim()) : []).map(tid => {
+            const orig = g.originalTeams?.find(t => t.teamBoardId === tid);
+            return {
+              id: orig?.id ?? null,
+              teamBoardId: String(tid),
+            };
+          }),
         })),
-        modifiedBy: user?.id ?? '',
+        modifiedBy: String(user?.id ?? ''),
       };
       console.log('[UpdateTournament] PUT payload:', JSON.stringify(payload, null, 2));
       return tournamentService.updateTournament(editId!, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
+      qc.invalidateQueries({ queryKey: ['teamBoards'] });
       setEditId(null);
+      setEditOriginal(null);
       setUpdateError('');
       setUpdateSuccess('Tournament updated successfully!');
       setTimeout(() => setUpdateSuccess(''), 4000);
     },
     onError: (err: any) => {
       console.error('[UpdateTournament] Error:', err?.response?.status, err?.response?.data);
+      console.error('[UpdateTournament] Full response:', JSON.stringify(err?.response?.data, null, 2));
+      console.error('[UpdateTournament] Request config:', JSON.stringify(err?.config?.data));
       const errData = err?.response?.data;
-      const msg = typeof errData === 'string' ? errData : errData?.message || errData?.title || errData?.errors ? JSON.stringify(errData.errors) : err?.message || 'Failed to update tournament.';
+      let msg = 'Failed to update tournament.';
+      if (typeof errData === 'string') msg = errData;
+      else if (errData?.message) msg = errData.message;
+      else if (errData?.title) msg = errData.title;
+      else if (errData?.errors) msg = JSON.stringify(errData.errors);
+      else if (err?.message) msg = err.message;
       setUpdateError(msg);
     },
   });
@@ -3085,21 +3098,30 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
       // Extract teamBoardId from teams array: [{id, teamBoardId}] per Swagger spec
       const rawTeams = g.teams || g.teamBoardId || g.teamBoardIds || [];
       let teamIds: string[] = [];
+      let originalTeams: { id: string; teamBoardId: string }[] = [];
       if (Array.isArray(rawTeams)) {
         teamIds = rawTeams.map((item: any) => {
           if (typeof item === 'string') return item;
-          // Prefer teamBoardId (the actual board ID), fall back to boardId, then id
           return item?.teamBoardId || item?.boardId || item?.id || '';
         }).filter(Boolean);
+        // Preserve original team objects so we can send correct IDs in PUT
+        originalTeams = rawTeams
+          .filter((item: any) => typeof item === 'object' && item)
+          .map((item: any) => ({
+            id: item.id || crypto.randomUUID(),
+            teamBoardId: item.teamBoardId || item.boardId || item.id || '',
+          }))
+          .filter(t => t.teamBoardId);
       } else if (typeof rawTeams === 'string' && rawTeams) {
         teamIds = [rawTeams];
       }
-      console.log('[EditTournament] Group', g.tournamentGroupName, 'teamIds:', teamIds);
+      console.log('[EditTournament] Group', g.tournamentGroupName, 'teamIds:', teamIds, 'originalTeams:', originalTeams);
       return {
         id: g.id || g.groupId || crypto.randomUUID(),
         tournamentGroupName: g.tournamentGroupName || g.groupName || g.name || '',
         active: Number(g.active ?? 1),
         teamBoardId: teamIds,
+        originalTeams,
       };
     });
     setEditGroups(groups);
@@ -3345,7 +3367,6 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       <th className="pb-3">Tournament Name</th>
                       <th className="pb-3">Win Points</th>
                       <th className="pb-3">Match Type</th>
-                      <th className="pb-3">Groups</th>
                       <th className="pb-3">Status</th>
                       <th className="pb-3">Actions</th>
                     </tr>
@@ -3353,13 +3374,11 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                   <tbody>
                     {tournamentList.map((t: any) => {
                       const tid = t.id;
-                      const groupCount = Array.isArray(t.groupList) ? t.groupList.length : 0;
                       return (
                         <tr key={tid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === tid ? 'bg-blue-50' : ''}`}>
                           <td className="py-3 font-medium">{t.tournamentName || t.name || '-'}</td>
                           <td className="py-3">{t.winPoint ?? '-'}</td>
                           <td className="py-3">{t.matchType || '-'}</td>
-                          <td className="py-3">{groupCount} group{groupCount !== 1 ? 's' : ''}</td>
                           <td className="py-3">
                             <span className={`px-2 py-1 rounded-full text-xs ${t.active === 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                               {t.active === 0 ? 'Inactive' : 'Active'}
@@ -3379,7 +3398,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       );
                     })}
                     {(!tournamentList.length) && (
-                      <tr><td colSpan={6} className="py-8 text-center text-gray-400">No tournaments created yet.</td></tr>
+                      <tr><td colSpan={5} className="py-8 text-center text-gray-400">No tournaments created yet.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -3389,7 +3408,6 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
               <div className="md:hidden space-y-4">
                 {tournamentList.map((t: any) => {
                   const tid = t.id;
-                  const groupCount = Array.isArray(t.groupList) ? t.groupList.length : 0;
                   return (
                     <div key={tid} className={`border rounded-lg p-4 ${editId === tid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
@@ -3406,7 +3424,6 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                         <div><span className="text-gray-400">Win Points:</span> {t.winPoint ?? '-'}</div>
                         <div><span className="text-gray-400">Match Type:</span> {t.matchType || '-'}</div>
-                        <div><span className="text-gray-400">Groups:</span> {groupCount}</div>
                         <div><span className="text-gray-400">Status:</span> {t.active === 0 ? 'Inactive' : 'Active'}</div>
                       </div>
                     </div>
@@ -3549,7 +3566,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const { data: gameTypeOptions } = useQuery({
     queryKey: ['gameTypes'],
     queryFn: async () => {
-      const r = await tournamentService.getGameTypes();
+      const r = await leagueService.getGameTypes();
       const d = r.data;
       const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? (d as any)?.$values ?? [];
       return list as string[];
@@ -3597,13 +3614,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const allBoards = Array.isArray(boardsList) ? boardsList : [];
 
   // Fetch teams for the selected tournament via Schedules dropdown API
-  const { data: tournamentTeams, isLoading: tournamentTeamsLoading } = useQuery({
+  const { data: tournamentTeams, isLoading: tournamentTeamsLoading, isError: tournamentTeamsError } = useQuery({
     queryKey: ['tournamentTeams', newTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
       console.log('📋 Tournament teams raw response:', d);
-      const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
+      const list = Array.isArray(d) ? d
+        : Array.isArray(d?.$values) ? d.$values
+        : Array.isArray(d?.data?.$values) ? d.data.$values
+        : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
       return list.map((t: any) => ({
         id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
         name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
@@ -3611,16 +3631,21 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       }));
     },
     enabled: !!newTournamentId,
+    retry: 1,
+    staleTime: 60000,
   });
   const tournamentTeamList = Array.isArray(tournamentTeams) ? tournamentTeams : [];
 
   // Fetch teams for the selected edit tournament
-  const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading } = useQuery({
+  const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading, isError: editTournamentTeamsError } = useQuery({
     queryKey: ['editTournamentTeams', editTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
+      const list = Array.isArray(d) ? d
+        : Array.isArray(d?.$values) ? d.$values
+        : Array.isArray(d?.data?.$values) ? d.data.$values
+        : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
       return list.map((t: any) => ({
         id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
         name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
@@ -3628,6 +3653,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       }));
     },
     enabled: !!editTournamentId && !!editMatchId,
+    retry: 1,
+    staleTime: 60000,
   });
   const editTournamentTeamList = Array.isArray(editTournamentTeamsData) ? editTournamentTeamsData : [];
 
@@ -4052,12 +4079,13 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     onSelect: (b: { id: string; name: string }) => void,
     onClear: () => void,
     excludeId?: string,
-    opts?: { tournamentId?: string; teamSource?: any[]; teamsLoading?: boolean },
+    opts?: { tournamentId?: string; teamSource?: any[]; teamsLoading?: boolean; teamsError?: boolean },
   ) => {
     const effectiveTournamentId = opts?.tournamentId !== undefined ? opts.tournamentId : newTournamentId;
     const noTournament = !effectiveTournamentId;
     const effectiveTeamSource = opts?.teamSource !== undefined ? opts.teamSource : tournamentTeamList;
     const effectiveTeamsLoading = opts?.teamsLoading !== undefined ? opts.teamsLoading : tournamentTeamsLoading;
+    const effectiveTeamsError = opts?.teamsError !== undefined ? opts.teamsError : tournamentTeamsError;
     return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label.replace(' *', '')} {label.includes('*') && <span className="text-red-500">*</span>}</label>
@@ -4099,6 +4127,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <div className="max-h-60 overflow-y-auto">
                 {effectiveTeamsLoading ? (
                   <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
+                ) : effectiveTeamsError ? (
+                  <div className="px-4 py-3 text-sm text-red-500 text-center">Failed to load teams. Please try again.</div>
                 ) : (() => {
                   const q = search.toLowerCase();
                   const source = effectiveTeamSource.length > 0 ? effectiveTeamSource : teamBoardList;
@@ -4276,7 +4306,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               (b) => { setSelectedEditHomeTeam(b); setEditHomeTeamId(b.id); if (b.id === editAwayTeamId) { setEditAwayTeamId(''); setSelectedEditAwayTeam(null); } },
               () => { setSelectedEditHomeTeam(null); setEditHomeTeamId(''); setEditHomeTeamSearch(''); },
               editAwayTeamId,
-              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
+              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading, teamsError: editTournamentTeamsError },
             )}
             {renderTeamBoardDropdown(
               'Away Team *', editAwayTeamSearch, setEditAwayTeamSearch,
@@ -4285,7 +4315,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               (b) => { setSelectedEditAwayTeam(b); setEditAwayTeamId(b.id); },
               () => { setSelectedEditAwayTeam(null); setEditAwayTeamId(''); setEditAwayTeamSearch(''); },
               editHomeTeamId,
-              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
+              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading, teamsError: editTournamentTeamsError },
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>

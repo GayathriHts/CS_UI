@@ -111,13 +111,14 @@ const umpireApi = {
   },
   put: (url: string, data: any, config: BoardApiConfig = {}) => {
     const token = getBoardToken();
+    const { headers: extraHeaders, ...restConfig } = config;
     return axios.put(UMPIRE_API_BASE_URL + url, data, {
       timeout: 15000,
-      ...config,
+      ...restConfig,
       headers: {
-        ...(config.headers ?? {}),
         Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
         'Content-Type': 'application/json',
+        ...(extraHeaders ?? {}),
       },
     });
   },
