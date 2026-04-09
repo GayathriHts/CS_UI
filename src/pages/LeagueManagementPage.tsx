@@ -3614,16 +3614,13 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const allBoards = Array.isArray(boardsList) ? boardsList : [];
 
   // Fetch teams for the selected tournament via Schedules dropdown API
-  const { data: tournamentTeams, isLoading: tournamentTeamsLoading, isError: tournamentTeamsError } = useQuery({
+  const { data: tournamentTeams, isLoading: tournamentTeamsLoading } = useQuery({
     queryKey: ['tournamentTeams', newTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
       console.log('📋 Tournament teams raw response:', d);
-      const list = Array.isArray(d) ? d
-        : Array.isArray(d?.$values) ? d.$values
-        : Array.isArray(d?.data?.$values) ? d.data.$values
-        : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
+      const list = Array.isArray(d) ? d : d?.$values ?? d?.data?.$values ?? d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
       return list.map((t: any) => ({
         id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
         name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
@@ -3631,21 +3628,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       }));
     },
     enabled: !!newTournamentId,
-    retry: 1,
-    staleTime: 60000,
   });
   const tournamentTeamList = Array.isArray(tournamentTeams) ? tournamentTeams : [];
 
   // Fetch teams for the selected edit tournament
-  const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading, isError: editTournamentTeamsError } = useQuery({
+  const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading } = useQuery({
     queryKey: ['editTournamentTeams', editTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      const list = Array.isArray(d) ? d
-        : Array.isArray(d?.$values) ? d.$values
-        : Array.isArray(d?.data?.$values) ? d.data.$values
-        : d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
+      const list = Array.isArray(d) ? d : d?.$values ?? d?.data?.$values ?? d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
       return list.map((t: any) => ({
         id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
         name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
@@ -3653,8 +3645,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       }));
     },
     enabled: !!editTournamentId && !!editMatchId,
-    retry: 1,
-    staleTime: 60000,
   });
   const editTournamentTeamList = Array.isArray(editTournamentTeamsData) ? editTournamentTeamsData : [];
 
@@ -4079,13 +4069,12 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     onSelect: (b: { id: string; name: string }) => void,
     onClear: () => void,
     excludeId?: string,
-    opts?: { tournamentId?: string; teamSource?: any[]; teamsLoading?: boolean; teamsError?: boolean },
+    opts?: { tournamentId?: string; teamSource?: any[]; teamsLoading?: boolean },
   ) => {
     const effectiveTournamentId = opts?.tournamentId !== undefined ? opts.tournamentId : newTournamentId;
     const noTournament = !effectiveTournamentId;
     const effectiveTeamSource = opts?.teamSource !== undefined ? opts.teamSource : tournamentTeamList;
     const effectiveTeamsLoading = opts?.teamsLoading !== undefined ? opts.teamsLoading : tournamentTeamsLoading;
-    const effectiveTeamsError = opts?.teamsError !== undefined ? opts.teamsError : tournamentTeamsError;
     return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label.replace(' *', '')} {label.includes('*') && <span className="text-red-500">*</span>}</label>
@@ -4127,8 +4116,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <div className="max-h-60 overflow-y-auto">
                 {effectiveTeamsLoading ? (
                   <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
-                ) : effectiveTeamsError ? (
-                  <div className="px-4 py-3 text-sm text-red-500 text-center">Failed to load teams. Please try again.</div>
                 ) : (() => {
                   const q = search.toLowerCase();
                   const source = effectiveTeamSource.length > 0 ? effectiveTeamSource : teamBoardList;
@@ -4306,7 +4293,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               (b) => { setSelectedEditHomeTeam(b); setEditHomeTeamId(b.id); if (b.id === editAwayTeamId) { setEditAwayTeamId(''); setSelectedEditAwayTeam(null); } },
               () => { setSelectedEditHomeTeam(null); setEditHomeTeamId(''); setEditHomeTeamSearch(''); },
               editAwayTeamId,
-              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading, teamsError: editTournamentTeamsError },
+              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
             )}
             {renderTeamBoardDropdown(
               'Away Team *', editAwayTeamSearch, setEditAwayTeamSearch,
@@ -4315,7 +4302,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               (b) => { setSelectedEditAwayTeam(b); setEditAwayTeamId(b.id); },
               () => { setSelectedEditAwayTeam(null); setEditAwayTeamId(''); setEditAwayTeamSearch(''); },
               editHomeTeamId,
-              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading, teamsError: editTournamentTeamsError },
+              { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
