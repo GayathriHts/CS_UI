@@ -321,7 +321,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
       const newCity = updatedBoard?.city ?? city;
       const newState = updatedBoard?.state ?? state;
       const newCountry = updatedBoard?.country ?? country;
-      const newLogoUrl = logoPreview; // always use local state â€” this is what the user chose
+      const newLogoUrl = logoPreview; // always use local state  -  this is what the user chose
       const editOverlay = { name: newName, description: newDescription, city: newCity, state: newState, country: newCountry, logoUrl: newLogoUrl };
       try {
         const pending = JSON.parse(sessionStorage.getItem('boardEdits') || '{}');
@@ -2719,7 +2719,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
 
                 {!collapsedGroups.has(gIdx) && (
                 <div className="p-4 space-y-4">
-                  {/* Group Name â€” full width */}
+                  {/* Group Name  -  full width */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Group Name <span className="text-red-500">*</span>
@@ -2731,13 +2731,13 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                     />
                   </div>
 
-                  {/* Team slots â€” fixed dropdown row + chips row below */}
+                  {/* Team slots  -  fixed dropdown row + chips row below */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Team Board <span className="text-red-500">*</span>
                     </label>
 
-                    {/* Select Team dropdown â€” always fixed at top, never moves */}
+                    {/* Select Team dropdown  -  always fixed at top, never moves */}
                     <div className="relative w-44 mb-3"
                       ref={el => { dropdownTriggerRefs.current[gIdx] = el; }}
                     >
@@ -2765,7 +2765,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                       </div>
                     </div>
 
-                    {/* Portal dropdown â€” renders at body level to escape overflow:hidden */}
+                    {/* Portal dropdown  -  renders at body level to escape overflow:hidden */}
                     {openDropdown === gIdx && dropdownPos && ReactDOM.createPortal(
                       <>
                         <div className="fixed inset-0 z-[9998]" onClick={() => { setOpenDropdown(null); setDropdownPos(null); const s = [...teamSearches]; s[gIdx] = ''; setTeamSearches(s); }} />
@@ -2827,7 +2827,7 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                       document.body
                     )}
 
-                    {/* Selected team chips â€” separate row, never shifts the dropdown above */}
+                    {/* Selected team chips  -  separate row, never shifts the dropdown above */}
                     {group.teamIds.length > 0 && (
                       <div className="flex flex-wrap gap-3 items-start mt-1">
                         {group.teamIds.map(tid => {
@@ -3596,14 +3596,40 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
   const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
 
+  // Helper: deeply unwrap $values from .NET JSON responses
+  const unwrapValues = (d: any): any[] => {
+    if (Array.isArray(d)) return d;
+    if (!d || typeof d !== 'object') return [];
+    if (Array.isArray(d.$values)) return d.$values;
+    if (Array.isArray(d.data?.$values)) return d.data.$values;
+    if (Array.isArray(d.result?.$values)) return d.result.$values;
+    if (Array.isArray(d.items?.$values)) return d.items.$values;
+    if (Array.isArray(d.teams?.$values)) return d.teams.$values;
+    if (Array.isArray(d.teamBoards?.$values)) return d.teamBoards.$values;
+    if (Array.isArray(d.items)) return d.items;
+    if (Array.isArray(d.data)) return d.data;
+    if (Array.isArray(d.result)) return d.result;
+    if (Array.isArray(d.teams)) return d.teams;
+    if (Array.isArray(d.teamBoards)) return d.teamBoards;
+    return [];
+  };
+
+  const mapTeamItem = (t: any) => ({
+    id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
+    name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
+    logoUrl: t.logoUrl || t.logo || '',
+  });
+
   // Load Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
   const { data: boardsList } = useQuery({
     queryKey: ['teamBoards'],
     queryFn: async () => {
       const res = await boardService.getByType(1, 1, 50);
       const raw = res.data as any;
-      const items = Array.isArray(raw) ? raw : raw?.items ?? raw?.data ?? Array.isArray(raw?.result) ? raw.result : [];
-      return (Array.isArray(items) ? items : []).map((b: any) => ({
+      console.log('[TeamBoards-Schedule] raw response:', raw);
+      const items = unwrapValues(raw);
+      console.log('[TeamBoards-Schedule] unwrapped items:', items.length, items.slice(0, 2));
+      return items.map((b: any) => ({
         id: b.id || b.Id || b.boardId || '',
         name: b.name || b.boardName || b.Name || '',
         logoUrl: b.logoUrl || '',
@@ -3620,12 +3646,12 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
       console.log('📋 Tournament teams raw response:', d);
-      const list = Array.isArray(d) ? d : d?.$values ?? d?.data?.$values ?? d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
-      return list.map((t: any) => ({
-        id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
-        name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
-        logoUrl: t.logoUrl || t.logo || '',
-      }));
+      console.log('📋 Tournament teams response type:', typeof d, Array.isArray(d), d ? Object.keys(d) : 'null');
+      const list = unwrapValues(d);
+      console.log('📋 Tournament teams unwrapped:', list.length, list.slice(0, 2));
+      const mapped = list.map(mapTeamItem);
+      console.log('📋 Tournament teams mapped:', mapped.length, mapped.slice(0, 2));
+      return mapped;
     },
     enabled: !!newTournamentId,
   });
@@ -3637,12 +3663,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      const list = Array.isArray(d) ? d : d?.$values ?? d?.data?.$values ?? d?.items ?? d?.data ?? d?.teams ?? d?.teamBoards ?? [];
-      return list.map((t: any) => ({
-        id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
-        name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
-        logoUrl: t.logoUrl || t.logo || '',
-      }));
+      console.log('📋 Edit tournament teams raw response:', d);
+      const list = unwrapValues(d);
+      return list.map(mapTeamItem);
     },
     enabled: !!editTournamentId && !!editMatchId,
   });
@@ -3731,7 +3754,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     );
   };
 
-  // Filter team boards based on search text â€” use tournament teams when available, else all boards
+  // Filter team boards based on search text  -  use tournament teams when available, else all boards
   const filterTeamBoards = (search: string, excludeId?: string) => {
     const q = search.toLowerCase();
     const source = tournamentTeamList.length > 0 ? tournamentTeamList : teamBoardList;
@@ -3783,7 +3806,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
       if (respData?.errors) {
         const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
-        msg = msg ? `${msg} â€” ${ve}` : ve;
+        msg = msg ? `${msg}  -  ${ve}` : ve;
       }
       setEditError(msg || error?.message || 'Failed to update schedule.');
     },
@@ -3807,13 +3830,13 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       const payload = {
         tournamentId: newTournamentId || EMPTY_GUID,
         gameType: newGameType || '',
-        homeTeamBoardId: newHomeTeamId || EMPTY_GUID,
-        awayTeamBoardId: newAwayTeamId || EMPTY_GUID,
+        homeTeamId: newHomeTeamId || EMPTY_GUID,
+        awayTeamId: newAwayTeamId || EMPTY_GUID,
         groundId: newGroundId || EMPTY_GUID,
         startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : new Date().toISOString(),
         umpireId: newUmpireId || EMPTY_GUID,
-        appScorerId: newAppScorerId || '',
-        portalScorerId: newPortalScorerId || '',
+        appScorerId: newAppScorerId || EMPTY_GUID,
+        portalScorerId: newPortalScorerId || EMPTY_GUID,
         active: true,
       };
       console.log('📤 Schedule POST payload:', JSON.stringify(payload, null, 2));
@@ -3838,9 +3861,14 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         // Show validation errors if present
         if (respData.errors) {
           const validationErrors = Object.entries(respData.errors)
-            .map(([field, errs]) => `${field}: ${Array.isArray(errs) ? errs.join(', ') : errs}`)
+            .map(([field, errs]) => {
+              if (Array.isArray(errs)) return `${field}: ${errs.join(', ')}`;
+              if (typeof errs === 'string') return `${field}: ${errs}`;
+              if (typeof errs === 'object' && errs !== null) return `${field}: ${JSON.stringify(errs)}`;
+              return `${field}: ${String(errs)}`;
+            })
             .join('; ');
-          msg = msg ? `${msg} â€” ${validationErrors}` : validationErrors;
+          msg = msg ? `${msg}  -  ${validationErrors}` : validationErrors;
         }
       }
       if (!msg) msg = error?.message || 'Failed to create schedule.';
@@ -3938,6 +3966,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!newGameType) errors.gameType = 'Game Type is required';
     if (!newHomeTeamId) errors.homeTeam = 'Home Team is required';
     if (!newAwayTeamId) errors.awayTeam = 'Away Team is required';
+    if (newHomeTeamId && newAwayTeamId && newHomeTeamId === newAwayTeamId) errors.awayTeam = 'Home and Away teams must be different';
     if (!newScheduledAt) errors.scheduledAt = 'Date & Time is required';
     setFormErrors(errors);
     setCreateError('');

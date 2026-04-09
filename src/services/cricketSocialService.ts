@@ -290,8 +290,8 @@ export const tournamentService = {
   createSchedule: (data: {
     tournamentId?: string;
     gameType?: string;
-    homeTeamBoardId?: string;
-    awayTeamBoardId?: string;
+    homeTeamId?: string;
+    awayTeamId?: string;
     groundId?: string;
     startAtUtc?: string;
     umpireId?: string;
