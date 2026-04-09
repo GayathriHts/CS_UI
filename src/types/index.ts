@@ -383,6 +383,14 @@ export interface Ground {
   zipcode?: string;
   landmark?: string;
   homeTeam?: string;
+  placeOfGround?: string;
+  additionalDirection?: string;
+  groundFacilities?: string;
+  pitchDescription?: string;
+  wicketType?: string;
+  permitTimeHour?: string;
+  permitTimeMinutes?: string;
+  permitTimeAmPm?: string;
 }
 
 // ── League Application ──

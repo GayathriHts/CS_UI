@@ -1664,6 +1664,16 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  // New fields
+  const [placeOfGround, setPlaceOfGround] = useState('');
+  const [additionalDirection, setAdditionalDirection] = useState('');
+  const [groundFacilities, setGroundFacilities] = useState('');
+  const [pitchDescription, setPitchDescription] = useState('');
+  const [wicketType, setWicketType] = useState('Regular Turf');
+  const [permitHour, setPermitHour] = useState('');
+  const [permitMinutes, setPermitMinutes] = useState('');
+  const [permitAmPm, setPermitAmPm] = useState('AM');
+  const [wicketDropdownOpen, setWicketDropdownOpen] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -1728,6 +1738,9 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     setName(''); setAddress1(''); setAddress2('');
     setCity(''); setState(''); setCountry(''); setZipCode('');
     setLandmark(''); setHomeTeam(''); setSelectedHomeTeam(null); setHomeTeamSearch('');
+    setPlaceOfGround(''); setAdditionalDirection(''); setGroundFacilities('');
+    setPitchDescription(''); setWicketType('Regular Turf');
+    setPermitHour(''); setPermitMinutes(''); setPermitAmPm('AM');
   };
 
   const createMutation = useMutation({
@@ -1742,6 +1755,14 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       zipcode: zipCode,
       landmark: landmark,
       homeTeam: homeTeam,
+      placeOfGround: placeOfGround,
+      additionalDirection: additionalDirection,
+      groundFacilities: groundFacilities,
+      pitchDescription: pitchDescription,
+      wicketType: wicketType,
+      permitTimeHour: permitHour,
+      permitTimeMinutes: permitMinutes,
+      permitTimeAmPm: permitAmPm,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['grounds', boardId] });
@@ -1769,7 +1790,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     createMutation.mutate();
   };
 
-  const hasAnyData = () => name.trim() || address1.trim() || address2.trim() || city.trim() || state.trim() || country.trim() || zipCode.trim() || landmark.trim() || homeTeam.trim();
+  const hasAnyData = () => name.trim() || address1.trim() || address2.trim() || city.trim() || state.trim() || country.trim() || zipCode.trim() || landmark.trim() || homeTeam.trim() || placeOfGround.trim() || additionalDirection.trim() || groundFacilities.trim() || pitchDescription.trim() || permitHour.trim() || permitMinutes.trim();
 
   const handleCancel = () => {
     if (hasAnyData()) { setShowCancelConfirm(true); return; }
@@ -1794,42 +1815,42 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
           {successMsg && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded text-sm">{successMsg}</div>}
           {errorMsg && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{errorMsg}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
-            {/* Row 1 */}
+            {/* Row 1: Ground Name, Place of Ground, Address Line 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name <span className="text-red-500">*</span></label>
               <input value={name} onChange={e => setName(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Place of Ground <span className="text-red-500">*</span></label>
+              <input value={placeOfGround} onChange={e => setPlaceOfGround(sanitizeTextInput(e.target.value, true))} className="input-field" />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
               <input value={address1} onChange={e => setAddress1(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-              <input value={address2} onChange={e => setAddress2(sanitizeTextInput(e.target.value, true))} className="input-field" />
-            </div>
 
-            {/* Row 2: Country → State → City cascading dropdowns */}
+            {/* Row 2: City, State, Country */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
-                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
+                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {countryDropdownOpen && (
+              {cityDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
                     ))}
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
@@ -1864,26 +1885,26 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
-              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!state || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() => { if (state && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
+                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={city ? 'text-gray-900' : 'text-gray-400'}>{!state ? '' : citiesLoading ? 'Loading...' : city || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={country ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : country || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {cityDropdownOpen && (
+              {countryDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${city === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${country === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setCountry(c); setState(''); setCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
                     ))}
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
@@ -1891,9 +1912,9 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               )}
             </div>
 
-            {/* Row 3 */}
+            {/* Row 3: Zip Code, Landmark, Home Team */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code <span className="text-red-500">*</span></label>
               <input value={zipCode} maxLength={country === 'United States' ? 5 : 6} onChange={e => { const max = country === 'United States' ? 5 : 6; setZipCode(e.target.value.replace(/\D/g, '').slice(0, max)); }} className="input-field" />
             </div>
             <div>
@@ -1969,6 +1990,72 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                 </>
               )}
             </div>
+
+            {/* Row 4: Additional Direction, Ground Facilities, Pitch Description (textareas) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Additional Direction</label>
+              <textarea value={additionalDirection} onChange={e => setAdditionalDirection(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Facilities</label>
+              <textarea value={groundFacilities} onChange={e => setGroundFacilities(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pitch Description</label>
+              <textarea value={pitchDescription} onChange={e => setPitchDescription(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+            </div>
+
+            {/* Row 5: Wicket Type, Permit Time */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Wicket Type</label>
+              {wicketDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => setWicketDropdownOpen(false)} />}
+              <div
+                className="input-field cursor-pointer flex items-center justify-between"
+                onClick={() => setWicketDropdownOpen(!wicketDropdownOpen)}
+              >
+                <span className="text-gray-900">{wicketType}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${wicketDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {wicketDropdownOpen && (
+                <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  {['Regular Turf', 'Artificial Turf', 'Matting', 'Concrete', 'Indoor'].map(wt => (
+                    <button key={wt} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${wicketType === wt ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                      onClick={() => { setWicketType(wt); setWicketDropdownOpen(false); }}>{wt}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Permit Time <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-2">
+                <input
+                  value={permitHour}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 12)) setPermitHour(v.slice(0, 2)); }}
+                  placeholder="Hour"
+                  maxLength={2}
+                  className="input-field w-20 text-center"
+                />
+                <input
+                  value={permitMinutes}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setPermitMinutes(v.slice(0, 2)); }}
+                  placeholder="Minutes"
+                  maxLength={2}
+                  className="input-field w-20 text-center"
+                />
+                <div className="relative">
+                  <select
+                    value={permitAmPm}
+                    onChange={e => setPermitAmPm(e.target.value)}
+                    className="input-field w-20 text-center appearance-none cursor-pointer"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+                <span className="text-sm text-gray-500 font-medium">EST</span>
+              </div>
+            </div>
+            <div>{/* spacer */}</div>
           </div>
 
           <div className="flex justify-end gap-2 mt-6">
@@ -2031,6 +2118,16 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const [editHomeTeamSearch, setEditHomeTeamSearch] = useState('');
   const [editShowHomeTeamDropdown, setEditShowHomeTeamDropdown] = useState(false);
   const [updateError, setUpdateError] = useState('');
+  // New ground fields for edit
+  const [editPlaceOfGround, setEditPlaceOfGround] = useState('');
+  const [editAdditionalDirection, setEditAdditionalDirection] = useState('');
+  const [editGroundFacilities, setEditGroundFacilities] = useState('');
+  const [editPitchDescription, setEditPitchDescription] = useState('');
+  const [editWicketType, setEditWicketType] = useState('Regular Turf');
+  const [editPermitHour, setEditPermitHour] = useState('');
+  const [editPermitMinutes, setEditPermitMinutes] = useState('');
+  const [editPermitAmPm, setEditPermitAmPm] = useState('AM');
+  const [editWicketDropdownOpen, setEditWicketDropdownOpen] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editOriginal, setEditOriginal] = useState<any>(null);
@@ -2128,6 +2225,14 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       zipcode: editZipcode,
       landmark: editLandmark,
       homeTeam: editHomeTeam,
+      placeOfGround: editPlaceOfGround,
+      additionalDirection: editAdditionalDirection,
+      groundFacilities: editGroundFacilities,
+      pitchDescription: editPitchDescription,
+      wicketType: editWicketType,
+      permitTimeHour: editPermitHour,
+      permitTimeMinutes: editPermitMinutes,
+      permitTimeAmPm: editPermitAmPm,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['grounds', boardId] });
@@ -2155,7 +2260,15 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     const matchedTeam = editTeamList.find((b: any) => b.name === (g.homeTeam || ''));
     setEditSelectedHomeTeam(matchedTeam || (g.homeTeam ? { id: '', name: g.homeTeam, logoUrl: '' } : null));
     setEditHomeTeamSearch('');
-    setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '' });
+    setEditPlaceOfGround(g.placeOfGround || '');
+    setEditAdditionalDirection(g.additionalDirection || '');
+    setEditGroundFacilities(g.groundFacilities || '');
+    setEditPitchDescription(g.pitchDescription || '');
+    setEditWicketType(g.wicketType || 'Regular Turf');
+    setEditPermitHour(g.permitTimeHour || '');
+    setEditPermitMinutes(g.permitTimeMinutes || '');
+    setEditPermitAmPm(g.permitTimeAmPm || 'AM');
+    setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '', placeOfGround: g.placeOfGround || '', additionalDirection: g.additionalDirection || '', groundFacilities: g.groundFacilities || '', pitchDescription: g.pitchDescription || '', wicketType: g.wicketType || 'Regular Turf', permitTimeHour: g.permitTimeHour || '', permitTimeMinutes: g.permitTimeMinutes || '', permitTimeAmPm: g.permitTimeAmPm || 'AM' });
   };
 
   const handleEdit = (g: any) => {
@@ -2183,7 +2296,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   };
 
   const cancelEdit = () => {
-    const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editLandmark !== editOriginal.landmark || editHomeTeam !== editOriginal.homeTeam);
+    const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editLandmark !== editOriginal.landmark || editHomeTeam !== editOriginal.homeTeam || editPlaceOfGround !== editOriginal.placeOfGround || editAdditionalDirection !== editOriginal.additionalDirection || editGroundFacilities !== editOriginal.groundFacilities || editPitchDescription !== editOriginal.pitchDescription || editWicketType !== editOriginal.wicketType || editPermitHour !== editOriginal.permitTimeHour || editPermitMinutes !== editOriginal.permitTimeMinutes || editPermitAmPm !== editOriginal.permitTimeAmPm);
     if (hasChanges) { setShowCancelConfirm(true); return; }
     setEditId(null);
     setUpdateError('');
@@ -2226,42 +2339,42 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
           {editLoading && <div className="mb-4 p-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-sm">Loading ground details...</div>}
           {updateError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{updateError}</div>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
-            {/* Row 1 */}
+            {/* Row 1: Ground Name, Place of Ground, Address Line 1 */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name <span className="text-red-500">*</span></label>
               <input value={editName} onChange={e => setEditName(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Place of Ground <span className="text-red-500">*</span></label>
+              <input value={editPlaceOfGround} onChange={e => setEditPlaceOfGround(sanitizeTextInput(e.target.value, true))} className="input-field" />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
               <input value={editAddress1} onChange={e => setEditAddress1(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
-              <input value={editAddress2} onChange={e => setEditAddress2(sanitizeTextInput(e.target.value, true))} className="input-field" />
-            </div>
 
-            {/* Row 2: Country → State → City */}
+            {/* Row 2: City, State, Country */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
-              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
-                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {countryDropdownOpen && (
+              {cityDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCountry === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setEditCountry(c); setEditState(''); setEditCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCity === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setEditCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
                     ))}
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
@@ -2269,7 +2382,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">State <span className="text-red-500">*</span></label>
               {stateDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setStateDropdownOpen(false); setStateSearchText(''); }} />}
               <div
                 className={`input-field flex items-center justify-between border-gray-400 ${!editCountry || statesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
@@ -2296,34 +2409,36 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
-              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
+                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {cityDropdownOpen && (
+              {countryDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCity === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setEditCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCountry === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setEditCountry(c); setEditState(''); setEditCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
                     ))}
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
                 </div>
               )}
             </div>
+
+            {/* Row 3: Zip Code, Landmark, Home Team */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Zipcode</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code <span className="text-red-500">*</span></label>
               <input value={editZipcode} maxLength={editCountry === 'United States' ? 5 : 6} onChange={e => { const max = editCountry === 'United States' ? 5 : 6; setEditZipcode(e.target.value.replace(/\D/g, '').slice(0, max)); }} className="input-field" />
             </div>
             <div>
@@ -2399,6 +2514,72 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 </>
               )}
             </div>
+
+            {/* Row 4: Additional Direction, Ground Facilities, Pitch Description (textareas) */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Additional Direction</label>
+              <textarea value={editAdditionalDirection} onChange={e => setEditAdditionalDirection(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground Facilities</label>
+              <textarea value={editGroundFacilities} onChange={e => setEditGroundFacilities(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Pitch Description</label>
+              <textarea value={editPitchDescription} onChange={e => setEditPitchDescription(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+            </div>
+
+            {/* Row 5: Wicket Type, Permit Time */}
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Wicket Type</label>
+              {editWicketDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => setEditWicketDropdownOpen(false)} />}
+              <div
+                className="input-field cursor-pointer flex items-center justify-between"
+                onClick={() => setEditWicketDropdownOpen(!editWicketDropdownOpen)}
+              >
+                <span className="text-gray-900">{editWicketType}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${editWicketDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {editWicketDropdownOpen && (
+                <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                  {['Regular Turf', 'Artificial Turf', 'Matting', 'Concrete', 'Indoor'].map(wt => (
+                    <button key={wt} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editWicketType === wt ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                      onClick={() => { setEditWicketType(wt); setEditWicketDropdownOpen(false); }}>{wt}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Permit Time <span className="text-red-500">*</span></label>
+              <div className="flex items-center gap-2">
+                <input
+                  value={editPermitHour}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 12)) setEditPermitHour(v.slice(0, 2)); }}
+                  placeholder="Hour"
+                  maxLength={2}
+                  className="input-field w-20 text-center"
+                />
+                <input
+                  value={editPermitMinutes}
+                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setEditPermitMinutes(v.slice(0, 2)); }}
+                  placeholder="Minutes"
+                  maxLength={2}
+                  className="input-field w-20 text-center"
+                />
+                <div className="relative">
+                  <select
+                    value={editPermitAmPm}
+                    onChange={e => setEditPermitAmPm(e.target.value)}
+                    className="input-field w-20 text-center appearance-none cursor-pointer"
+                  >
+                    <option value="AM">AM</option>
+                    <option value="PM">PM</option>
+                  </select>
+                </div>
+                <span className="text-sm text-gray-500 font-medium">EST</span>
+              </div>
+            </div>
+            <div>{/* spacer */}</div>
           </div>
 
           <div className="flex justify-end gap-2 mt-6">

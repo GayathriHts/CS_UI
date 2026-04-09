@@ -502,6 +502,9 @@ export const leagueService = {
     boardId: string; groundName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
     landmark?: string; homeTeam?: string;
+    placeOfGround?: string; additionalDirection?: string; groundFacilities?: string;
+    pitchDescription?: string; wicketType?: string;
+    permitTimeHour?: string; permitTimeMinutes?: string; permitTimeAmPm?: string;
   }) =>
     umpireApi.post(`/boards/${data.boardId}/Ground`, {
       boardId: data.boardId,
@@ -515,6 +518,14 @@ export const leagueService = {
       zipcode: data.zipcode ?? '',
       landmark: data.landmark ?? '',
       homeTeam: data.homeTeam ?? '',
+      placeOfGround: data.placeOfGround ?? '',
+      additionalDirection: data.additionalDirection ?? '',
+      groundFacilities: data.groundFacilities ?? '',
+      pitchDescription: data.pitchDescription ?? '',
+      wicketType: data.wicketType ?? '',
+      permitTimeHour: data.permitTimeHour ?? '',
+      permitTimeMinutes: data.permitTimeMinutes ?? '',
+      permitTimeAmPm: data.permitTimeAmPm ?? '',
     }),
   getGrounds: (boardId: string, page = 1, pageSize = 100) => umpireApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
   getGroundById: (boardId: string, groundId: string) => umpireApi.get(`/boards/${boardId}/Ground/${groundId}`),
@@ -522,6 +533,9 @@ export const leagueService = {
     id: string; groundId: string; groundName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     landmark: string; homeTeam: string;
+    placeOfGround?: string; additionalDirection?: string; groundFacilities?: string;
+    pitchDescription?: string; wicketType?: string;
+    permitTimeHour?: string; permitTimeMinutes?: string; permitTimeAmPm?: string;
   }) =>
     umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, data),
   deleteGround: (boardId: string, groundId: string) => umpireApi.delete(`/boards/${boardId}/Ground/${groundId}`),
