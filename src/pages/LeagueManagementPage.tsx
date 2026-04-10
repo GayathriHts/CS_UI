@@ -1757,19 +1757,19 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 
   const createMutation = useMutation({
     mutationFn: () => {
-      // Build permitTime as single string e.g. "01:30:00 AM EST"
-      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm} ${permitTimezone}` : '';
+      // Build permitTime as single string e.g. "01:30:00 AM"
+      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm}` : '';
       const payload = {
         boardId: boardId,
         groundName: name.trim(),
         address1: address1.trim(),
-        address2: address2.trim(),
+        address2: placeOfGround.trim(),
         city: city.trim(),
         state: state.trim(),
         country: country.trim(),
         zipcode: zipCode.trim(),
         landmark: landmark.trim(),
-        homeTeam: homeTeam.trim(),
+        homeTeam: homeTeam,
         additionalDirection: additionalDirection.trim(),
         groundFacilities: groundFacilities.trim(),
         pitchDescription: pitchDescription.trim(),
@@ -1998,7 +1998,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                             <button
                               key={b.id}
                               type="button"
-                              onClick={() => { setSelectedHomeTeam(b); setHomeTeam(b.name); setShowHomeTeamDropdown(false); setHomeTeamSearch(''); }}
+                              onClick={() => { setSelectedHomeTeam(b); setHomeTeam(b.id); setShowHomeTeamDropdown(false); setHomeTeamSearch(''); }}
                               className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
                             >
                               <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
@@ -4099,20 +4099,19 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const createMatchMutation = useMutation({
     mutationFn: () => {
-      const EMPTY_GUID = '00000000-0000-0000-0000-000000000000';
-      const payload = {
-        tournamentId: newTournamentId || EMPTY_GUID,
+      const payload: Record<string, any> = {
         gameType: newGameType || '',
-        homeTeamId: newHomeTeamId || EMPTY_GUID,
-        awayTeamId: newAwayTeamId || EMPTY_GUID,
-        groundId: newGroundId || EMPTY_GUID,
         startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : new Date().toISOString(),
-        umpireId: newUmpireId || EMPTY_GUID,
-        appScorerId: newAppScorerId || EMPTY_GUID,
-        portalScorerId: newPortalScorerId || EMPTY_GUID,
         active: true,
       };
-      console.log('?? Schedule POST payload:', JSON.stringify(payload, null, 2));
+      if (newTournamentId) payload.tournamentId = newTournamentId;
+      if (newHomeTeamId) payload.homeTeamId = newHomeTeamId;
+      if (newAwayTeamId) payload.awayTeamId = newAwayTeamId;
+      if (newGroundId) payload.groundId = newGroundId;
+      if (newUmpireId) payload.umpireId = newUmpireId;
+      if (newAppScorerId) payload.appScorerId = newAppScorerId;
+      if (newPortalScorerId) payload.portalScorerId = newPortalScorerId;
+      console.log('📋 Schedule POST payload:', JSON.stringify(payload, null, 2));
       return tournamentService.createSchedule(payload as any);
     },
     onSuccess: (response: any) => {
