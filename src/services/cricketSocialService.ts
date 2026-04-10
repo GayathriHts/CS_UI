@@ -266,7 +266,7 @@ export const tournamentService = {
         tournamentGroupName: g.tournamentGroupName,
         active: g.active ?? 1,
         teams: g.teamBoardId.map(tid => ({
-          id: null,
+          id: crypto.randomUUID(),
           teamBoardId: tid,
         })),
       })),

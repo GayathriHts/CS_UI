@@ -2869,7 +2869,13 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
       setTimeout(() => { setSuccessMsg(''); if (onClose) onClose(); }, 4000);
     },
     onError: (err: any) => {
-      setErrorMsg(err?.response?.data?.message || err?.message || 'Failed to create tournament. Please try again.');
+      const respData = err?.response?.data;
+      let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
+      if (respData?.errors) {
+        const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
+        msg = msg ? `${msg} — ${ve}` : ve;
+      }
+      setErrorMsg(msg || err?.message || 'Failed to create tournament. Please try again.');
       setSuccessMsg('');
     },
   });
@@ -3901,17 +3907,20 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const allBoards = Array.isArray(boardsList) ? boardsList : [];
 
   // Fetch teams for the selected tournament via Schedules dropdown API
+  // API returns { data: { teamsboard: [{ boardId, name }], rosters: [...] } }
   const { data: tournamentTeams, isLoading: tournamentTeamsLoading } = useQuery({
     queryKey: ['tournamentTeams', newTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
-      console.log('?? Tournament teams raw response:', d);
-      console.log('?? Tournament teams response type:', typeof d, Array.isArray(d), d ? Object.keys(d) : 'null');
-      const list = unwrapValues(d);
-      console.log('?? Tournament teams unwrapped:', list.length, list.slice(0, 2));
+      console.log('🏏 Tournament teams raw response:', d);
+      // Handle nested response: { data: { teamsboard: [...] } }
+      const inner = d?.data || d;
+      const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard : [];
+      const list = teamsboard.length > 0 ? teamsboard : unwrapValues(d);
+      console.log('🏏 Tournament teams extracted:', list.length, list.slice(0, 3));
       const mapped = list.map(mapTeamItem);
-      console.log('?? Tournament teams mapped:', mapped.length, mapped.slice(0, 2));
+      console.log('🏏 Tournament teams mapped:', mapped.length, mapped.slice(0, 3));
       return mapped;
     },
     enabled: !!newTournamentId,
@@ -3924,8 +3933,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      console.log('?? Edit tournament teams raw response:', d);
-      const list = unwrapValues(d);
+      console.log('🏏 Edit tournament teams raw response:', d);
+      // Handle nested response: { data: { teamsboard: [...] } }
+      const inner = d?.data || d;
+      const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard : [];
+      const list = teamsboard.length > 0 ? teamsboard : unwrapValues(d);
       return list.map(mapTeamItem);
     },
     enabled: !!editTournamentId && !!editMatchId,
