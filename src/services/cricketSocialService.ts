@@ -501,7 +501,7 @@ export const leagueService = {
   createGround: (data: {
     boardId: string; groundName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
-    landmark?: string; homeTeam?: string;
+    landmark?: string; homeTeam?: string; placeOfGround?: string;
     additionalDirection?: string; groundFacilities?: string;
     pitchDescription?: string; wicketType?: string; permitTime?: string;
   }) => {
@@ -511,6 +511,7 @@ export const leagueService = {
       groundName: data.groundName,
       address1: data.address1 ?? '',
       address2: data.address2 ?? '',
+      placeOfGround: data.placeOfGround ?? '',
       city: data.city ?? '',
       state: data.state ?? '',
       country: data.country ?? '',
@@ -540,7 +541,7 @@ export const leagueService = {
   getGroundById: (boardId: string, groundId: string) => umpireApi.get(`/boards/${boardId}/Ground/${groundId}`),
   updateGround: (boardId: string, groundId: string, data: {
     id: string; groundId: string; groundName: string; address1: string; address2: string;
-    city: string; state: string; country: string; zipcode: string;
+    placeOfGround?: string; city: string; state: string; country: string; zipcode: string;
     landmark: string; homeTeam: string;
     additionalDirection?: string; groundFacilities?: string;
     pitchDescription?: string; wicketType?: string; permitTime?: string;

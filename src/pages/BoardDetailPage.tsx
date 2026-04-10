@@ -289,14 +289,12 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
     enabled: isLeague,
   });
 
-  // Pre-select co-owner from board's ownerId once user list loads
+  // Pre-select co-owner from board's coOwnerId field only (never from ownerId)
   useEffect(() => {
     if (!isLeague || !coOwnerUserList || selectedCoOwner) return;
-    const boardOwnerId = board.ownerId || board.owneriD || board.OwnerId || board.owner_id || board.ownerid || '';
-    const loggedInUserId = useAuthStore.getState().user?.id || '';
-    // If the board's ownerId is different from logged-in user, it's the co-owner
-    if (boardOwnerId && boardOwnerId !== loggedInUserId) {
-      const match = coOwnerUserList.find((u: any) => u.id === boardOwnerId);
+    const coOwnerId = board.coOwnerId || board.CoOwnerId || board.coOwnerid || board.co_owner_id || '';
+    if (coOwnerId) {
+      const match = coOwnerUserList.find((u: any) => u.id === coOwnerId);
       if (match) {
         setSelectedCoOwner({ id: match.id, firstName: match.firstName, lastName: match.lastName, email: match.email });
         setInitialCoOwnerId(match.id);
@@ -317,13 +315,11 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         throw new Error('Board name already exists. Please create a different name.');
       }
       console.log('Full board object keys:', Object.keys(board), 'values:', board);
-      // Resolve ownerId - only set for League boards; use co-owner's ID when selected
+      // ownerId must remain the original owner — never overwrite with co-owner
       const existingOwnerId = board.ownerId || board.owneriD || board.OwnerId 
         || board.owner_id || board.createdBy || board.userId || board.ownerid
         || '';
-      const resolvedOwnerId = isLeague
-        ? (selectedCoOwner ? selectedCoOwner.id : existingOwnerId)
-        : existingOwnerId;
+      const resolvedOwnerId = existingOwnerId;
       console.log('Edit board - selectedCoOwner:', selectedCoOwner, 'resolvedOwnerId:', resolvedOwnerId, 'existingOwnerId:', existingOwnerId);
       const payload: any = {
         id: boardId,

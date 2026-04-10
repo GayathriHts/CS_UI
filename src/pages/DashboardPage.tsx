@@ -275,10 +275,8 @@ export default function DashboardPage() {
       if (existingNames.includes(newBoardName.toLowerCase().trim())) {
         throw new Error('Board name already exists. Please create a different name.');
       }
-      // Only set ownerId for League boards; use co-owner's ID when selected
-      const resolvedOwnerId = newBoardType === 'League'
-        ? (selectedCoOwner ? selectedCoOwner.id : user.id)
-        : user.id;
+      // ownerId is always the logged-in user (board creator); co-owner goes in coOwnerId
+      const resolvedOwnerId = user.id;
       console.log('Creating board - selectedCoOwner:', selectedCoOwner, 'resolvedOwnerId:', resolvedOwnerId, 'loggedInUserId:', user.id);
       // The API returns the created board in res.data.data
       const res = await boardService.create({

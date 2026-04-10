@@ -281,17 +281,10 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
     },
   });
 
-  // Pre-select co-owner from board data
+  // Pre-select co-owner from board's coOwnerId field only (never from ownerId)
   useEffect(() => {
     if (!coOwnerUserList || selectedCoOwner) return;
-    const boardOwnerId = board.ownerId || board.owneriD || board.OwnerId || board.owner_id || board.ownerid || '';
-    const loggedInUserId = useAuthStore.getState().user?.id || '';
-    if (boardOwnerId && boardOwnerId !== loggedInUserId) {
-      const match = coOwnerUserList.find((u: any) => u.id === boardOwnerId);
-      if (match) setSelectedCoOwner({ id: match.id, firstName: match.firstName, lastName: match.lastName, email: match.email });
-    }
-    // Also check coOwnerId field
-    const coOwnerId = board.coOwnerId || board.CoOwnerId || board.coOwnerid || '';
+    const coOwnerId = board.coOwnerId || board.CoOwnerId || board.coOwnerid || board.co_owner_id || '';
     if (coOwnerId) {
       const match = coOwnerUserList.find((u: any) => u.id === coOwnerId);
       if (match) setSelectedCoOwner({ id: match.id, firstName: match.firstName, lastName: match.lastName, email: match.email });
@@ -310,8 +303,9 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
       if (existingNames.includes(name.toLowerCase().trim())) {
         throw new Error('Board name already exists. Please create a different name.');
       }
+      // ownerId must remain the original owner — never overwrite with co-owner
       const existingOwnerId = board.ownerId || board.owneriD || board.OwnerId || board.owner_id || board.createdBy || board.userId || board.ownerid || '';
-      const resolvedOwnerId = selectedCoOwner ? selectedCoOwner.id : existingOwnerId;
+      const resolvedOwnerId = existingOwnerId;
       const payload: any = {
         id: boardId,
         name,
@@ -1763,7 +1757,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
         boardId: boardId,
         groundName: name.trim(),
         address1: address1.trim(),
-        address2: placeOfGround.trim(),
+        address2: address2.trim(),
+        placeOfGround: placeOfGround.trim(),
         city: city.trim(),
         state: state.trim(),
         country: country.trim(),
@@ -2264,6 +2259,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         groundName: editName,
         address1: editAddress1,
         address2: editAddress2,
+        placeOfGround: editPlaceOfGround,
         city: editCity,
         state: editState,
         country: editCountry,
@@ -2658,9 +2654,6 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
       {!editId && (
       <div className="bg-white rounded-lg shadow-sm">
-        <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800">Ground List</h2>
-        </div>
         <div className="p-4 sm:p-6">
           {isLoading ? (
             <div className="py-8 text-center text-gray-400">Loading grounds...</div>
