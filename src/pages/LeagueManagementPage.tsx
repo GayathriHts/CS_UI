@@ -754,7 +754,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
       zipcode: zipCode.trim(),
       homePhone: '',
       workPhone: '',
-      mobile: contactNo.trim() ? `${countryCode}${contactNo.trim()}` : '',
+      mobile: contactNo.trim(),
+      countryCode: contactNo.trim() ? countryCode : '',
       email: email.trim(),
     }),
     onSuccess: () => {
@@ -1204,34 +1205,25 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     if (ccDigits && digits.startsWith(ccDigits)) {
       digits = digits.slice(ccDigits.length);
     }
-    // US format: (XXX) XXX-XXXX
-    if (cc === '+1' && digits.length === 10) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    // Detect effective country code from stored countryCode, umpire country, or raw number
+    const country = (u.country || '').toLowerCase();
+    let effectiveCC = cc;
+    if (!effectiveCC) {
+      if (digits.startsWith('91') && digits.length === 12) { effectiveCC = '+91'; digits = digits.slice(2); }
+      else if (digits.startsWith('1') && digits.length === 11) { effectiveCC = '+1'; digits = digits.slice(1); }
+      else if (country === 'india') { effectiveCC = '+91'; }
+      else if (country === 'united states' || country === 'us' || country === 'usa') { effectiveCC = '+1'; }
     }
     // India format: +91 XXXXX XXXXX
-    if (cc === '+91' && digits.length === 10) {
+    if (effectiveCC === '+91' && digits.length === 10) {
       return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
     }
-    // Auto-detect using umpire's country field
-    const country = (u.country || '').toLowerCase();
-    if (!cc && digits.length === 10) {
-      if (country === 'india') {
-        return `+91 ${digits.slice(0, 5)} ${digits.slice(5)}`;
-      }
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    // US format: +1 XXX XXX XXXX
+    if (effectiveCC === '+1' && digits.length === 10) {
+      return `+1 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
     }
-    // Auto-detect when no countryCode: check if raw starts with 91 and remaining is 10 digits
-    if (!cc) {
-      if (digits.startsWith('91') && digits.length === 12) {
-        const num = digits.slice(2);
-        return `+91 ${num.slice(0, 5)} ${num.slice(5)}`;
-      }
-      if (digits.startsWith('1') && digits.length === 11) {
-        const num = digits.slice(1);
-        return `(${num.slice(0, 3)}) ${num.slice(3, 6)}-${num.slice(6)}`;
-      }
-    }
-    return cc ? `${cc} ${digits}` : digits || '-';
+    // Generic: show country code + digits
+    return effectiveCC ? `${effectiveCC} ${digits}` : digits || '-';
   };
 
   const deleteMutation = useMutation({
@@ -1280,24 +1272,48 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditWorkPhone(u.workPhone || '');
     const rawMobile = u.mobile || u.contactNumber || '';
     const apiCC = u.countryCode || '';
+    const umpireCountry = (u.country || '').toLowerCase();
     if (apiCC) {
       setEditCountryCode(apiCC);
-      setEditMobile(rawMobile.startsWith(apiCC) ? rawMobile.slice(apiCC.length) : rawMobile);
+      const digits = rawMobile.startsWith(apiCC) ? rawMobile.slice(apiCC.length) : rawMobile;
+      setEditMobile(digits.replace(/\D/g, ''));
     } else if (rawMobile) {
-      const knownCodes = ['+91', '+1'];
-      const matched = knownCodes.find(code => rawMobile.startsWith(code));
-      if (matched) { setEditCountryCode(matched); setEditMobile(rawMobile.slice(matched.length)); }
-      else { setEditCountryCode('+1'); setEditMobile(rawMobile); }
+      const digits = rawMobile.replace(/\D/g, '');
+      // Try to detect country code from raw number
+      if (digits.startsWith('91') && digits.length === 12) { setEditCountryCode('+91'); setEditMobile(digits.slice(2)); }
+      else if (digits.startsWith('1') && digits.length === 11) { setEditCountryCode('+1'); setEditMobile(digits.slice(1)); }
+      // Use umpire's country field as fallback
+      else if (umpireCountry === 'india') { setEditCountryCode('+91'); setEditMobile(digits); }
+      else if (umpireCountry === 'united states' || umpireCountry === 'us' || umpireCountry === 'usa') { setEditCountryCode('+1'); setEditMobile(digits); }
+      else {
+        const knownCodes = ['+91', '+1'];
+        const matched = knownCodes.find(code => rawMobile.startsWith(code));
+        if (matched) { setEditCountryCode(matched); setEditMobile(rawMobile.slice(matched.length).replace(/\D/g, '')); }
+        else { setEditCountryCode('+1'); setEditMobile(digits); }
+      }
     } else {
-      setEditCountryCode('+1');
+      // Default based on umpire country
+      if (umpireCountry === 'india') setEditCountryCode('+91');
+      else setEditCountryCode('+1');
       setEditMobile('');
     }
     setEditEmail(u.email || '');
-    // Compute parsed values for editOriginal
+    // Compute parsed values for editOriginal — must match the logic above
     let parsedCode = '+1';
-    let parsedMobile = rawMobile;
-    if (apiCC) { parsedCode = apiCC; parsedMobile = rawMobile.startsWith(apiCC) ? rawMobile.slice(apiCC.length) : rawMobile; }
-    else if (rawMobile) { const m = ['+91', '+1'].find(c => rawMobile.startsWith(c)); if (m) { parsedCode = m; parsedMobile = rawMobile.slice(m.length); } }
+    let parsedMobile = '';
+    const origDigits = rawMobile.replace(/\D/g, '');
+    if (apiCC) {
+      parsedCode = apiCC;
+      parsedMobile = (rawMobile.startsWith(apiCC) ? rawMobile.slice(apiCC.length) : rawMobile).replace(/\D/g, '');
+    } else if (rawMobile) {
+      if (origDigits.startsWith('91') && origDigits.length === 12) { parsedCode = '+91'; parsedMobile = origDigits.slice(2); }
+      else if (origDigits.startsWith('1') && origDigits.length === 11) { parsedCode = '+1'; parsedMobile = origDigits.slice(1); }
+      else if (umpireCountry === 'india') { parsedCode = '+91'; parsedMobile = origDigits; }
+      else if (umpireCountry === 'united states' || umpireCountry === 'us' || umpireCountry === 'usa') { parsedCode = '+1'; parsedMobile = origDigits; }
+      else { const m = ['+91', '+1'].find(c => rawMobile.startsWith(c)); if (m) { parsedCode = m; parsedMobile = rawMobile.slice(m.length).replace(/\D/g, ''); } else { parsedMobile = origDigits; } }
+    } else {
+      if (umpireCountry === 'india') parsedCode = '+91';
+    }
     setEditOriginal({ name: u.umpireName || u.name || u.userName || u.fullName || '', address1: u.address1 || u.addressLine1 || '', address2: u.address2 || u.addressLine2 || '', city: u.city || '', state: u.state || '', country: u.country || '', zipcode: u.zipcode || u.zipCode || '', homePhone: u.homePhone || '', workPhone: u.workPhone || '', mobile: parsedMobile, countryCode: parsedCode, email: u.email || '' });
   };
 

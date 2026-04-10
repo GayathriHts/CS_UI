@@ -457,7 +457,7 @@ export const leagueService = {
   createUmpire: (boardId: string, data: {
     umpireName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
-    homePhone?: string; workPhone?: string; mobile?: string; email?: string;
+    homePhone?: string; workPhone?: string; mobile?: string; countryCode?: string; email?: string;
   }) => {
     const payload = {
       boardId,
@@ -471,6 +471,7 @@ export const leagueService = {
       homePhone: data.homePhone ?? '',
       workPhone: data.workPhone ?? '',
       mobile: data.mobile ?? '',
+      countryCode: data.countryCode ?? '',
       email: data.email ?? '',
     };
     console.log('[createUmpire] POST /boards/' + boardId + '/Umpire');
