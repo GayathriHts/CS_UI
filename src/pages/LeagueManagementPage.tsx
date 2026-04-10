@@ -115,7 +115,13 @@ export default function LeagueManagementPage() {
               <div className="flex items-center gap-1.5">
                 <span className="font-bold text-sm text-gray-800">{board.name}</span>
                 <button
-                  onClick={() => setActiveTab('edit')}
+                  onClick={() => {
+                    if (dirtyRef.current) {
+                      setPendingNav({ tab: 'edit', section: 'umpires' });
+                    } else {
+                      setActiveTab('edit');
+                    }
+                  }}
                   className="hover:text-brand-green transition-colors cursor-pointer"
                   title="Edit Board"
                 >
@@ -177,11 +183,13 @@ export default function LeagueManagementPage() {
             <EditLeagueForm
               board={board}
               boardId={boardId!}
-              onClose={() => setActiveTab('dashboard')}
+              onClose={() => { dirtyRef.current = false; setActiveTab('dashboard'); }}
               onSaved={() => {
+                dirtyRef.current = false;
                 setActiveTab('dashboard');
                 qc.invalidateQueries({ queryKey: ['board', boardId] });
               }}
+              onDirtyChange={onDirtyChange}
             />
           )}
         </div>
@@ -211,7 +219,7 @@ export default function LeagueManagementPage() {
 }
 
 // ── EDIT LEAGUE MODAL ──
-function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boardId: string; onClose: () => void; onSaved: () => void }) {
+function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { board: any; boardId: string; onClose: () => void; onSaved: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const [name, setName] = useState(board.name || '');
   const [boardNameError, setBoardNameError] = useState('');
   const [description, setDescription] = useState(board.description || '');
@@ -360,6 +368,9 @@ function EditLeagueForm({ board, boardId, onClose, onSaved }: { board: any; boar
   });
 
   const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
+
+  // Report dirty state to parent so sidebar navigation guard works
+  useEffect(() => { onDirtyChange?.(hasChanges); }, [hasChanges]);
 
   return (
     <>
