@@ -547,10 +547,13 @@ export const leagueService = {
   }) => {
     // Map to API field name (typo in backend: additonalDirection)
     const { additionalDirection, ...rest } = data;
-    return umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, {
+    const payload = {
       ...rest,
+      boardId,
       additonalDirection: additionalDirection ?? '',
-    });
+    };
+    console.log('[updateGround] PUT /boards/' + boardId + '/Ground/' + groundId, JSON.stringify(payload, null, 2));
+    return umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, payload);
   },
   deleteGround: (boardId: string, groundId: string) => umpireApi.delete(`/boards/${boardId}/Ground/${groundId}`),
   // Tournament Management

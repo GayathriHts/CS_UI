@@ -2257,7 +2257,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm} ${editPermitTimezone}` : '';
+      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm}` : '';
       return leagueService.updateGround(boardId, editId!, {
         id: editId!,
         groundId: editId!,
