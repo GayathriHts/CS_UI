@@ -474,11 +474,11 @@ export const leagueService = {
       countryCode: data.countryCode ?? '',
       email: data.email ?? '',
     };
-    console.log('[createUmpire] POST /boards/' + boardId + '/Umpire');
+    console.log('[createUmpire] POST /tournament/boards/' + boardId + '/Umpire');
     console.log('[createUmpire] payload:', JSON.stringify(payload, null, 2));
     const token = sessionStorage.getItem('token') || localStorage.getItem('token');
     console.log('[createUmpire] token present:', !!token, 'length:', token?.length);
-    return umpireApi.post(`/boards/${boardId}/Umpire`, payload).then(res => {
+    return umpireApi.post(`/tournament/boards/${boardId}/Umpire`, payload).then(res => {
       console.log('[createUmpire] Success:', res.status, res.data);
       return res;
     }).catch(err => {
@@ -489,15 +489,15 @@ export const leagueService = {
       throw err;
     });
   },
-  getUmpires: (boardId: string) => umpireApi.get(`/boards/${boardId}/Umpire`),
-  getUmpireById: (boardId: string, umpireId: string) => umpireApi.get(`/boards/${boardId}/Umpire/${umpireId}`),
+  getUmpires: (boardId: string) => umpireApi.get(`/tournament/boards/${boardId}/Umpire`),
+  getUmpireById: (boardId: string, umpireId: string) => umpireApi.get(`/tournament/boards/${boardId}/Umpire/${umpireId}`),
   updateUmpire: (boardId: string, umpireId: string, data: {
     id: string; umpireName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     homePhone: string; workPhone: string; mobile: string; countryCode: string; email: string;
   }) =>
-    umpireApi.put(`/boards/${boardId}/Umpire/${umpireId}`, { boardId, ...data }),
-  deleteUmpire: (boardId: string, umpireId: string) => umpireApi.delete(`/boards/${boardId}/Umpire/${umpireId}`),
+    umpireApi.put(`/tournament/boards/${boardId}/Umpire/${umpireId}`, { boardId, ...data }),
+  deleteUmpire: (boardId: string, umpireId: string) => umpireApi.delete(`/tournament/boards/${boardId}/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {
     boardId: string; groundName: string; address1?: string; address2?: string;
