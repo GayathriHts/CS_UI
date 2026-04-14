@@ -243,52 +243,37 @@ export const rosterService = {
 export const tournamentService = {
   create: (data: { name: string; boardId: string; format?: string; oversPerInning?: number; maxPlayersPerTeam?: number; startDate?: Date; endDate?: Date }) =>
     api.post<Tournament>('/tournaments', data),
-  createTournament: (data: {
-    tournamentName: string;
-    winPoint: number;
-    umpireCheck: number;
-    active?: number;
-    scheduleCoordinator?: boolean;
-    startNode?: number;
-    endNode?: number;
-    recordCount?: number;
-    matchType?: string;
-    groupList: {
-      id: string;
-      tournamentGroupName: string;
-      active?: number;
-      teamBoardId: string[];
+  createTournament: (boardId: string, data: {
+    name: string;
+    winPoints: number;
+    allowUmpireFromList: boolean;
+    allowBuddyAsUmpire: boolean;
+    groups: {
+      name: string;
+      sortOrder: number;
+      teamBoardIds: string[];
     }[];
-    createdBy?: string;
   }) =>
-    umpireApi.post('/Tournament', {
-      tournamentName: data.tournamentName,
-      winPoint: data.winPoint,
-      umpireCheck: data.umpireCheck,
-      active: data.active ?? 1,
-      scheduleCoordinator: data.scheduleCoordinator ?? true,
-      startNode: data.startNode ?? 0,
-      endNode: data.endNode ?? 0,
-      recordCount: data.recordCount ?? 0,
-      matchType: data.matchType ?? 'league',
-      groupList: data.groupList.map(g => ({
-        id: g.id,
-        tournamentGroupName: g.tournamentGroupName,
-        active: g.active ?? 1,
-        teams: g.teamBoardId.map(tid => ({
-          id: generateUUID(),
-          teamBoardId: tid,
-        })),
+    umpireApi.post(`/tournament/boards/${boardId}/tournaments`, {
+      name: data.name,
+      winPoints: data.winPoints,
+      allowUmpireFromList: data.allowUmpireFromList,
+      allowBuddyAsUmpire: data.allowBuddyAsUmpire,
+      groups: data.groups.map((g, idx) => ({
+        name: g.name,
+        sortOrder: g.sortOrder ?? idx,
+        teamBoardIds: g.teamBoardIds,
       })),
-      createdBy: data.createdBy ?? '',
     }),
-  // GET /api/v{version}/Tournament — list all tournaments from umpire API
-  getTournaments: (page = 1, pageSize = 20) => umpireApi.get('/Tournament', { params: { page, pageSize } }),
-  // PUT /api/v{version}/Tournament/{id} — update tournament
-  updateTournament: (id: string, data: Record<string, any>) =>
-    umpireApi.put(`/Tournament/${id}`, data, { timeout: 30000 }),
-  // DELETE tournament
-  deleteTournament: (id: string) => umpireApi.delete(`/Tournament/${id}`),
+  // GET /api/v1/tournament/boards/{boardId}/tournaments
+  getTournaments: (boardId: string, page = 1, pageSize = 20) => umpireApi.get(`/tournament/boards/${boardId}/tournaments`, { params: { page, pageSize } }),
+  // GET /api/v1/tournament/tournaments/{tournamentId}
+  getTournamentById: (tournamentId: string) => umpireApi.get(`/tournament/tournaments/${tournamentId}`),
+  // PUT /api/v1/tournament/tournaments/{tournamentId}
+  updateTournament: (tournamentId: string, data: Record<string, any>) =>
+    umpireApi.put(`/tournament/tournaments/${tournamentId}`, data, { timeout: 30000 }),
+  // DELETE /api/v1/tournament/tournaments/{tournamentId}
+  deleteTournament: (tournamentId: string) => umpireApi.delete(`/tournament/tournaments/${tournamentId}`),
   getById: (id: string) => api.get<Tournament>(`/tournaments/${id}`),
   getByBoard: (boardId: string, page = 1, pageSize = 20) =>
     api.get<PagedResponse<Tournament>>(`/tournaments/board/${boardId}`, { params: { page, pageSize } }),
@@ -309,7 +294,7 @@ export const tournamentService = {
     portalScorerId?: string;
     active?: boolean;
   }) =>
-    umpireApi.post('/Schedules', data),
+    umpireApi.post('/tournament/Schedules', data),
   updateMatch: (id: string, data: { groundId?: string; umpireId?: string; scorerId?: string; scheduledAt?: string }) =>
     api.put<Match>(`/tournaments/matches/${id}`, data),
   getMatches: (tournamentId: string) => api.get<Match[]>(`/tournaments/${tournamentId}/matches`),
@@ -571,9 +556,9 @@ export const leagueService = {
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
   getSchedule: (boardId: string, from: string, to: string) =>
-    umpireApi.get('/Schedules', { params: { from, to } }),
+    umpireApi.get('/tournament/Schedules', { params: { from, to } }),
   getScheduleById: (id: string) =>
-    umpireApi.get(`/Schedules/${id}`),
+    umpireApi.get(`/tournament/Schedules/${id}`),
   updateSchedule: (id: string, data: {
     tournamentId?: string | null;
     gameType?: string;
@@ -586,12 +571,12 @@ export const leagueService = {
     portalScorerId?: string;
     active?: boolean;
   }) =>
-    umpireApi.put(`/Schedules/${id}`, data),
+    umpireApi.put(`/tournament/Schedules/${id}`, data),
   deleteSchedule: (id: string) =>
-    umpireApi.delete(`/Schedules/${id}`),
+    umpireApi.delete(`/tournament/Schedules/${id}`),
   getTeamsByTournament: (tournamentId: string) =>
-    umpireApi.get(`/Schedules/dropdowns/${tournamentId}/teams`),
-  getGameTypes: () => umpireApi.get('/Schedules/dropdowns/gametypes'),
+    umpireApi.get(`/tournament/Schedules/dropdowns/${tournamentId}/teams`),
+  getGameTypes: () => umpireApi.get('/tournament/Schedules/dropdowns/gametypes'),
   assignUmpire: (matchId: string, umpireId: string) => api.put(`/league/matches/${matchId}/umpire/${umpireId}`),
   assignScorer: (matchId: string, scorerId: string) => api.put(`/league/matches/${matchId}/scorer/${scorerId}`),
   cancelGames: (boardId: string, from: string, to: string) =>

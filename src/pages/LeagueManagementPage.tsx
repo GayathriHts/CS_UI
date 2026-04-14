@@ -2865,20 +2865,16 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   });
 
   const createMutation = useMutation({
-    mutationFn: () => tournamentService.createTournament({
-      tournamentName: name,
-      winPoint: Number(winPoints) || 0,
-      umpireCheck: umpireOption === 'list' ? 1 : 0,
-      active: 1,
-      scheduleCoordinator: true,
-      matchType: 'league',
-      groupList: groups.map(g => ({
-        id: crypto.randomUUID(),
-        tournamentGroupName: g.name,
-        active: 1,
-        teamBoardId: g.teamIds,
+    mutationFn: () => tournamentService.createTournament(boardId, {
+      name: name,
+      winPoints: Number(winPoints) || 0,
+      allowUmpireFromList: umpireOption === 'list',
+      allowBuddyAsUmpire: umpireOption === 'buddy',
+      groups: groups.map((g, idx) => ({
+        name: g.name,
+        sortOrder: idx,
+        teamBoardIds: g.teamIds,
       })),
-      createdBy: user?.id ?? '',
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
@@ -3266,11 +3262,11 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
 
   useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
 
-  // Fetch tournaments from GET /api/v{version}/Tournament (umpireApi)
+  // Fetch tournaments from GET /api/v1/tournament/boards/{boardId}/tournaments (umpireApi)
   const { data: tournaments, isLoading } = useQuery({
-    queryKey: ['umpireTournaments'],
+    queryKey: ['umpireTournaments', boardId],
     queryFn: async () => {
-      const r = await tournamentService.getTournaments(1, 100);
+      const r = await tournamentService.getTournaments(boardId, 1, 100);
       const d = r.data as any;
       const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
       return list;
@@ -3395,7 +3391,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
         originalTeams = rawTeams
           .filter((item: any) => typeof item === 'object' && item)
           .map((item: any) => ({
-            id: item.id || crypto.randomUUID(),
+            id: item.id || (self.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)),
             teamBoardId: item.teamBoardId || item.boardId || item.id || '',
           }))
           .filter(t => t.teamBoardId);
@@ -3404,7 +3400,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
       }
       console.log('[EditTournament] Group', g.tournamentGroupName, 'teamIds:', teamIds, 'originalTeams:', originalTeams);
       return {
-        id: g.id || g.groupId || crypto.randomUUID(),
+        id: g.id || g.groupId || (self.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)),
         tournamentGroupName: g.tournamentGroupName || g.groupName || g.name || '',
         active: Number(g.active ?? 1),
         teamBoardId: teamIds,
@@ -3874,9 +3870,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   // Fetch tournaments from umpire API (has groupList with teamBoardId)
   const { data: umpireTournaments } = useQuery({
-    queryKey: ['umpireTournaments'],
+    queryKey: ['umpireTournaments', boardId],
     queryFn: async () => {
-      const r = await tournamentService.getTournaments(1, 100);
+      const r = await tournamentService.getTournaments(boardId, 1, 100);
       const d = r.data as any;
       return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
     },
