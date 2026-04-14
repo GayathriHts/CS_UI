@@ -1559,13 +1559,13 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-700 font-bold text-sm">
-                      <th className="pb-3" style={{width:'15%'}}>Umpire Name</th>
-                      <th className="pb-3" style={{width:'22%'}}>Email-ID</th>
-                      <th className="pb-3" style={{width:'20%'}}>Contact Number</th>
-                      <th className="pb-3">Rating</th>
-                      <th className="pb-3">Matches</th>
-                      <th className="pb-3">Actions</th>
+                    <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
+                      <th className="py-3 px-4 rounded-tl-lg" style={{width:'15%'}}>Umpire Name</th>
+                      <th className="py-3 px-4" style={{width:'22%'}}>Email-ID</th>
+                      <th className="py-3 px-4" style={{width:'20%'}}>Contact Number</th>
+                      <th className="py-3 px-4">Rating</th>
+                      <th className="py-3 px-4">Matches</th>
+                      <th className="py-3 px-4 rounded-tr-lg">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2690,13 +2690,13 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-700 font-bold text-sm">
-                      <th className="pb-3">Ground Name</th>
-                      <th className="pb-3">Country</th>
-                      <th className="pb-3">State</th>
-                      <th className="pb-3">City</th>
-                      <th className="pb-3">Home Team</th>
-                      <th className="pb-3">Actions</th>
+                    <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
+                      <th className="py-3 px-4 rounded-tl-lg">Ground Name</th>
+                      <th className="py-3 px-4">Country</th>
+                      <th className="py-3 px-4">State</th>
+                      <th className="py-3 px-4">City</th>
+                      <th className="py-3 px-4">Home Team</th>
+                      <th className="py-3 px-4 rounded-tr-lg">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3646,12 +3646,12 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b text-left text-gray-700 font-bold text-sm">
-                      <th className="pb-3">Tournament Name</th>
-                      <th className="pb-3">Win Points</th>
-                      <th className="pb-3">Match Type</th>
-                      <th className="pb-3">Status</th>
-                      <th className="pb-3">Actions</th>
+                    <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
+                      <th className="py-3 px-4 rounded-tl-lg">Tournament Name</th>
+                      <th className="py-3 px-4">Win Points</th>
+                      <th className="py-3 px-4">Match Type</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 rounded-tr-lg">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3792,6 +3792,15 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const [editOriginal, setEditOriginal] = useState<any>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [showCreateCancelConfirm, setShowCreateCancelConfirm] = useState(false);
+
+  // SessionStorage helpers for schedule form
+  const SS_PREFIX = 'schedule_';
+  const ssSet = (key: string, val: string) => { sessionStorage.setItem(SS_PREFIX + key, val); };
+  const ssGet = (key: string) => sessionStorage.getItem(SS_PREFIX + key) || '';
+  const ssClearAll = () => {
+    ['tournamentId', 'gameType', 'homeTeamId', 'awayTeamId', 'groundId', 'umpireId', 'appScorerId', 'portalScorerId', 'startAtUtc'].forEach(k => sessionStorage.removeItem(SS_PREFIX + k));
+  };
+
   const [newTournamentId, setNewTournamentId] = useState('');
   const [newHomeTeamId, setNewHomeTeamId] = useState('');
   const [newAwayTeamId, setNewAwayTeamId] = useState('');
@@ -4115,19 +4124,31 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const createMatchMutation = useMutation({
     mutationFn: () => {
+      // Store current form values to sessionStorage before sending
+      ssSet('tournamentId', newTournamentId);
+      ssSet('gameType', newGameType);
+      ssSet('homeTeamId', newHomeTeamId);
+      ssSet('awayTeamId', newAwayTeamId);
+      ssSet('groundId', newGroundId);
+      ssSet('umpireId', newUmpireId);
+      ssSet('appScorerId', newAppScorerId);
+      ssSet('portalScorerId', newPortalScorerId);
+      ssSet('startAtUtc', newScheduledAt ? new Date(newScheduledAt).toISOString() : new Date().toISOString());
+
+      // Build payload from sessionStorage values
       const payload: Record<string, any> = {
-        gameType: newGameType || '',
-        startAtUtc: newScheduledAt ? new Date(newScheduledAt).toISOString() : new Date().toISOString(),
+        tournamentId: ssGet('tournamentId') || null,
+        gameType: ssGet('gameType') || '',
+        homeTeamId: ssGet('homeTeamId') || null,
+        awayTeamId: ssGet('awayTeamId') || null,
+        groundId: ssGet('groundId') || null,
+        startAtUtc: ssGet('startAtUtc'),
+        umpireId: ssGet('umpireId') || null,
+        appScorerId: ssGet('appScorerId') || null,
+        portalScorerId: ssGet('portalScorerId') || null,
         active: true,
       };
-      if (newTournamentId) payload.tournamentId = newTournamentId;
-      if (newHomeTeamId) payload.homeTeamId = newHomeTeamId;
-      if (newAwayTeamId) payload.awayTeamId = newAwayTeamId;
-      if (newGroundId) payload.groundId = newGroundId;
-      if (newUmpireId) payload.umpireId = newUmpireId;
-      if (newAppScorerId) payload.appScorerId = newAppScorerId;
-      if (newPortalScorerId) payload.portalScorerId = newPortalScorerId;
-      console.log('📋 Schedule POST payload:', JSON.stringify(payload, null, 2));
+      console.log('📋 Schedule POST payload (from sessionStorage):', JSON.stringify(payload, null, 2));
       return tournamentService.createSchedule(payload as any);
     },
     onSuccess: (response: any) => {
@@ -4135,12 +4156,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       setCreateError('');
       setCreateSuccess('Schedule created successfully!');
+      ssClearAll();
       resetCreateForm();
       setTimeout(() => setCreateSuccess(''), 4000);
     },
     onError: (error: any) => {
-      console.error('❌ Schedule creation failed:', error?.response?.status, error?.response?.data);
+      const status = error?.response?.status;
       const respData = error?.response?.data;
+      console.error('❌ Schedule creation failed:', status, respData);
+      console.error('❌ Full error response:', JSON.stringify(error?.response?.data, null, 2));
+      console.error('❌ Request config:', JSON.stringify({ url: error?.config?.url, headers: error?.config?.headers, data: error?.config?.data }, null, 2));
       let msg = '';
       if (typeof respData === 'string') {
         msg = respData;
@@ -4158,8 +4183,13 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             .join('; ');
           msg = msg ? `${msg}  -  ${validationErrors}` : validationErrors;
         }
+        // Include exception details if server returns them
+        if (respData.exceptionMessage || respData.stackTrace || respData.innerException) {
+          const extra = respData.exceptionMessage || respData.innerException?.message || '';
+          if (extra) msg = msg ? `${msg} | ${extra}` : extra;
+        }
       }
-      if (!msg) msg = error?.message || 'Failed to create schedule.';
+      if (!msg) msg = `Request failed with status code ${status || 'unknown'}. Check browser console for details.`;
       setCreateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
       setCreateSuccess('');
     },
@@ -4223,6 +4253,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   };
 
   const resetCreateForm = () => {
+    ssClearAll();
     setNewTournamentId('');
     setNewGameType('');
     setNewHomeTeamId('');
@@ -4489,7 +4520,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
-              <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); }} className={`input-field ${formErrors.tournament ? 'border-red-500' : ''}`}>
+              <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); ssSet('tournamentId', e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); }} className={`input-field ${formErrors.tournament ? 'border-red-500' : ''}`}>
                 <option value="">Select Tournament</option>
                 {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
@@ -4497,7 +4528,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Game Type <span className="text-red-500">*</span></label>
-              <select value={newGameType} onChange={e => { setNewGameType(e.target.value); if (formErrors.gameType) setFormErrors(p => ({ ...p, gameType: '' })); }} className={`input-field ${formErrors.gameType ? 'border-red-500' : ''}`}>
+              <select value={newGameType} onChange={e => { setNewGameType(e.target.value); ssSet('gameType', e.target.value); if (formErrors.gameType) setFormErrors(p => ({ ...p, gameType: '' })); }} className={`input-field ${formErrors.gameType ? 'border-red-500' : ''}`}>
                 <option value="">Select Game Type</option>
                 {(gameTypeOptions || []).map((gt: string) => <option key={gt} value={gt}>{gt}</option>)}
               </select>
@@ -4507,21 +4538,21 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'Home Team *', homeTeamSearch, setHomeTeamSearch,
               showHomeTeamDropdown, setShowHomeTeamDropdown,
               selectedHomeTeam,
-              (b) => { setSelectedHomeTeam(b); setNewHomeTeamId(b.id); if (b.id === newAwayTeamId) { setNewAwayTeamId(''); setSelectedAwayTeam(null); } if (formErrors.homeTeam) setFormErrors(p => ({ ...p, homeTeam: '' })); },
-              () => { setSelectedHomeTeam(null); setNewHomeTeamId(''); setHomeTeamSearch(''); },
+              (b) => { setSelectedHomeTeam(b); setNewHomeTeamId(b.id); ssSet('homeTeamId', b.id); if (b.id === newAwayTeamId) { setNewAwayTeamId(''); setSelectedAwayTeam(null); ssSet('awayTeamId', ''); } if (formErrors.homeTeam) setFormErrors(p => ({ ...p, homeTeam: '' })); },
+              () => { setSelectedHomeTeam(null); setNewHomeTeamId(''); ssSet('homeTeamId', ''); setHomeTeamSearch(''); },
               newAwayTeamId,
             )}
             {renderTeamBoardDropdown(
               'Away Team *', awayTeamSearch, setAwayTeamSearch,
               showAwayTeamDropdown, setShowAwayTeamDropdown,
               selectedAwayTeam,
-              (b) => { setSelectedAwayTeam(b); setNewAwayTeamId(b.id); if (formErrors.awayTeam) setFormErrors(p => ({ ...p, awayTeam: '' })); },
-              () => { setSelectedAwayTeam(null); setNewAwayTeamId(''); setAwayTeamSearch(''); },
+              (b) => { setSelectedAwayTeam(b); setNewAwayTeamId(b.id); ssSet('awayTeamId', b.id); if (formErrors.awayTeam) setFormErrors(p => ({ ...p, awayTeam: '' })); },
+              () => { setSelectedAwayTeam(null); setNewAwayTeamId(''); ssSet('awayTeamId', ''); setAwayTeamSearch(''); },
               newHomeTeamId,
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
-              <select value={newGroundId} onChange={e => setNewGroundId(e.target.value)} className="input-field">
+              <select value={newGroundId} onChange={e => { setNewGroundId(e.target.value); ssSet('groundId', e.target.value); }} className="input-field">
                 <option value="">Select Ground</option>
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
@@ -4530,26 +4561,26 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               umpireSearch, setUmpireSearch,
               showUmpireDropdown, setShowUmpireDropdown,
               selectedUmpire,
-              (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); },
-              () => { setSelectedUmpire(null); setNewUmpireId(''); setUmpireSearch(''); },
+              (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); ssSet('umpireId', u.id); },
+              () => { setSelectedUmpire(null); setNewUmpireId(''); ssSet('umpireId', ''); setUmpireSearch(''); },
             )}
             {renderUserSearchDropdown(
               'App Scorer', appScorerSearch, setAppScorerSearch,
               showAppScorerDropdown, setShowAppScorerDropdown,
               selectedAppScorer,
-              (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); },
-              () => { setSelectedAppScorer(null); setNewAppScorerId(''); setAppScorerSearch(''); },
+              (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); },
+              () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); },
             )}
             {renderUserSearchDropdown(
               'Portal Scorer', portalScorerSearch, setPortalScorerSearch,
               showPortalScorerDropdown, setShowPortalScorerDropdown,
               selectedPortalScorer,
-              (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); },
-              () => { setSelectedPortalScorer(null); setNewPortalScorerId(''); setPortalScorerSearch(''); },
+              (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); },
+              () => { setSelectedPortalScorer(null); setNewPortalScorerId(''); ssSet('portalScorerId', ''); setPortalScorerSearch(''); },
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
-              <input type="datetime-local" value={newScheduledAt} onChange={e => { setNewScheduledAt(e.target.value); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+              <input type="datetime-local" value={newScheduledAt} onChange={e => { setNewScheduledAt(e.target.value); ssSet('startAtUtc', e.target.value ? new Date(e.target.value).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
             </div>
           </div>
@@ -4664,7 +4695,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       {!editMatchId && (
       <div className="card">
         <table className="w-full text-sm">
-          <thead><tr className="border-b text-left text-gray-700 font-bold text-sm"><th className="pb-3">Tournament</th><th className="pb-3">Home</th><th className="pb-3">Away</th><th className="pb-3">Ground</th><th className="pb-3">Umpire</th><th className="pb-3">Scorer</th><th className="pb-3">Date</th><th className="pb-3">Status</th><th className="pb-3">Actions</th></tr></thead>
+          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg">Tournament</th><th className="py-3 px-4">Home</th><th className="py-3 px-4">Away</th><th className="py-3 px-4">Ground</th><th className="py-3 px-4">Umpire</th><th className="py-3 px-4">Scorer</th><th className="py-3 px-4">Date</th><th className="py-3 px-4">Status</th><th className="py-3 px-4 rounded-tr-lg">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">

@@ -293,8 +293,23 @@ export const tournamentService = {
     appScorerId?: string;
     portalScorerId?: string;
     active?: boolean;
-  }) =>
-    umpireApi.post('/tournament/Schedules', data),
+  }) => {
+    console.log('[createSchedule] POST /tournament/Schedules');
+    console.log('[createSchedule] payload:', JSON.stringify(data, null, 2));
+    const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+    console.log('[createSchedule] token present:', !!token, 'length:', token?.length);
+    return umpireApi.post('/tournament/Schedules', data).then(res => {
+      console.log('[createSchedule] Success:', res.status, res.data);
+      return res;
+    }).catch(err => {
+      console.error('[createSchedule] Error status:', err?.response?.status);
+      console.error('[createSchedule] Error headers:', JSON.stringify(Object.fromEntries(Object.entries(err?.response?.headers || {}))));
+      console.error('[createSchedule] Error data:', JSON.stringify(err?.response?.data, null, 2));
+      console.error('[createSchedule] Request headers sent:', JSON.stringify(err?.config?.headers));
+      console.error('[createSchedule] Request body sent:', err?.config?.data);
+      throw err;
+    });
+  },
   updateMatch: (id: string, data: { groundId?: string; umpireId?: string; scorerId?: string; scheduledAt?: string }) =>
     api.put<Match>(`/tournaments/matches/${id}`, data),
   getMatches: (tournamentId: string) => api.get<Match[]>(`/tournaments/${tournamentId}/matches`),
