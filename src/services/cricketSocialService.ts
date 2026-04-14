@@ -1,4 +1,14 @@
 import api, { boardApi, umpireApi } from './api';
+
+/** crypto.randomUUID() is only available in secure contexts (HTTPS/localhost).
+ *  This fallback works on plain HTTP too. */
+const generateUUID = (): string =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+        const r = (Math.random() * 16) | 0;
+        return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+      });
 import type {
   AuthResponse, LoginRequest, RegisterConfirmRequest, RegisterRequest, RegisterStartRequest,
   User, PlayerStats, Board, Roster, RosterMember,
@@ -266,7 +276,7 @@ export const tournamentService = {
         tournamentGroupName: g.tournamentGroupName,
         active: g.active ?? 1,
         teams: g.teamBoardId.map(tid => ({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           teamBoardId: tid,
         })),
       })),
@@ -508,7 +518,7 @@ export const leagueService = {
   }) => {
     const payload = {
       boardId: data.boardId,
-      groundId: crypto.randomUUID(),
+      groundId: generateUUID(),
       groundName: data.groundName,
       address1: data.address1 ?? '',
       address2: data.address2 ?? '',
@@ -525,9 +535,9 @@ export const leagueService = {
       wicketType: data.wicketType ?? '',
       permitTime: data.permitTime ?? '',
     };
-    console.log('[createGround] POST /boards/' + data.boardId + '/Ground');
+    console.log('[createGround] POST /tournament/boards/' + data.boardId + '/Ground');
     console.log('[createGround] payload:', JSON.stringify(payload, null, 2));
-    return umpireApi.post(`/boards/${data.boardId}/Ground`, payload).then(res => {
+    return umpireApi.post(`/tournament/boards/${data.boardId}/Ground`, payload).then(res => {
       console.log('[createGround] Success:', res.status, res.data);
       return res;
     }).catch(err => {
@@ -538,8 +548,8 @@ export const leagueService = {
       throw err;
     });
   },
-  getGrounds: (boardId: string, page = 1, pageSize = 100) => umpireApi.get(`/boards/${boardId}/Ground`, { params: { page, pageSize } }),
-  getGroundById: (boardId: string, groundId: string) => umpireApi.get(`/boards/${boardId}/Ground/${groundId}`),
+  getGrounds: (boardId: string, page = 1, pageSize = 100) => umpireApi.get(`/tournament/boards/${boardId}/Ground`, { params: { page, pageSize } }),
+  getGroundById: (boardId: string, groundId: string) => umpireApi.get(`/tournament/boards/${boardId}/Ground/${groundId}`),
   updateGround: (boardId: string, groundId: string, data: {
     id: string; groundId: string; groundName: string; address1: string; address2: string;
     placeOfGround?: string; city: string; state: string; country: string; zipcode: string;
@@ -554,10 +564,10 @@ export const leagueService = {
       boardId,
       additonalDirection: additionalDirection ?? '',
     };
-    console.log('[updateGround] PUT /boards/' + boardId + '/Ground/' + groundId, JSON.stringify(payload, null, 2));
-    return umpireApi.put(`/boards/${boardId}/Ground/${groundId}`, payload);
+    console.log('[updateGround] PUT /tournament/boards/' + boardId + '/Ground/' + groundId, JSON.stringify(payload, null, 2));
+    return umpireApi.put(`/tournament/boards/${boardId}/Ground/${groundId}`, payload);
   },
-  deleteGround: (boardId: string, groundId: string) => umpireApi.delete(`/boards/${boardId}/Ground/${groundId}`),
+  deleteGround: (boardId: string, groundId: string) => umpireApi.delete(`/tournament/boards/${boardId}/Ground/${groundId}`),
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
   getSchedule: (boardId: string, from: string, to: string) =>
