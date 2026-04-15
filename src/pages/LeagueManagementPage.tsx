@@ -1783,8 +1783,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       const payload = {
         boardId: boardId,
         groundName: name.trim(),
-        address1: address1.trim(),
-        address2: address2.trim(),
+        address1: placeOfGround.trim(),
+        address2: address1.trim(),
         placeOfGround: placeOfGround.trim(),
         city: city.trim(),
         state: state.trim(),
@@ -1834,6 +1834,10 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     setErrorMsg('');
     if (!name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim()) {
       setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country, Zip Code.');
+      return;
+    }
+    if (!permitHour.trim() || !permitMinutes.trim()) {
+      setErrorMsg('Please fill in the Permit Time (HH and MM are required).');
       return;
     }
     createMutation.mutate();
@@ -2130,7 +2134,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             </button>
             <button
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim()}
+              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !permitHour.trim() || !permitMinutes.trim()}
               className="btn-primary px-8 py-2 text-sm"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -2284,8 +2288,8 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         id: editId!,
         groundId: editId!,
         groundName: editName,
-        address1: editAddress1,
-        address2: editAddress2,
+        address1: editPlaceOfGround,
+        address2: editAddress1,
         placeOfGround: editPlaceOfGround,
         city: editCity,
         state: editState,
@@ -2315,8 +2319,8 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
   const populateGroundFields = (g: any) => {
     setEditName(g.groundName || '');
-    setEditAddress1(g.address1 || '');
-    setEditAddress2(g.address2 || '');
+    setEditAddress1(g.address2 || '');
+    setEditAddress2('');
     setEditCity(g.city || '');
     setEditState(g.state || '');
     setEditCountry(g.country || '');
@@ -2326,7 +2330,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     const matchedTeam = editTeamList.find((b: any) => b.name === (g.homeTeam || ''));
     setEditSelectedHomeTeam(matchedTeam || (g.homeTeam ? { id: '', name: g.homeTeam, logoUrl: '' } : null));
     setEditHomeTeamSearch('');
-    setEditPlaceOfGround(g.placeOfGround || '');
+    setEditPlaceOfGround(g.address1 || g.placeOfGround || '');
     // API uses typo "additonalDirection"
     setEditAdditionalDirection(g.additionalDirection || g.additonalDirection || '');
     setEditGroundFacilities(g.groundFacilities || '');
@@ -2341,7 +2345,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditPermitAmPm(ptMatch && ptMatch[4] ? ptMatch[4].toUpperCase() : 'AM');
     setEditPermitTimezone(ptMatch && ptMatch[5] ? ptMatch[5].toUpperCase() : 'EST');
     const dirVal = g.additionalDirection || g.additonalDirection || '';
-    setEditOriginal({ name: g.groundName || '', address1: g.address1 || '', address2: g.address2 || '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '', placeOfGround: g.placeOfGround || '', additionalDirection: dirVal, groundFacilities: g.groundFacilities || '', pitchDescription: g.pitchDescription || '', wicketType: g.wicketType || 'Regular Turf', permitTimeHour: ptMatch ? ptMatch[1] : '', permitTimeMinutes: ptMatch ? ptMatch[2] : '', permitTimeSeconds: ptMatch && ptMatch[3] ? ptMatch[3] : '', permitTimeAmPm: ptMatch && ptMatch[4] ? ptMatch[4].toUpperCase() : 'AM', permitTimeTimezone: ptMatch && ptMatch[5] ? ptMatch[5].toUpperCase() : 'EST' });
+    setEditOriginal({ name: g.groundName || '', address1: g.address2 || '', address2: '', city: g.city || '', state: g.state || '', country: g.country || '', zipcode: g.zipcode || '', landmark: g.landmark || '', homeTeam: g.homeTeam || '', placeOfGround: g.address1 || g.placeOfGround || '', additionalDirection: dirVal, groundFacilities: g.groundFacilities || '', pitchDescription: g.pitchDescription || '', wicketType: g.wicketType || 'Regular Turf', permitTimeHour: ptMatch ? ptMatch[1] : '', permitTimeMinutes: ptMatch ? ptMatch[2] : '', permitTimeSeconds: ptMatch && ptMatch[3] ? ptMatch[3] : '', permitTimeAmPm: ptMatch && ptMatch[4] ? ptMatch[4].toUpperCase() : 'AM', permitTimeTimezone: ptMatch && ptMatch[5] ? ptMatch[5].toUpperCase() : 'EST' });
   };
 
   const handleEdit = (g: any) => {
@@ -2671,7 +2675,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
           <div className="flex justify-end gap-2 mt-6">
             <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editPermitHour.trim() || !editPermitMinutes.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
