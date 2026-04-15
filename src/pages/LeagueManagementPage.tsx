@@ -3903,12 +3903,14 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (Array.isArray(d.result)) return d.result;
     if (Array.isArray(d.teams)) return d.teams;
     if (Array.isArray(d.teamBoards)) return d.teamBoards;
+    if (Array.isArray(d.rosters)) return d.rosters;
+    if (Array.isArray(d.rosters?.$values)) return d.rosters.$values;
     return [];
   };
 
   const mapTeamItem = (t: any) => ({
-    id: t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
-    name: t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
+    id: t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
+    name: t.rosterName || t.RosterName || t.name || t.teamName || t.TeamName || t.boardName || t.BoardName || t.Name || '',
     logoUrl: t.logoUrl || t.logo || '',
   });
 
@@ -3932,17 +3934,28 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const allBoards = Array.isArray(boardsList) ? boardsList : [];
 
   // Fetch teams for the selected tournament via Schedules dropdown API
-  // API returns { data: { teamsboard: [{ boardId, name }], rosters: [...] } }
+  // API: GET /tournament/Schedules/dropdowns/{tournamentId}/teams
   const { data: tournamentTeams, isLoading: tournamentTeamsLoading } = useQuery({
     queryKey: ['tournamentTeams', newTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
-      console.log('🏏 Tournament teams raw response:', d);
-      // Handle nested response: { data: { teamsboard: [...] } }
+      console.log('🏏 Tournament teams raw response:', JSON.stringify(d, null, 2));
+      // Try multiple response shapes from the API
       const inner = d?.data || d;
-      const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard : [];
-      const list = teamsboard.length > 0 ? teamsboard : unwrapValues(d);
+      // Look for rosters array first (API returns rosterId/rosterName)
+      const rosters = Array.isArray(inner?.rosters) ? inner.rosters
+        : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
+        : Array.isArray(inner?.Rosters) ? inner.Rosters
+        : [];
+      const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard
+        : Array.isArray(inner?.teamsBoard) ? inner.teamsBoard
+        : Array.isArray(inner?.TeamsBoard) ? inner.TeamsBoard
+        : Array.isArray(inner?.teams) ? inner.teams
+        : Array.isArray(inner?.Teams) ? inner.Teams
+        : [];
+      // Prefer rosters, then teamsboard, then generic unwrap
+      const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : unwrapValues(inner);
       console.log('🏏 Tournament teams extracted:', list.length, list.slice(0, 3));
       const mapped = list.map(mapTeamItem);
       console.log('🏏 Tournament teams mapped:', mapped.length, mapped.slice(0, 3));
@@ -3953,24 +3966,30 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const tournamentTeamList = Array.isArray(tournamentTeams) ? tournamentTeams : [];
 
   // Fetch teams for the selected edit tournament
+  // API: GET /tournament/Schedules/dropdowns/{tournamentId}/teams
   const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading } = useQuery({
     queryKey: ['editTournamentTeams', editTournamentId],
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      console.log('🏏 Edit tournament teams raw response:', d);
-      // Handle nested response: { data: { teamsboard: [...] } }
+      console.log('🏏 Edit tournament teams raw response:', JSON.stringify(d, null, 2));
       const inner = d?.data || d;
-      const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard : [];
-      const list = teamsboard.length > 0 ? teamsboard : unwrapValues(d);
+      const rosters = Array.isArray(inner?.rosters) ? inner.rosters
+        : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
+        : Array.isArray(inner?.Rosters) ? inner.Rosters
+        : [];
+      const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard
+        : Array.isArray(inner?.teamsBoard) ? inner.teamsBoard
+        : Array.isArray(inner?.TeamsBoard) ? inner.TeamsBoard
+        : Array.isArray(inner?.teams) ? inner.teams
+        : Array.isArray(inner?.Teams) ? inner.Teams
+        : [];
+      const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : unwrapValues(inner);
       return list.map(mapTeamItem);
     },
     enabled: !!editTournamentId && !!editMatchId,
   });
   const editTournamentTeamList = Array.isArray(editTournamentTeamsData) ? editTournamentTeamsData : [];
-
-  // Show all boards for Home/Away team selection (same as Team Board in CreateTournament)
-  const teamBoardList = allBoards;
 
   // Fetch user list for App Scorer / Portal Scorer (also used for table lookups)
   const shouldFetchUsers = true;
@@ -4049,16 +4068,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     const q = search.toLowerCase();
     return normalizedUsers.filter((u: any) =>
       !q || `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
-    );
-  };
-
-  // Filter team boards based on search text  -  use tournament teams when available, else all boards
-  const filterTeamBoards = (search: string, excludeId?: string) => {
-    const q = search.toLowerCase();
-    const source = tournamentTeamList.length > 0 ? tournamentTeamList : teamBoardList;
-    return source.filter((b: any) =>
-      (!excludeId || b.id !== excludeId) &&
-      (!q || b.name.toLowerCase().includes(q))
     );
   };
 
@@ -4466,7 +4475,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                   <div className="px-4 py-3 text-sm text-gray-500 text-center">Loading teams...</div>
                 ) : (() => {
                   const q = search.toLowerCase();
-                  const source = effectiveTeamSource.length > 0 ? effectiveTeamSource : teamBoardList;
+                  const source = effectiveTeamSource;
                   const filtered = source.filter((b: any) => (!excludeId || b.id !== excludeId) && (!q || b.name.toLowerCase().includes(q)));
                   return filtered.length === 0 ? (
                     <div className="px-4 py-3 text-sm text-gray-500 text-center">No teams found</div>
