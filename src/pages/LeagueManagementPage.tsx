@@ -1832,8 +1832,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 
   const handleSubmit = () => {
     setErrorMsg('');
-    if (!name.trim() || !city.trim() || !state.trim() || !country.trim()) {
-      setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country.');
+    if (!name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim()) {
+      setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country, Zip Code.');
       return;
     }
     createMutation.mutate();
@@ -2130,7 +2130,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             </button>
             <button
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim()}
+              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim()}
               className="btn-primary px-8 py-2 text-sm"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -2671,7 +2671,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
           <div className="flex justify-end gap-2 mt-6">
             <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
+            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
@@ -2688,28 +2688,30 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <>
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-fixed">
                   <thead>
                     <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
-                      <th className="py-3 px-4 rounded-tl-lg">Ground Name</th>
-                      <th className="py-3 px-4">Country</th>
-                      <th className="py-3 px-4">State</th>
-                      <th className="py-3 px-4">City</th>
-                      <th className="py-3 px-4">Home Team</th>
-                      <th className="py-3 px-4 rounded-tr-lg">Actions</th>
+                      <th className="py-3 px-4 rounded-tl-lg w-[18%]">Ground Name</th>
+                      <th className="py-3 px-4 w-[14%]">Country</th>
+                      <th className="py-3 px-4 w-[22%]">State</th>
+                      <th className="py-3 px-4 w-[14%]">City</th>
+                      <th className="py-3 px-4 w-[22%]">Home Team</th>
+                      <th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {groundList.map((g: any) => {
                       const gid = g.id || g.groundId;
+                      const homeTeamBoard = g.homeTeam ? editTeamList.find((b: any) => b.id === g.homeTeam) : null;
+                      const homeTeamDisplay = homeTeamBoard?.name || g.homeTeamName || (!g.homeTeam ? '-' : g.homeTeam);
                       return (
                         <tr key={gid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === gid ? 'bg-blue-50' : ''}`}>
-                          <td className="py-3 font-medium">{g.groundName || '-'}</td>
-                          <td className="py-3">{g.country || '-'}</td>
-                          <td className="py-3">{g.state || '-'}</td>
-                          <td className="py-3">{g.city || '-'}</td>
-                          <td className="py-3">{g.homeTeam || '-'}</td>
-                          <td className="py-3">
+                          <td className="py-3 px-4 font-medium truncate">{g.groundName || '-'}</td>
+                          <td className="py-3 px-4 truncate">{g.country || '-'}</td>
+                          <td className="py-3 px-4 truncate">{g.state || '-'}</td>
+                          <td className="py-3 px-4 truncate">{g.city || '-'}</td>
+                          <td className="py-3 px-4 truncate">{homeTeamDisplay}</td>
+                          <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -2733,6 +2735,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <div className="md:hidden space-y-4">
                 {groundList.map((g: any) => {
                   const gid = g.id || g.groundId;
+                  const mobileHomeTeam = g.homeTeam ? (editTeamList.find((b: any) => b.id === g.homeTeam)?.name || g.homeTeamName || g.homeTeam) : '-';
                   return (
                     <div key={gid} className={`border rounded-lg p-4 ${editId === gid ? 'bg-blue-50 border-blue-300' : 'hover:bg-gray-50'}`}>
                       <div className="flex justify-between items-start mb-2">
@@ -2753,7 +2756,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                       <div><span className="text-gray-400">Country:</span> {g.country || '-'}</div>
                       <div><span className="text-gray-400">State:</span> {g.state || '-'}</div>
                       <div><span className="text-gray-400">City:</span> {g.city || '-'}</div>
-                      <div><span className="text-gray-400">Home Team:</span> {g.homeTeam || '-'}</div>
+                      <div><span className="text-gray-400">Home Team:</span> {mobileHomeTeam}</div>
                     </div>
                   </div>
                   );
@@ -3834,25 +3837,49 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!showCreate) return;
   }, [showCreate, tournamentList.length]);
 
+  // SessionStorage helpers for schedule edit form
+  const EDIT_SS_PREFIX = 'schedule_edit_';
+  const editSsSet = (key: string, val: string) => { sessionStorage.setItem(EDIT_SS_PREFIX + key, val); };
+  const editSsGet = (key: string) => sessionStorage.getItem(EDIT_SS_PREFIX + key) || '';
+  const editSsClearAll = () => {
+    ['id', 'tournamentId', 'gameType', 'homeTeamId', 'awayTeamId', 'groundId', 'umpireId', 'appScorerId', 'portalScorerId', 'startAtUtc'].forEach(k => sessionStorage.removeItem(EDIT_SS_PREFIX + k));
+  };
+
   const updateMatchMutation = useMutation({
     mutationFn: () => {
+      // Store current edit form values to sessionStorage before sending
+      const scheduleId = editSsGet('id') || editMatchId!;
+      editSsSet('id', scheduleId);
+      editSsSet('tournamentId', editTournamentId);
+      editSsSet('gameType', editGameType);
+      editSsSet('homeTeamId', editHomeTeamId);
+      editSsSet('awayTeamId', editAwayTeamId);
+      editSsSet('groundId', editGround);
+      editSsSet('umpireId', editUmpire);
+      editSsSet('appScorerId', editAppScorer);
+      editSsSet('portalScorerId', editPortalScorer);
+      editSsSet('startAtUtc', editScheduledAt ? new Date(editScheduledAt).toISOString() : '');
+
+      // Build payload from sessionStorage values
       const payload = {
-        tournamentId: editTournamentId || null,
-        gameType: editGameType || '',
-        homeTeamId: editHomeTeamId || null,
-        awayTeamId: editAwayTeamId || null,
-        groundId: editGround || null,
-        startAtUtc: editScheduledAt ? new Date(editScheduledAt).toISOString() : null,
-        umpireId: editUmpire || null,
-        appScorerId: editAppScorer || '',
-        portalScorerId: editPortalScorer || '',
+        tournamentId: editSsGet('tournamentId') || null,
+        gameType: editSsGet('gameType') || '',
+        homeTeamId: editSsGet('homeTeamId') || null,
+        awayTeamId: editSsGet('awayTeamId') || null,
+        groundId: editSsGet('groundId') || null,
+        startAtUtc: editSsGet('startAtUtc') || null,
+        umpireId: editSsGet('umpireId') || null,
+        appScorerId: editSsGet('appScorerId') || '',
+        portalScorerId: editSsGet('portalScorerId') || '',
         active: true,
       };
-      console.log('?? Schedule PUT payload:', JSON.stringify(payload, null, 2));
-      return leagueService.updateSchedule(editMatchId!, payload);
+      console.log('📋 Schedule PUT payload (from sessionStorage):', JSON.stringify(payload, null, 2));
+      console.log('📋 Schedule PUT id:', scheduleId);
+      return leagueService.updateSchedule(scheduleId, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
+      editSsClearAll();
       setEditMatchId(null);
       setEditError('');
     },
@@ -3953,6 +3980,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
 
   const handleEditMatch = (m: any) => {
+    // Store the selected schedule ID in sessionStorage so it persists
+    editSsClearAll();
+    editSsSet('id', m.id);
     setEditMatchId(m.id);
     setEditTournamentId(m.tournamentId || '');
     setEditGameType(m.gameType || '');
@@ -3993,6 +4023,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const confirmCancelEdit = () => {
     setShowCancelConfirm(false);
+    editSsClearAll();
     setEditMatchId(null);
     setEditTournamentId('');
     setEditGameType('');
@@ -4446,7 +4477,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400 transition-colors">Cancel</button>
-            <button onClick={() => updateMatchMutation.mutate()} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Saving...' : 'Save'}</button>
+            <button onClick={() => updateMatchMutation.mutate()} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Updating...' : 'Update'}</button>
           </div>
         </div>
       )}
