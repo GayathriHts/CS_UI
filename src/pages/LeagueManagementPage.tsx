@@ -2818,7 +2818,8 @@ interface TrophyGroup {
   teamIds: string[];
 }
 
-function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () => void }) {
+function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: string; onClose?: () => void; editTournamentId?: string | null }) {
+  const isEditMode = !!editTournamentId;
   const [name, setName] = useState('');
   const [winPoints, setWinPoints] = useState('2');
   const [umpireOption, setUmpireOption] = useState<'list' | 'buddy'>('list');
@@ -2831,8 +2832,39 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+
+  // Fetch tournament details when in edit mode
+  useEffect(() => {
+    if (!editTournamentId) return;
+    setEditLoading(true);
+    tournamentService.getTournamentById(editTournamentId).then(res => {
+      const d = res.data as any;
+      setName(d.name || d.tournamentName || '');
+      setWinPoints(String(d.winPoints ?? d.winPoint ?? 2));
+      const allowList = d.allowUmpireFromList ?? true;
+      const allowBuddy = d.allowBuddyAsUmpire ?? false;
+      setUmpireOption(allowBuddy ? 'buddy' : 'list');
+      const rawGroups = d.groups || d.groupList || [];
+      if (Array.isArray(rawGroups) && rawGroups.length > 0) {
+        const parsed = rawGroups.map((g: any) => {
+          const rawTeams = g.teamBoardIds || g.teams || g.teamBoardId || [];
+          let teamIds: string[] = [];
+          if (Array.isArray(rawTeams)) {
+            teamIds = rawTeams.map((item: any) => typeof item === 'string' ? item : item?.teamBoardId || item?.boardId || item?.id || '').filter(Boolean);
+          }
+          return { name: g.name || g.tournamentGroupName || '', teamIds };
+        });
+        setGroups(parsed);
+        setTeamSearches(parsed.map(() => ''));
+      }
+    }).catch(err => {
+      console.error('[EditTournament] Fetch error:', err);
+      setErrorMsg('Failed to load tournament details.');
+    }).finally(() => setEditLoading(false));
+  }, [editTournamentId]);
 
   // Load Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
   const [teamBoardError, setTeamBoardError] = useState('');
@@ -2864,18 +2896,20 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
     retry: 1,
   });
 
+  const buildPayload = () => ({
+    name: name,
+    winPoints: Number(winPoints) || 0,
+    allowUmpireFromList: umpireOption === 'list',
+    allowBuddyAsUmpire: umpireOption === 'buddy',
+    groups: groups.map((g, idx) => ({
+      name: g.name,
+      sortOrder: idx,
+      teamBoardIds: g.teamIds,
+    })),
+  });
+
   const createMutation = useMutation({
-    mutationFn: () => tournamentService.createTournament(boardId, {
-      name: name,
-      winPoints: Number(winPoints) || 0,
-      allowUmpireFromList: umpireOption === 'list',
-      allowBuddyAsUmpire: umpireOption === 'buddy',
-      groups: groups.map((g, idx) => ({
-        name: g.name,
-        sortOrder: idx,
-        teamBoardIds: g.teamIds,
-      })),
-    }),
+    mutationFn: () => tournamentService.createTournament(boardId, buildPayload()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
       qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
@@ -2895,6 +2929,29 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
       setSuccessMsg('');
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: () => tournamentService.updateTournament(editTournamentId!, buildPayload()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tournaments', boardId] });
+      qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
+      setSuccessMsg('Tournament updated successfully!');
+      setErrorMsg('');
+      setTimeout(() => { setSuccessMsg(''); if (onClose) onClose(); }, 4000);
+    },
+    onError: (err: any) => {
+      const respData = err?.response?.data;
+      let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
+      if (respData?.errors) {
+        const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
+        msg = msg ? `${msg} — ${ve}` : ve;
+      }
+      setErrorMsg(msg || err?.message || 'Failed to update tournament. Please try again.');
+      setSuccessMsg('');
+    },
+  });
+
+  const saveMutation = isEditMode ? updateMutation : createMutation;
 
   const addGroup = () => {
     setGroups([...groups, { name: '', teamIds: [] }]);
@@ -2942,15 +2999,18 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
     <div className="animate-fade-in">
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-6 py-3 border-b">
-          <h2 className="text-base font-bold text-gray-800">Group Tournament</h2>
+          <h2 className="text-base font-bold text-gray-800">{isEditMode ? 'Edit Tournament' : 'Group Tournament'}</h2>
         </div>
 
+        {editLoading ? (
+          <div className="p-6 flex items-center justify-center py-12"><div className="w-8 h-8 border-4 border-brand-green border-t-transparent rounded-full animate-spin" /></div>
+        ) : (
         <div className="p-6 space-y-6">
           {/* Tournament Name + Win Points */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-800 mb-1">
-                Create Tournament <span className="text-red-500">*</span>
+                Tournament Name <span className="text-red-500">*</span>
               </label>
               <input
                 value={name}
@@ -3173,17 +3233,18 @@ function CreateTrophyTab({ boardId, onClose }: { boardId: string; onClose?: () =
                   if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
                   if (groups[i].teamIds.length === 0) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have at least one team.`); return; }
                 }
-                createMutation.mutate();
+                saveMutation.mutate();
               }}
-              disabled={createMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
+              disabled={saveMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
               className="btn-primary text-sm px-6"
             >
-              {createMutation.isPending ? 'Creating...' : 'Create Schedule'}
+              {saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update' : 'Create Schedule')}
             </button>
           </div>
 
 
         </div>
+        )}
       </div>
 
       {/* Cancel Confirmation Modal */}
@@ -3244,21 +3305,11 @@ function CancelGameTab({ boardId }: { boardId: string }) {
 // ── TOURNAMENTS TAB ──
 function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
-  const user = useAuthStore((s) => s.user);
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [editOriginal, setEditOriginal] = useState<any>(null);
-  const [editName, setEditName] = useState('');
-  const [editWinPoint, setEditWinPoint] = useState('2');
-  const [editUmpireCheck, setEditUmpireCheck] = useState<number>(1);
-  const [editMatchType, setEditMatchType] = useState('league');
-  const [editGroups, setEditGroups] = useState<{ id: string; tournamentGroupName: string; active: number; teamBoardId: string[]; originalTeams: { id: string; teamBoardId: string }[] }[]>([]);
-  const [editGroupSearches, setEditGroupSearches] = useState<string[]>([]);
-  const [editOpenDropdown, setEditOpenDropdown] = useState<number | null>(null);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
 
@@ -3274,33 +3325,6 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   });
   const tournamentList = Array.isArray(tournaments) ? tournaments : [];
 
-  // Fetch Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
-  const [editTeamBoardError, setEditTeamBoardError] = useState('');
-  const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
-    queryKey: ['teamBoards'],
-    queryFn: async () => {
-      try {
-        setEditTeamBoardError('');
-        const res = await boardService.getByType(1, 1, 50);
-        const raw = res.data as any;
-        console.log('[TeamBoards-Edit] API response:', raw);
-        const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
-        return (Array.isArray(items) ? items : []).map((b: any) => ({
-          id: b.id || b.Id || b.boardId || '',
-          name: b.name || b.boardName || b.Name || '',
-          logoUrl: b.logoUrl || '',
-        }));
-      } catch (err) {
-        console.error('[TeamBoards-Edit] API error:', err);
-        setEditTeamBoardError('Failed to load Team Boards. Please try again.');
-        throw err;
-      }
-    },
-    enabled: false,
-    staleTime: 60000,
-    retry: 1,
-  });
-
   const deleteMutation = useMutation({
     mutationFn: (id: string) => tournamentService.deleteTournament(id),
     onSuccess: () => {
@@ -3311,158 +3335,10 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
     onError: (err: any) => setUpdateError(err?.response?.data?.message || err?.message || 'Failed to delete tournament.'),
   });
 
-  const updateMutation = useMutation({
-    mutationFn: () => {
-      // Build payload matching PUT /api/v{version}/Tournament/{id} Swagger spec exactly
-      const safeInt = (v: any, fallback?: number) => { const n = Number(v); return Number.isFinite(n) ? n : (fallback ?? 0); };
-      const payload = {
-        id: String(editId!),
-        tournamentName: String(editName.trim()),
-        winPoint: safeInt(editWinPoint),
-        umpireCheck: safeInt(editOriginal?.umpireCheck),
-        active: safeInt(editOriginal?.active),
-        scheduleCoordinator: Boolean(editOriginal?.scheduleCoordinator ?? true),
-        startNode: safeInt(editOriginal?.startNode),
-        endNode: safeInt(editOriginal?.endNode),
-        recordCount: safeInt(editOriginal?.recordCount),
-        matchType: String(editMatchType || 'league'),
-        groupList: editGroups.map(g => ({
-          id: String(g.id),
-          tournamentGroupName: String(g.tournamentGroupName),
-          active: safeInt(g.active),
-          teams: (Array.isArray(g.teamBoardId) ? g.teamBoardId.filter((tid: string) => typeof tid === 'string' && tid.trim()) : []).map(tid => {
-            const orig = g.originalTeams?.find(t => t.teamBoardId === tid);
-            return {
-              id: orig?.id ?? null,
-              teamBoardId: String(tid),
-            };
-          }),
-        })),
-        modifiedBy: String(user?.id ?? ''),
-      };
-      console.log('[UpdateTournament] PUT payload:', JSON.stringify(payload, null, 2));
-      return tournamentService.updateTournament(editId!, payload);
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
-      qc.invalidateQueries({ queryKey: ['teamBoards'] });
-      setEditId(null);
-      setEditOriginal(null);
-      setUpdateError('');
-      setUpdateSuccess('Tournament updated successfully!');
-      setTimeout(() => setUpdateSuccess(''), 4000);
-    },
-    onError: (err: any) => {
-      console.error('[UpdateTournament] Error:', err?.response?.status, err?.response?.data);
-      console.error('[UpdateTournament] Full response:', JSON.stringify(err?.response?.data, null, 2));
-      console.error('[UpdateTournament] Request config:', JSON.stringify(err?.config?.data));
-      const errData = err?.response?.data;
-      let msg = 'Failed to update tournament.';
-      if (typeof errData === 'string') msg = errData;
-      else if (errData?.message) msg = errData.message;
-      else if (errData?.title) msg = errData.title;
-      else if (errData?.errors) msg = JSON.stringify(errData.errors);
-      else if (err?.message) msg = err.message;
-      setUpdateError(msg);
-    },
-  });
-
-  const handleEdit = async (t: any) => {
-    console.log('[EditTournament] Raw GET data:', JSON.stringify(t, null, 2));
+  const handleEdit = (t: any) => {
     setEditId(t.id);
-    setEditOriginal(t);
-    setEditName(t.tournamentName || t.name || '');
-    setEditWinPoint(String(t.winPoint ?? 2));
-    setEditUmpireCheck(Number(t.umpireCheck ?? 1));
-    setEditMatchType(t.matchType || 'league');
-    const rawGroups = Array.isArray(t.groupList) ? t.groupList : [];
-    console.log('[EditTournament] Raw groupList:', JSON.stringify(rawGroups, null, 2));
-    const groups = rawGroups.map((g: any) => {
-      // Extract teamBoardId from teams array: [{id, teamBoardId}] per Swagger spec
-      const rawTeams = g.teams || g.teamBoardId || g.teamBoardIds || [];
-      let teamIds: string[] = [];
-      let originalTeams: { id: string; teamBoardId: string }[] = [];
-      if (Array.isArray(rawTeams)) {
-        teamIds = rawTeams.map((item: any) => {
-          if (typeof item === 'string') return item;
-          return item?.teamBoardId || item?.boardId || item?.id || '';
-        }).filter(Boolean);
-        // Preserve original team objects so we can send correct IDs in PUT
-        originalTeams = rawTeams
-          .filter((item: any) => typeof item === 'object' && item)
-          .map((item: any) => ({
-            id: item.id || (self.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)),
-            teamBoardId: item.teamBoardId || item.boardId || item.id || '',
-          }))
-          .filter(t => t.teamBoardId);
-      } else if (typeof rawTeams === 'string' && rawTeams) {
-        teamIds = [rawTeams];
-      }
-      console.log('[EditTournament] Group', g.tournamentGroupName, 'teamIds:', teamIds, 'originalTeams:', originalTeams);
-      return {
-        id: g.id || g.groupId || (self.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now().toString(36)),
-        tournamentGroupName: g.tournamentGroupName || g.groupName || g.name || '',
-        active: Number(g.active ?? 1),
-        teamBoardId: teamIds,
-        originalTeams,
-      };
-    });
-    setEditGroups(groups);
-    setEditGroupSearches(groups.map(() => ''));
-    setEditOpenDropdown(null);
     setUpdateError('');
     setUpdateSuccess('');
-    // Ensure boards are loaded so selected team names can be resolved
-    await refetchBoards();
-  };
-
-  const cancelEdit = () => {
-    if (editOriginal) {
-      const origName = editOriginal.tournamentName || editOriginal.name || '';
-      const origWin = String(editOriginal.winPoint ?? 2);
-      const origMatch = editOriginal.matchType || 'league';
-      if (editName !== origName || editWinPoint !== origWin || editMatchType !== origMatch) {
-        setShowCancelConfirm(true);
-        return;
-      }
-    }
-    setEditId(null);
-    setUpdateError('');
-    setEditOpenDropdown(null);
-  };
-
-  const confirmCancel = () => {
-    setShowCancelConfirm(false);
-    setEditId(null);
-    setUpdateError('');
-    setEditOpenDropdown(null);
-  };
-
-  const addBoardToEditGroup = (gIdx: number, boardId: string) => {
-    const updated = [...editGroups];
-    if (!updated[gIdx].teamBoardId.includes(boardId)) {
-      updated[gIdx] = { ...updated[gIdx], teamBoardId: [...updated[gIdx].teamBoardId, boardId] };
-      setEditGroups(updated);
-    }
-    const searches = [...editGroupSearches];
-    searches[gIdx] = '';
-    setEditGroupSearches(searches);
-    setEditOpenDropdown(null);
-  };
-
-  const removeBoardFromEditGroup = (gIdx: number, boardId: string) => {
-    const updated = [...editGroups];
-    updated[gIdx] = { ...updated[gIdx], teamBoardId: updated[gIdx].teamBoardId.filter(id => id !== boardId) };
-    setEditGroups(updated);
-  };
-
-  const getFilteredBoardsForEdit = (gIdx: number) => {
-    const search = editGroupSearches[gIdx]?.toLowerCase() || '';
-    const alreadySelected = editGroups[gIdx]?.teamBoardId || [];
-    return (boardsList || []).filter((b: any) =>
-      !alreadySelected.includes(b.id) &&
-      (!search || b.name.toLowerCase().includes(search))
-    );
   };
 
   return (
@@ -3482,157 +3358,16 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
         </div>
       )}
 
-      {!showCreate && (
-        <>
-      {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
-
-      {/* Edit form */}
-      {editId && (
-        <div className="bg-white rounded-lg shadow-sm mb-6">
-          <div className="bg-gray-100 px-6 py-3 border-b">
-            <h2 className="text-base font-bold text-gray-800">Edit Tournament</h2>
-          </div>
-          <div className="p-6 space-y-6">
-          {updateError && <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded text-sm">{updateError}</div>}
-
-          {/* Tournament Name + Win Points */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name <span className="text-red-500">*</span></label>
-              <input value={editName} onChange={e => setEditName(e.target.value)} className="input-field" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Win Points for the Match <span className="text-red-500">*</span></label>
-              <select value={editWinPoint} onChange={e => setEditWinPoint(e.target.value)} className="input-field">
-                {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                  <option key={n} value={String(n)}>{n}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Edit Groups with Team Board dropdowns */}
-          <div className="space-y-4">
-              {editGroups.map((group, gIdx) => (
-                <div key={group.id} className="border-2 border-red-500 rounded-lg overflow-hidden">
-                  <div className="bg-red-600 text-white px-4 py-2 flex items-center justify-between">
-                    <span className="font-bold text-sm uppercase">{group.tournamentGroupName || `Group ${String.fromCharCode(65 + gIdx)}`}</span>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                  <div className="p-4 space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Group Name <span className="text-red-500">*</span></label>
-                    <input
-                      value={group.tournamentGroupName}
-                      onChange={e => {
-                        const updated = [...editGroups];
-                        updated[gIdx] = { ...updated[gIdx], tournamentGroupName: e.target.value };
-                        setEditGroups(updated);
-                      }}
-                      className="input-field max-w-xs"
-                    />
-                  </div>
-                  <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Board <span className="text-red-500">*</span></label>
-                  <div className="flex gap-3 items-start">
-                    <div className="relative flex-1 max-w-xs">
-                      {editOpenDropdown === gIdx && (
-                        <div className="fixed inset-0 z-[5]" onClick={() => { setEditOpenDropdown(null); const s = [...editGroupSearches]; s[gIdx] = ''; setEditGroupSearches(s); }} />
-                      )}
-                      <div
-                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between"
-                        onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
-                      >
-                        <span className="text-gray-400 text-sm">Select Team</span>
-                        <svg className={`w-4 h-4 text-gray-400 transition-transform ${editOpenDropdown === gIdx ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </div>
-                      {editOpenDropdown === gIdx && (
-                        <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
-                          <div className="p-2 border-b border-gray-100">
-                            <input
-                              type="text"
-                              value={editGroupSearches[gIdx] || ''}
-                              onChange={e => { const s = [...editGroupSearches]; s[gIdx] = e.target.value; setEditGroupSearches(s); }}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent"
-                              placeholder="Search boards..."
-                              autoFocus
-                              onClick={e => e.stopPropagation()}
-                            />
-                          </div>
-                          {editTeamBoardError && <div className="px-4 py-2 text-xs text-red-600 bg-red-50 border-b border-red-100">{editTeamBoardError}</div>}
-                          <div className="max-h-60 overflow-y-auto">
-                            {boardsLoading ? (
-                              <div className="px-4 py-3 text-sm text-gray-500 text-center flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-brand-green border-t-transparent rounded-full animate-spin" />Loading Team Boards...</div>
-                            ) : (() => {
-                              const filtered = getFilteredBoardsForEdit(gIdx);
-                              return filtered.length === 0 ? (
-                                <div className="px-4 py-3 text-sm text-gray-500 text-center">No Team Boards Available</div>
-                              ) : (
-                                filtered.map((b: any) => (
-                                  <button
-                                    key={b.id}
-                                    onClick={() => addBoardToEditGroup(gIdx, b.id)}
-                                    className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
-                                  >
-                                    <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
-                                      {b.logoUrl ? <img src={b.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover" /> : b.name?.[0]?.toUpperCase() || '?'}
-                                    </div>
-                                    <span className="font-medium text-gray-900">{b.name}</span>
-                                  </button>
-                                ))
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => { setEditOpenDropdown(prev => prev === gIdx ? null : gIdx); refetchBoards(); }}
-                      className="btn-primary text-sm px-6"
-                    >
-                      Add
-                    </button>
-                  </div>
-                  </div>
-                  {group.teamBoardId.length > 0 && (
-                    <div className="space-y-2">
-                      {group.teamBoardId.map(tid => {
-                        const b = boardsList?.find((brd: any) => brd.id === tid);
-                        return (
-                          <div key={tid} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
-                            <div className="flex items-center gap-3">
-                              {b?.logoUrl
-                                ? <img src={b.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                                : <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center text-sm">??</div>
-                              }
-                              <span className="text-sm font-medium">{b?.name || tid}</span>
-                            </div>
-                            <button onClick={() => removeBoardFromEditGroup(gIdx, tid)} className="text-red-500 hover:text-red-700 text-xs font-medium">Remove</button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  </div>
-                </div>
-              ))}
-          </div>
-
-          <div className="flex justify-end gap-2 mt-6">
-            <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editWinPoint.trim() || updateMutation.isPending} className="btn-primary text-sm px-6">
-              {updateMutation.isPending ? 'Updating...' : 'Update'}
-            </button>
-          </div>
-          </div>
+      {!showCreate && editId && (
+        <div className="mb-6">
+          <CreateTrophyTab boardId={boardId} editTournamentId={editId} onClose={() => { setEditId(null); setUpdateError(''); setUpdateSuccess(''); }} />
         </div>
       )}
 
-      {!editId && (
+      {!showCreate && !editId && (
+        <>
+      {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
+
       <div className="bg-white rounded-lg shadow-sm">
         <div className="bg-gray-100 px-4 sm:px-6 py-3 border-b">
           <h2 className="text-base font-bold text-gray-800">Tournament List</h2>
@@ -3720,7 +3455,6 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
           )}
         </div>
       </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -3738,26 +3472,6 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                 <button onClick={() => { deleteMutation.mutate(deleteConfirmId); setDeleteConfirmId(null); }} disabled={deleteMutation.isPending} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">
                   {deleteMutation.isPending ? 'Deleting...' : 'Yes, Delete'}
                 </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Cancel Confirmation Modal */}
-      {showCancelConfirm && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowCancelConfirm(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mb-3">
-                <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-              </div>
-              <h3 className="text-base font-bold text-gray-800 mb-1">Discard Changes?</h3>
-              <p className="text-xs text-gray-500 mb-4">You have unsaved changes. Are you sure you want to discard them?</p>
-              <div className="flex gap-3 w-full">
-                <button onClick={() => setShowCancelConfirm(false)} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm">No, Keep Editing</button>
-                <button onClick={confirmCancel} className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm">Yes, Discard</button>
               </div>
             </div>
           </div>
