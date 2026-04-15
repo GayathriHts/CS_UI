@@ -1557,15 +1557,15 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <>
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-fixed">
                   <thead>
                     <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
-                      <th className="py-3 px-4 rounded-tl-lg" style={{width:'15%'}}>Umpire Name</th>
-                      <th className="py-3 px-4" style={{width:'22%'}}>Email-ID</th>
-                      <th className="py-3 px-4" style={{width:'20%'}}>Contact Number</th>
-                      <th className="py-3 px-4">Rating</th>
-                      <th className="py-3 px-4">Matches</th>
-                      <th className="py-3 px-4 rounded-tr-lg">Actions</th>
+                      <th className="py-3 px-4 rounded-tl-lg w-[18%]">Umpire Name</th>
+                      <th className="py-3 px-4 w-[22%]">Email-ID</th>
+                      <th className="py-3 px-4 w-[18%]">Contact Number</th>
+                      <th className="py-3 px-4 w-[16%]">Rating</th>
+                      <th className="py-3 px-4 w-[14%]">Matches</th>
+                      <th className="py-3 px-4 rounded-tr-lg w-[12%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1573,12 +1573,12 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                       const uid = u.id || u.umpireId;
                       return (
                         <tr key={uid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === uid ? 'bg-blue-50' : ''}`}>
-                          <td className="py-3 font-medium">{u.umpireName || u.name || '-'}</td>
-                          <td className="py-3">{u.email || '-'}</td>
-                          <td className="py-3">{formatPhone(u)}</td>
-                          <td className="py-3">{u.rating != null ? `${'?�'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
-                          <td className="py-3">{u.totalMatches ?? '-'}</td>
-                          <td className="py-3">
+                          <td className="py-3 px-4 font-medium truncate">{u.umpireName || u.name || '-'}</td>
+                          <td className="py-3 px-4 truncate">{u.email || '-'}</td>
+                          <td className="py-3 px-4 truncate">{formatPhone(u)}</td>
+                          <td className="py-3 px-4 truncate">{u.rating != null ? `${'?�'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
+                          <td className="py-3 px-4">{u.totalMatches ?? '-'}</td>
+                          <td className="py-3 px-4">
                             <div className="flex items-center gap-4">
                               <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -3382,14 +3382,14 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
             <>
               {/* Desktop table */}
               <div className="hidden md:block overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm table-fixed">
                   <thead>
                     <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
-                      <th className="py-3 px-4 rounded-tl-lg">Tournament Name</th>
-                      <th className="py-3 px-4">Win Points</th>
-                      <th className="py-3 px-4">Match Type</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4 rounded-tr-lg">Actions</th>
+                      <th className="py-3 px-4 rounded-tl-lg w-[30%]">Tournament Name</th>
+                      <th className="py-3 px-4 w-[18%]">Win Points</th>
+                      <th className="py-3 px-4 w-[18%]">Match Type</th>
+                      <th className="py-3 px-4 w-[18%]">Status</th>
+                      <th className="py-3 px-4 rounded-tr-lg w-[16%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3397,15 +3397,15 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       const tid = t.id;
                       return (
                         <tr key={tid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === tid ? 'bg-blue-50' : ''}`}>
-                          <td className="py-3 font-medium">{t.tournamentName || t.name || '-'}</td>
-                          <td className="py-3">{t.winPoint ?? '-'}</td>
-                          <td className="py-3">{t.matchType || '-'}</td>
-                          <td className="py-3">
+                          <td className="py-3 px-4 font-medium truncate">{t.tournamentName || t.name || '-'}</td>
+                          <td className="py-3 px-4">{t.winPoint ?? '-'}</td>
+                          <td className="py-3 px-4">{t.matchType || '-'}</td>
+                          <td className="py-3 px-4">
                             <span className={`px-2 py-1 rounded-full text-xs ${t.active === 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
                               {t.active === 0 ? 'Inactive' : 'Active'}
                             </span>
                           </td>
-                          <td className="py-3">
+                          <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -4484,27 +4484,27 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
       {!editMatchId && (
       <div className="card">
-        <table className="w-full text-sm">
-          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg">Tournament</th><th className="py-3 px-4">Home</th><th className="py-3 px-4">Away</th><th className="py-3 px-4">Ground</th><th className="py-3 px-4">Umpire</th><th className="py-3 px-4">Scorer</th><th className="py-3 px-4">Date</th><th className="py-3 px-4">Status</th><th className="py-3 px-4 rounded-tr-lg">Actions</th></tr></thead>
+        <table className="w-full text-sm table-fixed">
+          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[13%]">Tournament</th><th className="py-3 px-4 w-[11%]">Home</th><th className="py-3 px-4 w-[11%]">Away</th><th className="py-3 px-4 w-[11%]">Ground</th><th className="py-3 px-4 w-[11%]">Umpire</th><th className="py-3 px-4 w-[11%]">Scorer</th><th className="py-3 px-4 w-[13%]">Date</th><th className="py-3 px-4 w-[10%]">Status</th><th className="py-3 px-4 rounded-tr-lg w-[9%]">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                <td className="py-3 text-xs">{lookupTournamentName(m)}</td>
-                <td className="py-3 font-medium text-sm">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
-                <td className="py-3 font-medium text-sm">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
-                <td className="py-3 text-xs">{m.groundName || lookupGroundName(m.groundId)}</td>
-                <td className="py-3 text-xs">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
-                <td className="py-3 text-xs">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
-                <td className="py-3 text-xs">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</td>
-                <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${statusColor(m.status || (m.active ? 'Scheduled' : 'Cancelled'))}`}>{m.status || (m.active ? 'Scheduled' : 'Cancelled')}</span></td>
-                <td className="py-3 text-xs flex gap-2">
+                <td className="py-3 px-4 text-xs truncate">{lookupTournamentName(m)}</td>
+                <td className="py-3 px-4 font-medium text-sm truncate">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
+                <td className="py-3 px-4 font-medium text-sm truncate">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
+                <td className="py-3 px-4 text-xs truncate">{m.groundName || lookupGroundName(m.groundId)}</td>
+                <td className="py-3 px-4 text-xs truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
+                <td className="py-3 px-4 text-xs truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
+                <td className="py-3 px-4 text-xs truncate">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</td>
+                <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs ${statusColor(m.status || (m.active ? 'Scheduled' : 'Cancelled'))}`}>{m.status || (m.active ? 'Scheduled' : 'Cancelled')}</span></td>
+                <td className="py-3 px-4 text-xs"><div className="flex gap-2">
                   <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700" title="Edit">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   </button>
                   <button onClick={() => setDeleteConfirmId(m.id)} className="text-red-500 hover:text-red-700" title="Delete">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
-                </td>
+                </div></td>
               </tr>
             ))}
             {(!matchList.length) && <tr><td colSpan={9} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
