@@ -3946,6 +3946,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       setCreateSuccess('Schedule created successfully!');
       ssClearAll();
       resetCreateForm();
+      setShowCreate(false);
       setTimeout(() => setCreateSuccess(''), 4000);
     },
     onError: (error: any) => {
@@ -4489,7 +4490,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       {!editMatchId && (
       <div className="card">
         <table className="w-full text-sm table-fixed">
-          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[13%]">Tournament</th><th className="py-3 px-4 w-[11%]">Home</th><th className="py-3 px-4 w-[11%]">Away</th><th className="py-3 px-4 w-[11%]">Ground</th><th className="py-3 px-4 w-[11%]">Umpire</th><th className="py-3 px-4 w-[11%]">Scorer</th><th className="py-3 px-4 w-[13%]">Date</th><th className="py-3 px-4 w-[10%]">Status</th><th className="py-3 px-4 rounded-tr-lg w-[9%]">Actions</th></tr></thead>
+          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[12%]">Umpire</th><th className="py-3 px-4 w-[12%]">Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -4500,7 +4501,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <td className="py-3 px-4 text-xs truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
                 <td className="py-3 px-4 text-xs truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
                 <td className="py-3 px-4 text-xs truncate">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</td>
-                <td className="py-3 px-4"><span className={`px-2 py-1 rounded-full text-xs ${statusColor(m.status || (m.active ? 'Scheduled' : 'Cancelled'))}`}>{m.status || (m.active ? 'Scheduled' : 'Cancelled')}</span></td>
                 <td className="py-3 px-4 text-xs"><div className="flex gap-2">
                   <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700" title="Edit">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -4511,7 +4511,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 </div></td>
               </tr>
             ))}
-            {(!matchList.length) && <tr><td colSpan={9} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
+            {(!matchList.length) && <tr><td colSpan={8} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
           </tbody>
         </table>
       </div>
