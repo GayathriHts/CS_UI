@@ -4041,12 +4041,46 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const groundList = Array.isArray(grounds) ? grounds : [];
   const matchList = Array.isArray(matches) ? matches : [];
 
+  // Collect unique tournament IDs from schedule to fetch team names
+  const scheduleTournamentIds = Array.from(new Set(matchList.map((m: any) => m.tournamentId).filter(Boolean))) as string[];
+  const { data: rosterNameMap } = useQuery({
+    queryKey: ['rosterNameMap', scheduleTournamentIds.join(',')],
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      await Promise.all(scheduleTournamentIds.map(async (tid) => {
+        try {
+          const r = await leagueService.getTeamsByTournament(tid);
+          const d = r.data as any;
+          const inner = d?.data || d;
+          const rosters = Array.isArray(inner?.rosters) ? inner.rosters
+            : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
+            : Array.isArray(inner?.Rosters) ? inner.Rosters
+            : [];
+          const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard
+            : Array.isArray(inner?.teamsBoard) ? inner.teamsBoard
+            : Array.isArray(inner?.teams) ? inner.teams
+            : [];
+          const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : unwrapValues(inner);
+          list.forEach((t: any) => {
+            const id = t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.teamBoardId || t.boardId || '';
+            const name = t.rosterName || t.RosterName || t.name || t.teamName || t.boardName || t.Name || '';
+            if (id && name) map[id] = name;
+          });
+        } catch (e) { /* skip failed lookups */ }
+      }));
+      return map;
+    },
+    enabled: scheduleTournamentIds.length > 0,
+    staleTime: 60000,
+  });
+  const rosterLookup = rosterNameMap || {};
+
   // Lookup helpers to resolve IDs to names for the schedule table
   const lookupTournamentName = (m: any) =>
     m.tournamentName || tournamentList.find((t: any) => t.id === m.tournamentId)?.tournamentName || tournamentList.find((t: any) => t.id === m.tournamentId)?.name || '-';
-  const lookupTeamName = (boardId: string | undefined) => {
-    if (!boardId) return '-';
-    return allBoards.find((b: any) => b.id === boardId)?.name || boardId.slice(0, 8) + '...';
+  const lookupTeamName = (teamId: string | undefined) => {
+    if (!teamId) return '-';
+    return rosterLookup[teamId] || allBoards.find((b: any) => b.id === teamId)?.name || teamId.slice(0, 8) + '...';
   };
   const lookupGroundName = (groundId: string | undefined) => {
     if (!groundId) return '-';
@@ -4091,8 +4125,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       const payload = {
         tournamentId: editTournamentId || null,
         gameType: editGameType || '',
-        homeTeamBoardId: editHomeTeamId || null,
-        awayTeamBoardId: editAwayTeamId || null,
+        homeTeamId: editHomeTeamId || null,
+        awayTeamId: editAwayTeamId || null,
         groundId: editGround || null,
         startAtUtc: editScheduledAt ? new Date(editScheduledAt).toISOString() : null,
         umpireId: editUmpire || null,
@@ -4208,21 +4242,23 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     setEditMatchId(m.id);
     setEditTournamentId(m.tournamentId || '');
     setEditGameType(m.gameType || '');
-    setEditHomeTeamId(m.homeTeamBoardId || '');
-    setEditAwayTeamId(m.awayTeamBoardId || '');
+    setEditHomeTeamId(m.homeTeamId || m.homeTeamBoardId || '');
+    setEditAwayTeamId(m.awayTeamId || m.awayTeamBoardId || '');
     setEditGround(m.groundId || '');
     setEditUmpire(m.umpireId || '');
     setEditAppScorer(m.appScorerId || '');
     setEditPortalScorer(m.portalScorerId || '');
     const schedAt = m.startAtUtc ? new Date(m.startAtUtc).toISOString().slice(0, 16) : m.scheduledAt ? new Date(m.scheduledAt).toISOString().slice(0, 16) : '';
     setEditScheduledAt(schedAt);
-    setEditOriginal({ tournamentId: m.tournamentId || '', gameType: m.gameType || '', homeTeamId: m.homeTeamBoardId || '', awayTeamId: m.awayTeamBoardId || '', ground: m.groundId || '', umpire: m.umpireId || '', appScorer: m.appScorerId || '', portalScorer: m.portalScorerId || '', scheduledAt: schedAt });
+    setEditOriginal({ tournamentId: m.tournamentId || '', gameType: m.gameType || '', homeTeamId: m.homeTeamId || m.homeTeamBoardId || '', awayTeamId: m.awayTeamId || m.awayTeamBoardId || '', ground: m.groundId || '', umpire: m.umpireId || '', appScorer: m.appScorerId || '', portalScorer: m.portalScorerId || '', scheduledAt: schedAt });
     setEditError('');
     // Pre-populate searchable dropdown selections
-    const homeBoard = allBoards.find((b: any) => b.id === m.homeTeamBoardId);
-    setSelectedEditHomeTeam(homeBoard ? { id: homeBoard.id, name: homeBoard.name } : m.homeTeamBoardId ? { id: m.homeTeamBoardId, name: m.homeTeamName || m.homeTeamBoardId } : null);
-    const awayBoard = allBoards.find((b: any) => b.id === m.awayTeamBoardId);
-    setSelectedEditAwayTeam(awayBoard ? { id: awayBoard.id, name: awayBoard.name } : m.awayTeamBoardId ? { id: m.awayTeamBoardId, name: m.awayTeamName || m.awayTeamBoardId } : null);
+    const homeId = m.homeTeamId || m.homeTeamBoardId;
+    const awayId = m.awayTeamId || m.awayTeamBoardId;
+    const homeName = m.homeTeamName || rosterLookup[homeId] || allBoards.find((b: any) => b.id === homeId)?.name || '';
+    setSelectedEditHomeTeam(homeId ? { id: homeId, name: homeName || homeId } : null);
+    const awayName = m.awayTeamName || rosterLookup[awayId] || allBoards.find((b: any) => b.id === awayId)?.name || '';
+    setSelectedEditAwayTeam(awayId ? { id: awayId, name: awayName || awayId } : null);
     const ump = umpireList.find((u: any) => (u.id || u.umpireId) === m.umpireId);
     setSelectedEditUmpire(ump ? { id: ump.id || (ump as any).umpireId, name: (ump as any).umpireName || (ump as any).name || '', email: (ump as any).email } : null);
     const appSc = normalizedUsers.find((u: any) => u.id === m.appScorerId);
@@ -4709,8 +4745,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
                 <td className="py-3 text-xs">{lookupTournamentName(m)}</td>
-                <td className="py-3 font-medium text-sm">{m.homeTeamName || lookupTeamName(m.homeTeamBoardId)}</td>
-                <td className="py-3 font-medium text-sm">{m.awayTeamName || lookupTeamName(m.awayTeamBoardId)}</td>
+                <td className="py-3 font-medium text-sm">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
+                <td className="py-3 font-medium text-sm">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
                 <td className="py-3 text-xs">{m.groundName || lookupGroundName(m.groundId)}</td>
                 <td className="py-3 text-xs">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
                 <td className="py-3 text-xs">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>

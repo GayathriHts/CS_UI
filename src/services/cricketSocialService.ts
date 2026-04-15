@@ -577,8 +577,8 @@ export const leagueService = {
   updateSchedule: (id: string, data: {
     tournamentId?: string | null;
     gameType?: string;
-    homeTeamBoardId?: string | null;
-    awayTeamBoardId?: string | null;
+    homeTeamId?: string | null;
+    awayTeamId?: string | null;
     groundId?: string | null;
     startAtUtc?: string | null;
     umpireId?: string | null;
