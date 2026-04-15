@@ -2891,7 +2891,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
         throw err;
       }
     },
-    enabled: false,
+    enabled: isEditMode,
     staleTime: 60000,
     retry: 1,
   });
