@@ -405,7 +405,7 @@ export default function LoginPage() {
                       setShowResetConfirmPassword(false);
                     }}
                     className="text-sm text-gray-500 hover:text-brand-green">
-                    ← Back to Sign In
+                    ← Back to Sign Up
                   </button>
                 </div>
               )}
