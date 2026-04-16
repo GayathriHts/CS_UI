@@ -232,6 +232,16 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const qc = useQueryClient();
 
+  // Store original values for dirty comparison
+  const [origValues] = useState({
+    name: board.name || '',
+    description: board.description || '',
+    country: board.country || '',
+    state: board.state || '',
+    city: board.city || '',
+    logoPreview: board.logoUrl || board.LogoUrl || board.logourl || '',
+  });
+
   // Location async state
   const [countryList, setCountryList] = useState<string[]>([]);
   const [stateList, setStateList] = useState<string[]>([]);
@@ -367,7 +377,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
     },
   });
 
-  const hasChanges = name !== (board.name || '') || description !== (board.description || '') || country !== (board.country || '') || state !== (board.state || '') || city !== (board.city || '') || logoPreview !== (board.logoUrl || board.LogoUrl || board.logourl || '');
+  const hasChanges = name !== origValues.name || description !== origValues.description || country !== origValues.country || state !== origValues.state || city !== origValues.city || logoPreview !== origValues.logoPreview;
 
   // Report dirty state to parent so sidebar navigation guard works
   useEffect(() => { onDirtyChange?.(hasChanges); }, [hasChanges]);
@@ -1123,6 +1133,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editAddress1, setEditAddress1] = useState('');
@@ -1548,7 +1559,39 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         </div>
       )}
 
-      {!editId && (
+      {/* View details (read-only) */}
+      {viewId && !editId && (() => {
+        const u: any = umpireList.find((x: any) => (x.id || x.umpireId) === viewId);
+        if (!u) return null;
+        const phone = formatPhone(u);
+        return (
+          <div className="bg-white rounded-lg shadow-sm mb-6">
+            <div className="bg-gray-100 px-6 py-3 border-b">
+              <h2 className="text-base font-bold text-gray-800">View Umpire</h2>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Umpire Name</label><p className="text-sm text-gray-900">{u.umpireName || u.name || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Email</label><p className="text-sm text-gray-900">{u.email || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Mobile</label><p className="text-sm text-gray-900">{phone}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Address Line 1</label><p className="text-sm text-gray-900">{u.address1 || u.addressLine1 || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Address Line 2</label><p className="text-sm text-gray-900">{u.address2 || u.addressLine2 || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Country</label><p className="text-sm text-gray-900">{u.country || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">State</label><p className="text-sm text-gray-900">{u.state || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">City</label><p className="text-sm text-gray-900">{u.city || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Zip Code</label><p className="text-sm text-gray-900">{u.zipcode || u.zipCode || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Rating</label><p className="text-sm text-gray-900">{u.rating != null ? Number(u.rating).toFixed(1) : '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Total Matches</label><p className="text-sm text-gray-900">{u.totalMatches ?? '-'}</p></div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button onClick={() => setViewId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {!editId && !viewId && (
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-4 sm:p-6">
           {isLoading ? (
@@ -1580,6 +1623,9 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3 px-4">{u.totalMatches ?? '-'}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-4">
+                              <button onClick={() => { setViewId(uid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                              </button>
                               <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
@@ -1607,6 +1653,9 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-medium text-gray-800">{u.umpireName || u.name || '-'}</h3>
                         <div className="flex items-center gap-2">
+                          <button onClick={() => { setViewId(uid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          </button>
                           <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                           </button>
@@ -2203,6 +2252,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editAddress1, setEditAddress1] = useState('');
@@ -2756,7 +2806,44 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         </div>
       )}
 
-      {!editId && (
+      {/* View details (read-only) */}
+      {viewId && !editId && (() => {
+        const g = groundList.find((x: any) => (x.id || x.groundId) === viewId);
+        if (!g) return null;
+        const homeTeamBoard = g.homeTeam ? editTeamList.find((b: any) => b.id === g.homeTeam) : null;
+        const homeTeamDisplay = homeTeamBoard?.name || g.homeTeamName || (!g.homeTeam ? '-' : g.homeTeam);
+        const pt = g.permitTime || '-';
+        return (
+          <div className="bg-white rounded-lg shadow-sm mb-6">
+            <div className="bg-gray-100 px-6 py-3 border-b">
+              <h2 className="text-base font-bold text-gray-800">View Ground</h2>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground Name</label><p className="text-sm text-gray-900">{g.groundName || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Place of Ground</label><p className="text-sm text-gray-900">{g.address1 || g.placeOfGround || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Address Line 1</label><p className="text-sm text-gray-900">{g.address2 || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Country</label><p className="text-sm text-gray-900">{g.country || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">State</label><p className="text-sm text-gray-900">{g.state || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">City</label><p className="text-sm text-gray-900">{g.city || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Zip Code</label><p className="text-sm text-gray-900">{g.zipcode || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Landmark</label><p className="text-sm text-gray-900">{g.landmark || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Home Team</label><p className="text-sm text-gray-900">{homeTeamDisplay}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Additional Direction</label><p className="text-sm text-gray-900">{g.additionalDirection || g.additonalDirection || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground Facilities</label><p className="text-sm text-gray-900">{g.groundFacilities || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Pitch Description</label><p className="text-sm text-gray-900">{g.pitchDescription || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Wicket Type</label><p className="text-sm text-gray-900">{g.wicketType || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Permit Time</label><p className="text-sm text-gray-900">{pt}</p></div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button onClick={() => setViewId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {!editId && !viewId && (
       <div className="bg-white rounded-lg shadow-sm">
         <div className="p-4 sm:p-6">
           {isLoading ? (
@@ -2790,6 +2877,9 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3 px-4 truncate">{homeTeamDisplay}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
+                              <button onClick={() => { setViewId(gid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                              </button>
                               <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
@@ -2821,6 +2911,9 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
                         </div>
                         <div className="flex items-center gap-2">
+                          <button onClick={() => { setViewId(gid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          </button>
                           <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                           </button>
@@ -3369,7 +3462,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
               disabled={saveMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
               className="btn-primary text-sm px-6"
             >
-              {saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update' : 'Create Schedule')}
+              {saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update' : 'Create Tournament')}
             </button>
           </div>
 
@@ -3438,6 +3531,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState('');
   const [updateSuccess, setUpdateSuccess] = useState('');
@@ -3475,7 +3569,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   return (
     <div className="animate-fade-in">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Tournaments</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Tournament List</h2>
         {!showCreate && !editId && (
           <button onClick={() => setShowCreate(true)} className="btn-primary text-sm flex items-center gap-2">
             <span className="text-xl font-bold leading-none">+</span> Create Tournament
@@ -3497,6 +3591,32 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
 
       {!showCreate && !editId && (
         <>
+      {/* View details (read-only) */}
+      {viewId && (() => {
+        const t = tournamentList.find((x: any) => x.id === viewId);
+        if (!t) return null;
+        return (
+          <div className="bg-white rounded-lg shadow-sm mb-6">
+            <div className="bg-gray-100 px-6 py-3 border-b">
+              <h2 className="text-base font-bold text-gray-800">View Tournament</h2>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Tournament Name</label><p className="text-sm text-gray-900">{t.tournamentName || t.name || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Win Points</label><p className="text-sm text-gray-900">{t.winPoint ?? '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Match Type</label><p className="text-sm text-gray-900">{t.matchType || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Status</label><p className="text-sm text-gray-900">{t.active === 0 ? 'Inactive' : 'Active'}</p></div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button onClick={() => setViewId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {!viewId && (
+      <>
       {updateSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{updateSuccess}</div>}
 
       <div className="bg-white rounded-lg shadow-sm">
@@ -3535,6 +3655,9 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
+                              <button onClick={() => { setViewId(tid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                              </button>
                               <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                               </button>
@@ -3562,6 +3685,9 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-medium text-gray-800">{t.tournamentName || t.name || '-'}</h3>
                         <div className="flex items-center gap-2">
+                          <button onClick={() => { setViewId(tid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                          </button>
                           <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                           </button>
@@ -3586,6 +3712,8 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
           )}
         </div>
       </div>
+      </>
+      )}
 
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
@@ -3622,6 +3750,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const [from, setFrom] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`);
   const [to, setTo] = useState(() => { const last = new Date(today.getFullYear(), today.getMonth() + 2, 0); return `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`; });
   const [editMatchId, setEditMatchId] = useState<string | null>(null);
+  const [viewMatchId, setViewMatchId] = useState<string | null>(null);
   const [editTournamentId, setEditTournamentId] = useState('');
   const [editGameType, setEditGameType] = useState('');
   const [editHomeTeamId, setEditHomeTeamId] = useState('');
@@ -4611,7 +4740,36 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         </div>
       )}
 
-      {!editMatchId && (
+      {/* View details (read-only) */}
+      {viewMatchId && !editMatchId && (() => {
+        const m = matchList.find((x: any) => x.id === viewMatchId);
+        if (!m) return null;
+        return (
+          <div className="bg-white rounded-lg shadow-sm mb-6">
+            <div className="bg-gray-100 px-6 py-3 border-b">
+              <h2 className="text-base font-bold text-gray-800">View Schedule</h2>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Tournament</label><p className="text-sm text-gray-900">{lookupTournamentName(m)}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Game Type</label><p className="text-sm text-gray-900">{m.gameType || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Home Team</label><p className="text-sm text-gray-900">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Away Team</label><p className="text-sm text-gray-900">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground</label><p className="text-sm text-gray-900">{m.groundName || lookupGroundName(m.groundId)}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Umpire</label><p className="text-sm text-gray-900">{m.umpireName || lookupUmpireName(m.umpireId)}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">App Scorer</label><p className="text-sm text-gray-900">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Portal Scorer</label><p className="text-sm text-gray-900">{lookupUserName(m.portalScorerId) || '-'}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Scheduled Date</label><p className="text-sm text-gray-900">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</p></div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button onClick={() => setViewMatchId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {!editMatchId && !viewMatchId && (
       <div className="card">
         <table className="w-full text-sm table-fixed">
           <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[12%]">Umpire</th><th className="py-3 px-4 w-[12%]">Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
@@ -4626,6 +4784,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <td className="py-3 px-4 text-xs truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
                 <td className="py-3 px-4 text-xs truncate">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</td>
                 <td className="py-3 px-4 text-xs"><div className="flex gap-2">
+                  <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                  </button>
                   <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700" title="Edit">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   </button>
