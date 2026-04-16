@@ -2964,11 +2964,22 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
   const addGroup = () => {
     setGroups([...groups, { name: '', teamIds: [] }]);
     setTeamSearches([...teamSearches, '']);
+    // New group should be expanded (not in collapsed set) — no action needed since new index is not in the set
   };
 
   const removeGroup = (idx: number) => {
     setGroups(groups.filter((_, i) => i !== idx));
     setTeamSearches(teamSearches.filter((_, i) => i !== idx));
+    // Shift collapsed indices to match the new group positions
+    setCollapsedGroups(prev => {
+      const next = new Set<number>();
+      for (const i of prev) {
+        if (i < idx) next.add(i);
+        else if (i > idx) next.add(i - 1);
+        // i === idx is the removed group, skip it
+      }
+      return next;
+    });
   };
 
   const updateGroupName = (idx: number, val: string) => {
