@@ -495,7 +495,7 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <p className="font-semibold text-gray-800">{post.userName}</p>
-                        <p className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleDateString()}</p>
+                        <p className="text-xs text-gray-400">{(() => { const dt = new Date(post.createdAt); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}/${mm}/${dt.getFullYear()}`; })()}</p>
                       </div>
                     </div>
                     {post.content && <p className="text-gray-700 mb-3">{post.content}</p>}

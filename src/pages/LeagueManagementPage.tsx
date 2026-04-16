@@ -26,6 +26,28 @@ const sanitizeTextInput = (value: string, allowAddressChars = false): string => 
   return v;
 };
 
+/** Format date consistently as DD/MM/YYYY, HH:mm */
+const formatDateTime = (d: string | Date): string => {
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '-';
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const yyyy = dt.getFullYear();
+  const hh = String(dt.getHours()).padStart(2, '0');
+  const min = String(dt.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm}/${yyyy}, ${hh}:${min}`;
+};
+
+/** Format date consistently as DD/MM/YYYY */
+const formatDateOnly = (d: string | Date): string => {
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return '-';
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const yyyy = dt.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+};
+
 const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueTab; label: string }[] }[] = [
   {
     id: 'umpires', label: 'UMPIRES',
@@ -321,7 +343,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
       if (existingNames.includes(name.toLowerCase().trim())) {
         throw new Error('Board name already exists. Please create a different name.');
       }
-      // ownerId must remain the original owner � never overwrite with co-owner
+      // ownerId must remain the original owner ? never overwrite with co-owner
       const existingOwnerId = board.ownerId || board.owneriD || board.OwnerId || board.owner_id || board.createdBy || board.userId || board.ownerid || '';
       const resolvedOwnerId = existingOwnerId;
       const payload: any = {
@@ -607,7 +629,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} ? {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} ? {formatDateTime(m.scheduledAt)}</p>
                   {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
                 </div>
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">View Score</span>
@@ -630,7 +652,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} ? {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} ? {formatDateTime(m.scheduledAt)}</p>
                   {m.groundName && <p className="text-xs text-gray-400">?? {m.groundName}</p>}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -1309,7 +1331,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       setEditMobile('');
     }
     setEditEmail(u.email || '');
-    // Compute parsed values for editOriginal � must match the logic above
+    // Compute parsed values for editOriginal ? must match the logic above
     let parsedCode = '+1';
     let parsedMobile = '';
     const origDigits = rawMobile.replace(/\D/g, '');
@@ -1570,18 +1592,48 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <h2 className="text-base font-bold text-gray-800">View Umpire</h2>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Umpire Name</label><p className="text-sm text-gray-900">{u.umpireName || u.name || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Email</label><p className="text-sm text-gray-900">{u.email || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Mobile</label><p className="text-sm text-gray-900">{phone}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Address Line 1</label><p className="text-sm text-gray-900">{u.address1 || u.addressLine1 || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Address Line 2</label><p className="text-sm text-gray-900">{u.address2 || u.addressLine2 || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Country</label><p className="text-sm text-gray-900">{u.country || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">State</label><p className="text-sm text-gray-900">{u.state || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">City</label><p className="text-sm text-gray-900">{u.city || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Zip Code</label><p className="text-sm text-gray-900">{u.zipcode || u.zipCode || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Rating</label><p className="text-sm text-gray-900">{u.rating != null ? Number(u.rating).toFixed(1) : '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Total Matches</label><p className="text-sm text-gray-900">{u.totalMatches ?? '-'}</p></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+                {/* Row 1: Umpire Name, Address Line 1, Address Line 2 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Umpire Name</label>
+                  <input value={u.umpireName || u.name || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                  <input value={u.address1 || u.addressLine1 || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                  <input value={u.address2 || u.addressLine2 || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+
+                {/* Row 2: Country, State, City */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <input value={u.country || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                  <input value={u.state || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input value={u.city || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+
+                {/* Row 3: Zip Code, Contact Number, Email ID */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+                  <input value={u.zipcode || u.zipCode || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                  <input value={phone || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email ID</label>
+                  <input value={u.email || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
               </div>
               <div className="flex justify-end mt-6">
                 <button onClick={() => setViewId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
@@ -3097,7 +3149,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
       if (respData?.errors) {
         const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
-        msg = msg ? `${msg} � ${ve}` : ve;
+        msg = msg ? `${msg} ? ${ve}` : ve;
       }
       setErrorMsg(msg || err?.message || 'Failed to create tournament. Please try again.');
       setSuccessMsg('');
@@ -3118,7 +3170,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
       if (respData?.errors) {
         const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
-        msg = msg ? `${msg} � ${ve}` : ve;
+        msg = msg ? `${msg} ? ${ve}` : ve;
       }
       setErrorMsg(msg || err?.message || 'Failed to update tournament. Please try again.');
       setSuccessMsg('');
@@ -3130,7 +3182,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
   const addGroup = () => {
     setGroups([...groups, { name: '', teamIds: [] }]);
     setTeamSearches([...teamSearches, '']);
-    // New group should be expanded (not in collapsed set) � no action needed since new index is not in the set
+    // New group should be expanded (not in collapsed set) ? no action needed since new index is not in the set
   };
 
   const removeGroup = (idx: number) => {
@@ -3513,8 +3565,8 @@ function CancelGameTab({ boardId }: { boardId: string }) {
         </div>
         <div className="p-6">
           <div className="flex flex-wrap gap-4 items-end">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="input-field" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} max={to} onChange={e => { const v = e.target.value; if (v && to && v > to) { setFrom(v); setTo(v); } else { setFrom(v); } }} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} min={from} onChange={e => { const v = e.target.value; if (v && from && v < from) { setTo(v); setFrom(v); } else { setTo(v); } }} className="input-field" /></div>
             <button onClick={() => bulkCancelMutation.mutate()} disabled={bulkCancelMutation.isPending || !from || !to}
               className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {bulkCancelMutation.isPending ? 'Cancelling...' : 'Cancel Games'}
@@ -4013,7 +4065,15 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const umpireList = Array.isArray(umpires) ? umpires : [];
   const groundList = Array.isArray(grounds) ? grounds : [];
-  const matchList = Array.isArray(matches) ? matches : [];
+  const rawMatchList = Array.isArray(matches) ? matches : [];
+
+  // Client-side date range filter as safety net
+  const matchList = rawMatchList.filter((m: any) => {
+    const d = m.startAtUtc || m.scheduledAt;
+    if (!d || !from || !to) return true;
+    const dateStr = d.split('T')[0];
+    return dateStr >= from && dateStr <= to;
+  });
 
   // Collect unique tournament IDs from schedule to fetch team names
   const scheduleTournamentIds = Array.from(new Set(matchList.map((m: any) => m.tournamentId).filter(Boolean))) as string[];
@@ -4325,7 +4385,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   };
 
   // Check if all required fields for creating a match are filled
-  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newScheduledAt);
+  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newScheduledAt && newAppScorerId && newPortalScorerId);
 
   const validateAndCreate = () => {
     const errors: Record<string, string> = {};
@@ -4335,6 +4395,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!newAwayTeamId) errors.awayTeam = 'Away Team is required';
     if (newHomeTeamId && newAwayTeamId && newHomeTeamId === newAwayTeamId) errors.awayTeam = 'Home and Away teams must be different';
     if (!newScheduledAt) errors.scheduledAt = 'Date & Time is required';
+    if (!newAppScorerId) errors.appScorer = 'App Scorer is required';
+    if (!newPortalScorerId) errors.portalScorer = 'Portal Scorer is required';
     setFormErrors(errors);
     setCreateError('');
     setCreateSuccess('');
@@ -4416,7 +4478,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     onClear: () => void,
   ) => (
     <div className="relative">
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label.endsWith(' *') ? <>{label.slice(0, -2)} <span className="text-red-500">*</span></> : label}</label>
       {selected ? (
         <div className="flex items-center gap-2 input-field bg-gray-50">
           <span className="flex-1 text-sm truncate">{`${selected.firstName} ${selected.lastName}`.trim() || selected.email}</span>
@@ -4614,14 +4676,14 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               () => { setSelectedUmpire(null); setNewUmpireId(''); ssSet('umpireId', ''); setUmpireSearch(''); },
             )}
             {renderUserSearchDropdown(
-              'App Scorer', appScorerSearch, setAppScorerSearch,
+              'App Scorer *', appScorerSearch, setAppScorerSearch,
               showAppScorerDropdown, setShowAppScorerDropdown,
               selectedAppScorer,
               (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); },
               () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); },
             )}
             {renderUserSearchDropdown(
-              'Portal Scorer', portalScorerSearch, setPortalScorerSearch,
+              'Portal Scorer *', portalScorerSearch, setPortalScorerSearch,
               showPortalScorerDropdown, setShowPortalScorerDropdown,
               selectedPortalScorer,
               (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); },
@@ -4657,12 +4719,14 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
       {!showCreate && (
         <>
+      {!editMatchId && (
       <div className="card mb-6">
         <div className="flex flex-wrap gap-4 items-end">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} onChange={e => setFrom(e.target.value)} className="input-field" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} onChange={e => setTo(e.target.value)} className="input-field" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} max={to} onChange={e => { const v = e.target.value; if (v && to && v > to) { setFrom(v); setTo(v); } else { setFrom(v); } }} className="input-field" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} min={from} onChange={e => { const v = e.target.value; if (v && from && v < from) { setTo(v); setFrom(v); } else { setTo(v); } }} className="input-field" /></div>
         </div>
       </div>
+      )}
 
       {editMatchId && (
         <div className="card mb-6">
@@ -4760,7 +4824,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Umpire</label><p className="text-sm text-gray-900">{m.umpireName || lookupUmpireName(m.umpireId)}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">App Scorer</label><p className="text-sm text-gray-900">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Portal Scorer</label><p className="text-sm text-gray-900">{lookupUserName(m.portalScorerId) || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Scheduled Date</label><p className="text-sm text-gray-900">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Scheduled Date</label><p className="text-sm text-gray-900">{formatDateTime(m.startAtUtc || m.scheduledAt)}</p></div>
               </div>
               <div className="flex justify-end mt-6">
                 <button onClick={() => setViewMatchId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
@@ -4773,7 +4837,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       {!editMatchId && !viewMatchId && (
       <div className="card">
         <table className="w-full text-sm table-fixed">
-          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[12%]">Umpire</th><th className="py-3 px-4 w-[12%]">Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
+          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[12%]">Umpire</th><th className="py-3 px-4 w-[12%]">App Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -4783,7 +4847,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <td className="py-3 px-4 text-xs truncate">{m.groundName || lookupGroundName(m.groundId)}</td>
                 <td className="py-3 px-4 text-xs truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
                 <td className="py-3 px-4 text-xs truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
-                <td className="py-3 px-4 text-xs truncate">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</td>
+                <td className="py-3 px-4 text-xs truncate">{formatDateTime(m.startAtUtc || m.scheduledAt)}</td>
                 <td className="py-3 px-4 text-xs"><div className="flex gap-2">
                   <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
@@ -4907,7 +4971,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
                   <td className="py-3">{a.paymentAmount ? `$${a.paymentAmount}` : '-'} {a.paymentStatus && <span className="text-xs text-gray-400">({a.paymentStatus})</span>}</td>
                   <td className="py-3">{a.waiverSigned ? '?' : '?'}</td>
                   <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${a.status === 'Approved' ? 'bg-green-100 text-green-700' : a.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{a.status}</span></td>
-                  <td className="py-3 text-xs">{new Date(a.submittedAt).toLocaleDateString()}</td>
+                  <td className="py-3 text-xs">{formatDateOnly(a.submittedAt)}</td>
                   <td className="py-3 space-x-2">
                     {a.status === 'Pending' && (<>
                       <button onClick={() => statusMutation.mutate({ id: a.id, status: 'Approved' })} className="text-green-600 hover:text-green-800 text-xs font-medium">Approve</button>
@@ -4970,7 +5034,7 @@ function InvoicesTab({ boardId }: { boardId: string }) {
                 <td className="py-3">{inv.description || '-'}</td>
                 <td className="py-3 font-medium">${inv.amount.toFixed(2)}</td>
                 <td className="py-3">${(inv.paidAmount ?? 0).toFixed(2)}</td>
-                <td className="py-3 text-xs">{new Date(inv.dueDate).toLocaleDateString()}</td>
+                <td className="py-3 text-xs">{formatDateOnly(inv.dueDate)}</td>
                 <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${statusColor(inv.status)}`}>{inv.status}</span></td>
                 <td className="py-3">
                   {inv.status !== 'Paid' && (

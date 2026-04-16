@@ -719,7 +719,7 @@ function PitchTab({ boardId }: { boardId: string }) {
           <div key={f.id} className="card">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold">{f.userName[0]}</div>
-              <div><p className="font-semibold text-sm text-gray-800">{f.userName}</p><p className="text-xs text-gray-400">{new Date(f.createdAt).toLocaleDateString()}</p></div>
+              <div><p className="font-semibold text-sm text-gray-800">{f.userName}</p><p className="text-xs text-gray-400">{(() => { const dt = new Date(f.createdAt); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}/${mm}/${dt.getFullYear()}`; })()}</p></div>
             </div>
             {f.content && <p className="text-gray-700 text-sm mb-3">{f.content}</p>}
             {f.mediaUrl && <img src={f.mediaUrl} alt="" className="rounded-lg mb-3 max-h-64 object-cover" />}
@@ -799,7 +799,7 @@ function FansTab({ boardId }: { boardId: string }) {
                 <div className="w-16 h-16 mx-auto bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xl mb-2">{f.userName[0]}</div>
               )}
               <p className="font-medium text-sm text-gray-800 truncate">{f.userName}</p>
-              <p className="text-xs text-gray-400">{new Date(f.joinedAt).toLocaleDateString()}</p>
+              <p className="text-xs text-gray-400">{(() => { const dt = new Date(f.joinedAt); const dd = String(dt.getDate()).padStart(2,'0'); const mm = String(dt.getMonth()+1).padStart(2,'0'); return `${dd}/${mm}/${dt.getFullYear()}`; })()}</p>
             </div>
           ))}
         </div>

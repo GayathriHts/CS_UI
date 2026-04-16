@@ -577,7 +577,7 @@ export const leagueService = {
   // Tournament Management
   cancelTournament: (tournamentId: string) => api.delete(`/tournaments/${tournamentId}`),
   getSchedule: (boardId: string, from: string, to: string) =>
-    umpireApi.get('/tournament/Schedules', { params: { from, to } }),
+    umpireApi.get('/tournament/Schedules', { params: { boardId, from, to } }),
   getScheduleById: (id: string) =>
     umpireApi.get(`/tournament/Schedules/${id}`),
   updateSchedule: (id: string, data: {
