@@ -1688,6 +1688,17 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   const [country, setCountry] = useState('');
   const [zipCode, setZipCode] = useState('');
   const [landmark, setLandmark] = useState('');
+
+  // Fetch existing grounds for duplicate name validation
+  const { data: existingGrounds } = useQuery({
+    queryKey: ['grounds', boardId],
+    queryFn: () => leagueService.getGrounds(boardId).then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
+    }),
+    enabled: !!boardId,
+  });
+  const existingGroundList = Array.isArray(existingGrounds) ? existingGrounds : [];
   const [homeTeam, setHomeTeam] = useState('');
   const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ id: string; name: string; logoUrl?: string } | null>(null);
   const [homeTeamSearch, setHomeTeamSearch] = useState('');
@@ -1818,12 +1829,27 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       // Extract the most useful error message from various .NET response shapes
       // Prioritize specific field errors over generic title
       const fieldErrors = detail?.errors ? Object.entries(detail.errors).map(([k, v]: [string, any]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ') : '';
+      const status = err?.response?.status;
+      // Detect duplicate ground name from server error
+      if (status === 500 || status === 409 || status === 400) {
+        const errStr = JSON.stringify(detail).toLowerCase();
+        if (errStr.includes('duplicate') || errStr.includes('already exists') || errStr.includes('unique') || errStr.includes('conflict')) {
+          setErrorMsg('A ground with this name already exists. Please use a different name.');
+          setSuccessMsg('');
+          return;
+        }
+      }
+      // For 500 with no useful detail, show a friendly duplicate-likely message
+      if (status === 500 && (!detail || typeof detail !== 'object' || !fieldErrors)) {
+        setErrorMsg('A ground with this name already exists. Please use a different name.');
+        setSuccessMsg('');
+        return;
+      }
       const msg = fieldErrors
         || detail?.detail
         || detail?.message
         || detail?.title
         || (typeof detail === 'string' ? detail : '')
-        || err?.message
         || 'Failed to create ground. Please try again.';
       setErrorMsg(`${msg}${detail?.status ? ` (Status: ${detail.status})` : ''}`);
       setSuccessMsg('');
@@ -1838,6 +1864,12 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     }
     if (!permitHour.trim() || !permitMinutes.trim()) {
       setErrorMsg('Please fill in the Permit Time (HH and MM are required).');
+      return;
+    }
+    // Client-side duplicate ground name check
+    const duplicate = existingGroundList.find((g: any) => (g.groundName || g.name || '').trim().toLowerCase() === name.trim().toLowerCase());
+    if (duplicate) {
+      setErrorMsg('A ground with this name already exists. Please use a different name.');
       return;
     }
     createMutation.mutate();
@@ -2044,18 +2076,18 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               )}
             </div>
 
-            {/* Row 4: Additional Direction, Ground Facilities, Pitch Description (textareas) */}
+            {/* Row 4: Additional Direction, Ground Facilities, Pitch Description */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Additional Direction</label>
-              <textarea value={additionalDirection} onChange={e => setAdditionalDirection(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+              <input value={additionalDirection} onChange={e => setAdditionalDirection(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Ground Facilities</label>
-              <textarea value={groundFacilities} onChange={e => setGroundFacilities(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+              <input value={groundFacilities} onChange={e => setGroundFacilities(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Pitch Description</label>
-              <textarea value={pitchDescription} onChange={e => setPitchDescription(sanitizeTextInput(e.target.value, true))} rows={3} className="input-field resize-none" />
+              <input value={pitchDescription} onChange={e => setPitchDescription(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
 
             {/* Row 5: Wicket Type, Permit Time */}
@@ -2070,7 +2102,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${wicketDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {wicketDropdownOpen && (
-                <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   {['Regular Turf', 'Artificial Turf', 'Matting', 'Concrete', 'Indoor'].map(wt => (
                     <button key={wt} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${wicketType === wt ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
                       onClick={() => { setWicketType(wt); setWicketDropdownOpen(false); }}>{wt}</button>
@@ -2259,6 +2291,15 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     staleTime: 30000,
   });
   const editTeamList = Array.isArray(editTeamBoards) ? editTeamBoards : [];
+
+  // Re-resolve selectedHomeTeam once editTeamList loads (homeTeam may be a GUID)
+  useEffect(() => {
+    if (editHomeTeam && !editSelectedHomeTeam && editTeamList.length > 0) {
+      const matched = editTeamList.find((b: any) => b.id === editHomeTeam || b.name === editHomeTeam);
+      if (matched) setEditSelectedHomeTeam(matched);
+    }
+  }, [editTeamList, editHomeTeam, editSelectedHomeTeam]);
+
   const editFilteredTeams = editTeamList.filter((b: any) => {
     const q = editHomeTeamSearch.toLowerCase();
     return !q || b.name?.toLowerCase().includes(q);
@@ -2312,7 +2353,27 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       setTimeout(() => setUpdateSuccess(''), 4000);
     },
     onError: (error: any) => {
-      const msg = error?.response?.data?.message || error?.response?.data?.title || error?.message || 'Failed to update ground.';
+      const detail = error?.response?.data;
+      const status = error?.response?.status;
+      const fieldErrors = detail?.errors ? Object.entries(detail.errors).map(([k, v]: [string, any]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ') : '';
+      // Detect duplicate ground name from server error
+      if (status === 500 || status === 409 || status === 400) {
+        const errStr = JSON.stringify(detail).toLowerCase();
+        if (errStr.includes('duplicate') || errStr.includes('already exists') || errStr.includes('unique') || errStr.includes('conflict')) {
+          setUpdateError('A ground with this name already exists. Please use a different name.');
+          return;
+        }
+      }
+      if (status === 500 && (!detail || typeof detail !== 'object' || !fieldErrors)) {
+        setUpdateError('A ground with this name already exists. Please use a different name.');
+        return;
+      }
+      const msg = fieldErrors
+        || detail?.detail
+        || detail?.message
+        || detail?.title
+        || (typeof detail === 'string' ? detail : '')
+        || 'Failed to update ground. Please try again.';
       setUpdateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     },
   });
@@ -2327,8 +2388,8 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditZipcode(g.zipcode || '');
     setEditLandmark(g.landmark || '');
     setEditHomeTeam(g.homeTeam || '');
-    const matchedTeam = editTeamList.find((b: any) => b.name === (g.homeTeam || ''));
-    setEditSelectedHomeTeam(matchedTeam || (g.homeTeam ? { id: '', name: g.homeTeam, logoUrl: '' } : null));
+    const matchedTeam = editTeamList.find((b: any) => b.id === (g.homeTeam || '') || b.name === (g.homeTeam || ''));
+    setEditSelectedHomeTeam(matchedTeam || null);
     setEditHomeTeamSearch('');
     setEditPlaceOfGround(g.address1 || g.placeOfGround || '');
     // API uses typo "additonalDirection"
@@ -2618,7 +2679,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 <svg className={`w-4 h-4 text-gray-400 transition-transform ${editWicketDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
               {editWicketDropdownOpen && (
-                <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
+                <div className="absolute z-10 bottom-full mb-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   {['Regular Turf', 'Artificial Turf', 'Matting', 'Concrete', 'Indoor'].map(wt => (
                     <button key={wt} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editWicketType === wt ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
                       onClick={() => { setEditWicketType(wt); setEditWicketDropdownOpen(false); }}>{wt}</button>
@@ -2675,7 +2736,19 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
           <div className="flex justify-end gap-2 mt-6">
             <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => updateMutation.mutate()} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editPermitHour.trim() || !editPermitMinutes.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
+            <button onClick={() => {
+              // Client-side duplicate ground name check (exclude current ground)
+              const duplicate = groundList.find((g: any) => {
+                const gid = g.id || g.groundId;
+                return gid !== editId && (g.groundName || g.name || '').trim().toLowerCase() === editName.trim().toLowerCase();
+              });
+              if (duplicate) {
+                setUpdateError('A ground with this name already exists. Please use a different name.');
+                return;
+              }
+              setUpdateError('');
+              updateMutation.mutate();
+            }} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editPermitHour.trim() || !editPermitMinutes.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
