@@ -218,7 +218,7 @@ export default function LeagueManagementPage() {
   );
 }
 
-// ── EDIT LEAGUE MODAL ──
+// -- EDIT LEAGUE MODAL --
 function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { board: any; boardId: string; onClose: () => void; onSaved: () => void; onDirtyChange?: (dirty: boolean) => void }) {
   const [name, setName] = useState(board.name || '');
   const [boardNameError, setBoardNameError] = useState('');
@@ -321,7 +321,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
       if (existingNames.includes(name.toLowerCase().trim())) {
         throw new Error('Board name already exists. Please create a different name.');
       }
-      // ownerId must remain the original owner — never overwrite with co-owner
+      // ownerId must remain the original owner � never overwrite with co-owner
       const existingOwnerId = board.ownerId || board.owneriD || board.OwnerId || board.owner_id || board.createdBy || board.userId || board.ownerid || '';
       const resolvedOwnerId = existingOwnerId;
       const payload: any = {
@@ -556,7 +556,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
   );
 }
 
-// ── LEAGUE LANDING TAB (default when Manage League is opened) ──
+// -- LEAGUE LANDING TAB (default when Manage League is opened) --
 function LeagueLandingTab({ boardId }: { boardId: string }) {
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments', boardId],
@@ -607,7 +607,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} � {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} ? {new Date(m.scheduledAt).toLocaleString()}</p>
                   {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
                 </div>
                 <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium cursor-pointer hover:bg-blue-200">View Score</span>
@@ -630,7 +630,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} � {new Date(m.scheduledAt).toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">{m.tournamentName} ? {new Date(m.scheduledAt).toLocaleString()}</p>
                   {m.groundName && <p className="text-xs text-gray-400">?? {m.groundName}</p>}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
@@ -647,7 +647,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
   );
 }
 
-// ── CREATE UMPIRE TAB ──
+// -- CREATE UMPIRE TAB --
 function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [addressLine1, setAddressLine1] = useState('');
@@ -865,7 +865,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
                         `${u.firstName || ''} ${u.lastName || ''} ${u.email || ''} ${u.userName || ''}`.toLowerCase().includes(name.trim().toLowerCase())
                       );
                       return filtered.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching users � name will be submitted as entered</div>
+                        <div className="px-4 py-3 text-sm text-gray-500 text-center">No matching users ? name will be submitted as entered</div>
                       ) : (
                         filtered.map((u: any) => {
                           const displayName = `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.userName || (u.email ? u.email.split('@')[0] : u.id);
@@ -927,7 +927,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
               />
             </div>
 
-            {/* Row 2: Country → State → City cascading dropdowns */}
+            {/* Row 2: Country ? State ? City cascading dropdowns */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Country <span className="text-red-500">*</span>
@@ -1128,7 +1128,7 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
   );
 }
 
-// ── UMPIRE LIST TAB ──
+// -- UMPIRE LIST TAB --
 function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -1309,7 +1309,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       setEditMobile('');
     }
     setEditEmail(u.email || '');
-    // Compute parsed values for editOriginal — must match the logic above
+    // Compute parsed values for editOriginal � must match the logic above
     let parsedCode = '+1';
     let parsedMobile = '';
     const origDigits = rawMobile.replace(/\D/g, '');
@@ -1410,7 +1410,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <input value={editAddress2} onChange={e => setEditAddress2(sanitizeTextInput(e.target.value))} className="input-field" />
             </div>
 
-            {/* Row 2: Country → State → City */}
+            {/* Row 2: Country ? State ? City */}
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
               {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
@@ -1619,12 +1619,12 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3 px-4 font-medium truncate">{u.umpireName || u.name || '-'}</td>
                           <td className="py-3 px-4 truncate">{u.email || '-'}</td>
                           <td className="py-3 px-4 truncate">{formatPhone(u)}</td>
-                          <td className="py-3 px-4 truncate">{u.rating != null ? `${'?�'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
+                          <td className="py-3 px-4 truncate">{u.rating != null ? `${'??'.repeat(Math.round(u.rating))} (${Number(u.rating).toFixed(1)})` : '-'}</td>
                           <td className="py-3 px-4">{u.totalMatches ?? '-'}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-4">
                               <button onClick={() => { setViewId(uid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                               </button>
                               <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -1654,7 +1654,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                         <h3 className="font-medium text-gray-800">{u.umpireName || u.name || '-'}</h3>
                         <div className="flex items-center gap-2">
                           <button onClick={() => { setViewId(uid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           </button>
                           <button onClick={() => handleEdit(u)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -1727,7 +1727,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   );
 }
 
-// ── CREATE GROUND TAB ──
+// -- CREATE GROUND TAB --
 function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onCreated?: () => void; onClose?: () => void }) {
   const [name, setName] = useState('');
   const [address1, setAddress1] = useState('');
@@ -2247,7 +2247,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   );
 }
 
-// ── GROUND LIST TAB ──
+// -- GROUND LIST TAB --
 function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -2878,7 +2878,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <button onClick={() => { setViewId(gid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                               </button>
                               <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -2912,7 +2912,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => { setViewId(gid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           </button>
                           <button onClick={() => handleEdit(g)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -2985,7 +2985,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
   );
 }
 
-// ── CREATE TROPHY TAB ──
+// -- CREATE TROPHY TAB --
 interface TrophyGroup {
   name: string;
   teamIds: string[];
@@ -3097,7 +3097,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
       if (respData?.errors) {
         const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
-        msg = msg ? `${msg} — ${ve}` : ve;
+        msg = msg ? `${msg} � ${ve}` : ve;
       }
       setErrorMsg(msg || err?.message || 'Failed to create tournament. Please try again.');
       setSuccessMsg('');
@@ -3118,7 +3118,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       let msg = typeof respData === 'string' ? respData : respData?.message || respData?.title || respData?.detail || '';
       if (respData?.errors) {
         const ve = Object.entries(respData.errors).map(([f, e]) => `${f}: ${Array.isArray(e) ? e.join(', ') : e}`).join('; ');
-        msg = msg ? `${msg} — ${ve}` : ve;
+        msg = msg ? `${msg} � ${ve}` : ve;
       }
       setErrorMsg(msg || err?.message || 'Failed to update tournament. Please try again.');
       setSuccessMsg('');
@@ -3130,7 +3130,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
   const addGroup = () => {
     setGroups([...groups, { name: '', teamIds: [] }]);
     setTeamSearches([...teamSearches, '']);
-    // New group should be expanded (not in collapsed set) — no action needed since new index is not in the set
+    // New group should be expanded (not in collapsed set) � no action needed since new index is not in the set
   };
 
   const removeGroup = (idx: number) => {
@@ -3150,7 +3150,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
 
   const updateGroupName = (idx: number, val: string) => {
     const updated = [...groups];
-    updated[idx] = { ...updated[idx], name: val };
+    updated[idx] = { ...updated[idx], name: sanitizeTextInput(val) };
     setGroups(updated);
   };
 
@@ -3214,7 +3214,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
               </label>
               <input
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={e => setName(sanitizeTextInput(e.target.value))}
                 className="input-field"
               />
             </div>
@@ -3462,7 +3462,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
               disabled={saveMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
               className="btn-primary text-sm px-6"
             >
-              {saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Creating...') : (isEditMode ? 'Update' : 'Create Tournament')}
+              {saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Submit')}
             </button>
           </div>
 
@@ -3494,7 +3494,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
   );
 }
 
-// ── CANCEL GAME BY DATE TAB ──
+// -- CANCEL GAME BY DATE TAB --
 function CancelGameTab({ boardId }: { boardId: string }) {
   const today = new Date();
   const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
@@ -3526,7 +3526,7 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   );
 }
 
-// ── TOURNAMENTS TAB ──
+// -- TOURNAMENTS TAB --
 function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
@@ -3656,7 +3656,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <button onClick={() => { setViewId(tid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                               </button>
                               <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -3686,7 +3686,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                         <h3 className="font-medium text-gray-800">{t.tournamentName || t.name || '-'}</h3>
                         <div className="flex items-center gap-2">
                           <button onClick={() => { setViewId(tid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           </button>
                           <button onClick={() => handleEdit(t)} className="text-blue-500 hover:text-blue-700" title="Edit">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -3742,7 +3742,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   );
 }
 
-// ── SCHEDULE TAB ──
+// -- SCHEDULE TAB --
 function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const today = new Date();
   const user = useAuthStore((s) => s.user);
@@ -3914,7 +3914,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(newTournamentId);
       const d = r.data as any;
-      console.log('🏏 Tournament teams raw response:', JSON.stringify(d, null, 2));
+      console.log('?? Tournament teams raw response:', JSON.stringify(d, null, 2));
       // Try multiple response shapes from the API
       const inner = d?.data || d;
       // Look for rosters array first (API returns rosterId/rosterName)
@@ -3930,9 +3930,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         : [];
       // Prefer rosters, then teamsboard, then generic unwrap
       const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : unwrapValues(inner);
-      console.log('🏏 Tournament teams extracted:', list.length, list.slice(0, 3));
+      console.log('?? Tournament teams extracted:', list.length, list.slice(0, 3));
       const mapped = list.map(mapTeamItem);
-      console.log('🏏 Tournament teams mapped:', mapped.length, mapped.slice(0, 3));
+      console.log('?? Tournament teams mapped:', mapped.length, mapped.slice(0, 3));
       return mapped;
     },
     enabled: !!newTournamentId,
@@ -3946,7 +3946,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     queryFn: async () => {
       const r = await leagueService.getTeamsByTournament(editTournamentId);
       const d = r.data as any;
-      console.log('🏏 Edit tournament teams raw response:', JSON.stringify(d, null, 2));
+      console.log('?? Edit tournament teams raw response:', JSON.stringify(d, null, 2));
       const inner = d?.data || d;
       const rosters = Array.isArray(inner?.rosters) ? inner.rosters
         : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
@@ -4130,8 +4130,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: editSsGet('portalScorerId') || '',
         active: true,
       };
-      console.log('📋 Schedule PUT payload (from sessionStorage):', JSON.stringify(payload, null, 2));
-      console.log('📋 Schedule PUT id:', scheduleId);
+      console.log('?? Schedule PUT payload (from sessionStorage):', JSON.stringify(payload, null, 2));
+      console.log('?? Schedule PUT id:', scheduleId);
       return leagueService.updateSchedule(scheduleId, payload);
     },
     onSuccess: () => {
@@ -4189,11 +4189,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         portalScorerId: ssGet('portalScorerId') || null,
         active: true,
       };
-      console.log('📋 Schedule POST payload (from sessionStorage):', JSON.stringify(payload, null, 2));
+      console.log('?? Schedule POST payload (from sessionStorage):', JSON.stringify(payload, null, 2));
       return tournamentService.createSchedule(payload as any);
     },
     onSuccess: (response: any) => {
-      console.log('✅ Schedule created successfully:', response?.data);
+      console.log('? Schedule created successfully:', response?.data);
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       setCreateError('');
       setCreateSuccess('Schedule created successfully!');
@@ -4205,9 +4205,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     onError: (error: any) => {
       const status = error?.response?.status;
       const respData = error?.response?.data;
-      console.error('❌ Schedule creation failed:', status, respData);
-      console.error('❌ Full error response:', JSON.stringify(error?.response?.data, null, 2));
-      console.error('❌ Request config:', JSON.stringify({ url: error?.config?.url, headers: error?.config?.headers, data: error?.config?.data }, null, 2));
+      console.error('? Schedule creation failed:', status, respData);
+      console.error('? Full error response:', JSON.stringify(error?.response?.data, null, 2));
+      console.error('? Request config:', JSON.stringify({ url: error?.config?.url, headers: error?.config?.headers, data: error?.config?.data }, null, 2));
       let msg = '';
       if (typeof respData === 'string') {
         msg = respData;
@@ -4424,6 +4424,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         </div>
       ) : (
         <>
+          {showDropdown && <div className="fixed inset-0 z-[5]" onClick={() => { setShowDropdown(false); setSearch(''); }} />}
           <input
             type="text"
             placeholder={`Search ${label.toLowerCase()}...`}
@@ -4648,7 +4649,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               disabled={!isCreateFormValid || createMatchMutation.isPending}
               className={`text-sm px-6 rounded-lg py-2 font-medium transition-colors ${isCreateFormValid && !createMatchMutation.isPending ? 'btn-primary' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
             >
-              {createMatchMutation.isPending ? 'Creating...' : 'Create Match'}
+              {createMatchMutation.isPending ? 'Submitting...' : 'Submit'}
             </button>
           </div>
         </div>
@@ -4785,7 +4786,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <td className="py-3 px-4 text-xs truncate">{new Date(m.startAtUtc || m.scheduledAt).toLocaleString()}</td>
                 <td className="py-3 px-4 text-xs"><div className="flex gap-2">
                   <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                   </button>
                   <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700" title="Edit">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
@@ -4866,7 +4867,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   );
 }
 
-// ── APPLICATIONS TAB ──
+// -- APPLICATIONS TAB --
 function ApplicationsTab({ boardId }: { boardId: string }) {
   const [selectedTournament, setSelectedTournament] = useState('');
   const qc = useQueryClient();
@@ -4904,7 +4905,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
                 <tr key={a.id} className="border-b last:border-b-0 hover:bg-gray-50">
                   <td className="py-3 font-medium">{a.teamName}</td>
                   <td className="py-3">{a.paymentAmount ? `$${a.paymentAmount}` : '-'} {a.paymentStatus && <span className="text-xs text-gray-400">({a.paymentStatus})</span>}</td>
-                  <td className="py-3">{a.waiverSigned ? '✅' : '❌'}</td>
+                  <td className="py-3">{a.waiverSigned ? '?' : '?'}</td>
                   <td className="py-3"><span className={`px-2 py-1 rounded-full text-xs ${a.status === 'Approved' ? 'bg-green-100 text-green-700' : a.status === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>{a.status}</span></td>
                   <td className="py-3 text-xs">{new Date(a.submittedAt).toLocaleDateString()}</td>
                   <td className="py-3 space-x-2">
@@ -4924,7 +4925,7 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
   );
 }
 
-// ── INVOICES TAB ──
+// -- INVOICES TAB --
 function InvoicesTab({ boardId }: { boardId: string }) {
   const [showForm, setShowForm] = useState(false);
   const [amount, setAmount] = useState(''); const [description, setDescription] = useState(''); const [dueDate, setDueDate] = useState('');
