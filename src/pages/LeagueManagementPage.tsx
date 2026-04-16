@@ -2923,7 +2923,8 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       setName(''); setWinPoints('2'); setGroups([{ name: '', teamIds: [] }]); setTeamSearches(['']);
       setSuccessMsg('Tournament created successfully!');
       setErrorMsg('');
-      setTimeout(() => { setSuccessMsg(''); if (onClose) onClose(); }, 4000);
+      if (onClose) onClose();
+      setTimeout(() => { setSuccessMsg(''); }, 4000);
     },
     onError: (err: any) => {
       const respData = err?.response?.data;
@@ -2976,9 +2977,21 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
     setGroups(updated);
   };
 
+  const [duplicateTeamErrors, setDuplicateTeamErrors] = useState<Record<number, string>>({});
+
   const addTeamToGroup = (groupIdx: number, teamId: string) => {
     const updated = [...groups];
     if (!updated[groupIdx].teamIds.includes(teamId)) {
+      // Check if this team is already selected in another group
+      const otherGroupIdx = updated.findIndex((g, i) => i !== groupIdx && g.teamIds.includes(teamId));
+      if (otherGroupIdx !== -1) {
+        setDuplicateTeamErrors(prev => ({ ...prev, [groupIdx]: 'Team Board must be unique' }));
+        const searches = [...teamSearches];
+        searches[groupIdx] = '';
+        setTeamSearches(searches);
+        return;
+      }
+      setDuplicateTeamErrors(prev => { const next = { ...prev }; delete next[groupIdx]; return next; });
       updated[groupIdx] = { ...updated[groupIdx], teamIds: [...updated[groupIdx].teamIds, teamId] };
       setGroups(updated);
     }
@@ -2991,13 +3004,16 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
     const updated = [...groups];
     updated[groupIdx] = { ...updated[groupIdx], teamIds: updated[groupIdx].teamIds.filter(t => t !== teamId) };
     setGroups(updated);
+    setDuplicateTeamErrors(prev => { const next = { ...prev }; delete next[groupIdx]; return next; });
   };
 
   const getFilteredBoards = (groupIdx: number) => {
     const search = teamSearches[groupIdx]?.toLowerCase() || '';
     const alreadySelected = groups[groupIdx].teamIds;
+    const selectedInOtherGroups = groups.flatMap((g, i) => i !== groupIdx ? g.teamIds : []);
     return (boardsList || []).filter((b: any) =>
       !alreadySelected.includes(b.id) &&
+      !selectedInOtherGroups.includes(b.id) &&
       (!search || b.name.toLowerCase().includes(search))
     );
   };
@@ -3086,6 +3102,9 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Team Board <span className="text-red-500">*</span>
                     </label>
+                    {duplicateTeamErrors[gIdx] && (
+                      <p className="text-red-500 text-xs mb-2">{duplicateTeamErrors[gIdx]}</p>
+                    )}
 
                     {/* Select Team dropdown  -  always fixed at top, never moves */}
                     <div className="relative w-44 mb-3"
@@ -3240,6 +3259,27 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                   if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
                   if (groups[i].teamIds.length === 0) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have at least one team.`); return; }
                 }
+                const groupNames = groups.map(g => g.name.trim().toLowerCase());
+                const duplicates = groupNames.filter((n, i) => groupNames.indexOf(n) !== i);
+                if (duplicates.length > 0) { setErrorMsg('Group names must be different. Please use unique names for each group.'); return; }
+                // Check for duplicate Team Boards across groups
+                const allTeamIds: string[] = [];
+                const dupErrors: Record<number, string> = {};
+                for (let i = 0; i < groups.length; i++) {
+                  for (const tid of groups[i].teamIds) {
+                    if (allTeamIds.includes(tid)) {
+                      dupErrors[i] = 'Team Board must be unique';
+                      break;
+                    }
+                    allTeamIds.push(tid);
+                  }
+                }
+                if (Object.keys(dupErrors).length > 0) {
+                  setDuplicateTeamErrors(dupErrors);
+                  setErrorMsg('Team Board must be unique across all groups.');
+                  return;
+                }
+                setDuplicateTeamErrors({});
                 saveMutation.mutate();
               }}
               disabled={saveMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
@@ -3321,7 +3361,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
   useEffect(() => { onDirtyChange?.(showCreate || !!editId); }, [showCreate, editId]);
 
   // Fetch tournaments from GET /api/v1/tournament/boards/{boardId}/tournaments (umpireApi)
-  const { data: tournaments, isLoading } = useQuery({
+  const { data: tournaments, isLoading, isFetching } = useQuery({
     queryKey: ['umpireTournaments', boardId],
     queryFn: async () => {
       const r = await tournamentService.getTournaments(boardId, 1, 100);
@@ -3380,7 +3420,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
           <h2 className="text-base font-bold text-gray-800">Tournament List</h2>
         </div>
         <div className="p-4 sm:p-6">
-          {isLoading ? (
+          {(isLoading || isFetching) ? (
             <div className="py-8 text-center text-gray-400">Loading tournaments...</div>
           ) : (
             <>
