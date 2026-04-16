@@ -175,6 +175,12 @@ export const boardService = {
       params: { page, pageSize },
     }),
 
+  // Get team boards for a specific league board
+  getTeamBoardsByLeague: (leagueBoardId: string, page = 1, pageSize = 50) =>
+    boardApi.get(`/Boards/teamboards/league/${leagueBoardId}`, {
+      params: { page, pageSize },
+    }),
+
   // Delete a board by ID
   delete: (id: string) => boardApi.delete(`/Boards/${id}`),
 

@@ -3039,14 +3039,14 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
     }).finally(() => setEditLoading(false));
   }, [editTournamentId]);
 
-  // Load Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
+  // Load Team Boards for this league from GET /Boards/teamboards/league/{leagueBoardId}
   const [teamBoardError, setTeamBoardError] = useState('');
   const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
-    queryKey: ['teamBoards'],
+    queryKey: ['teamBoards', boardId],
     queryFn: async () => {
       try {
         setTeamBoardError('');
-        const res = await boardService.getByType(1, 1, 50);
+        const res = await boardService.getTeamBoardsByLeague(boardId, 1, 50);
         const raw = res.data as any;
         console.log('[TeamBoards] API response:', raw);
         const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
