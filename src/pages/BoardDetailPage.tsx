@@ -389,6 +389,8 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
       } catch {}
       // Invalidate the boards list so dashboard reflects changes
       qc.invalidateQueries({ queryKey: ['myBoards', userId] });
+      // Invalidate league boards list so Affiliate to League dropdown shows updated names
+      qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
       onSaved();
     },
     onError: (error: any) => {
@@ -1088,6 +1090,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   // Load League boards via GET /Boards/bytype/2
   const { data: boardGroundsList, isLoading: boardGroundsLoading } = useQuery({
     queryKey: ['allBoardsForLeague'],
+    staleTime: 0,
     queryFn: async () => {
       try {
         const res = await boardService.getByType(2, 1, 50);

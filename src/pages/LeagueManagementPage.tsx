@@ -385,6 +385,8 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
         return { ...old, items: old.items.map((b: any) => b.id === boardId ? { ...b, ...editOverlay } : b) };
       });
       qc.invalidateQueries({ queryKey: ['myBoards', userId] });
+      // Invalidate league boards list so Affiliate to League dropdown shows updated names
+      qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
       onSaved();
     },
     onError: (error: any) => {
@@ -3091,6 +3093,17 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
     }).finally(() => setEditLoading(false));
   }, [editTournamentId]);
 
+  // Fetch existing tournaments for duplicate name validation
+  const { data: existingTournaments } = useQuery({
+    queryKey: ['umpireTournaments', boardId],
+    queryFn: async () => {
+      const r = await tournamentService.getTournaments(boardId, 1, 100);
+      const d = r.data as any;
+      return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
+    },
+  });
+  const existingTournamentList = Array.isArray(existingTournaments) ? existingTournaments : [];
+
   // Load Team Boards for this league from GET /Boards/teamboards/league/{leagueBoardId}
   const [teamBoardError, setTeamBoardError] = useState('');
   const { data: boardsList, isLoading: boardsLoading, refetch: refetchBoards } = useQuery({
@@ -3483,6 +3496,15 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
               onClick={() => {
                 setErrorMsg('');
                 if (!name.trim()) { setErrorMsg('Tournament Name is mandatory.'); return; }
+                // Check for duplicate tournament name
+                const dupTournament = existingTournamentList.find((t: any) => {
+                  const tName = (t.name || t.tournamentName || '').trim().toLowerCase();
+                  const isDup = tName === name.trim().toLowerCase();
+                  // In edit mode, exclude the current tournament
+                  if (isEditMode && (t.id === editTournamentId)) return false;
+                  return isDup;
+                });
+                if (dupTournament) { setErrorMsg('A tournament with this name already exists. Please use a different name.'); return; }
                 if (groups.length === 0) { setErrorMsg('At least one group is required.'); return; }
                 for (let i = 0; i < groups.length; i++) {
                   if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
@@ -3903,6 +3925,18 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     enabled: !!from && !!to,
   });
 
+  // Fetch ALL schedules (wide date range) for duplicate validation
+  const { data: allSchedules } = useQuery({
+    queryKey: ['allSchedules', boardId],
+    queryFn: () => leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31').then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+    }),
+    enabled: !!boardId,
+    staleTime: 30000,
+  });
+  const allMatchList = Array.isArray(allSchedules) ? allSchedules : [];
+
   // Fetch tournaments from umpire API (has groupList with teamBoardId)
   const { data: umpireTournaments } = useQuery({
     queryKey: ['umpireTournaments', boardId],
@@ -4255,6 +4289,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     onSuccess: (response: any) => {
       console.log('? Schedule created successfully:', response?.data);
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
+      qc.invalidateQueries({ queryKey: ['allSchedules', boardId] });
       setCreateError('');
       setCreateSuccess('Schedule created successfully!');
       ssClearAll();
@@ -4291,7 +4326,17 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           if (extra) msg = msg ? `${msg} | ${extra}` : extra;
         }
       }
-      if (!msg) msg = `Request failed with status code ${status || 'unknown'}. Check browser console for details.`;
+      if (!msg) {
+        if (status === 500) {
+          msg = 'A schedule with these details already exists or the data is invalid';
+        } else if (status === 400) {
+          msg = 'Invalid schedule data. Please check all required fields.';
+        } else if (status === 409) {
+          msg = 'A schedule with these details already exists.';
+        } else {
+          msg = `Request failed (${status || 'unknown'}). Please try again.`;
+        }
+      }
       setCreateError(typeof msg === 'string' ? msg : JSON.stringify(msg));
       setCreateSuccess('');
     },
@@ -4401,6 +4446,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     setCreateError('');
     setCreateSuccess('');
     if (Object.keys(errors).length > 0) return;
+    // Check for duplicate schedule (same tournament, home, away)
+    const duplicate = allMatchList.find((m: any) => {
+      const mHome = m.homeTeamId || m.homeTeamBoardId || '';
+      const mAway = m.awayTeamId || m.awayTeamBoardId || '';
+      return m.tournamentId === newTournamentId && mHome === newHomeTeamId && mAway === newAwayTeamId;
+    });
+    if (duplicate) {
+      setCreateError('A schedule with the same Tournament, Home Team and Away Team already exists. Please choose a different combination.');
+      return;
+    }
     createMatchMutation.mutate();
   };
 
@@ -4437,7 +4492,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             )}
             <input
               type="text"
-              placeholder="Search umpire..."
+              placeholder="Search umpire"
               value={search}
               onChange={e => { setSearch(e.target.value); setShowDd(true); }}
               onFocus={() => setShowDd(true)}
@@ -4476,7 +4531,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     selected: { id: string; firstName: string; lastName: string; email: string } | null,
     onSelect: (u: { id: string; firstName: string; lastName: string; email: string }) => void,
     onClear: () => void,
-  ) => (
+    excludeIds?: string[],
+  ) => {
+    const filteredList = filterUsers(search).filter((u: any) => !(excludeIds || []).includes(u.id));
+    return (
     <div className="relative">
       <label className="block text-sm font-medium text-gray-700 mb-1">{label.endsWith(' *') ? <>{label.slice(0, -2)} <span className="text-red-500">*</span></> : label}</label>
       {selected ? (
@@ -4489,7 +4547,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           {showDropdown && <div className="fixed inset-0 z-[5]" onClick={() => { setShowDropdown(false); setSearch(''); }} />}
           <input
             type="text"
-            placeholder={`Search ${label.toLowerCase()}...`}
+            placeholder={`Search ${label.replace(' *', '').toLowerCase()}`}
             value={search}
             onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
             onFocus={() => setShowDropdown(true)}
@@ -4497,7 +4555,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           />
           {showDropdown && (
             <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-              {filterUsers(search).length > 0 ? filterUsers(search).slice(0, 20).map((u: any) => (
+              {filteredList.length > 0 ? filteredList.slice(0, 20).map((u: any) => (
                 <button
                   key={u.id}
                   type="button"
@@ -4516,6 +4574,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       )}
     </div>
   );
+  };
 
   // Reusable searchable team board dropdown (same UI as Team Board in CreateTrophyTab)
   const renderTeamBoardDropdown = (
@@ -4551,13 +4610,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             <div className="fixed inset-0 z-[5]" onClick={() => { setShowDropdown(false); setSearch(''); }} />
           )}
           <div
-            className={`w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between ${noTournament ? 'opacity-50 pointer-events-none' : ''}`}
+            className={`w-full px-4 py-2.5 h-[42px] border border-gray-400 rounded-lg cursor-pointer flex items-center justify-between ${noTournament ? 'opacity-50 pointer-events-none' : ''}`}
             onClick={() => { if (!noTournament) setShowDropdown(!showDropdown); }}
           >
             <span className="text-gray-400 text-sm">{noTournament ? 'Select tournament first' : 'Search team...'}</span>
-            <svg className={`w-4 h-4 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
           </div>
           {showDropdown && (
             <div className="absolute z-20 mt-2 w-full bg-white border border-gray-200 rounded-lg shadow-xl" style={{ top: '100%' }}>
@@ -4681,6 +4737,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedAppScorer,
               (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); },
               () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); },
+              [newPortalScorerId].filter(Boolean),
             )}
             {renderUserSearchDropdown(
               'Portal Scorer *', portalScorerSearch, setPortalScorerSearch,
@@ -4688,6 +4745,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedPortalScorer,
               (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); },
               () => { setSelectedPortalScorer(null); setNewPortalScorerId(''); ssSet('portalScorerId', ''); setPortalScorerSearch(''); },
+              [newAppScorerId].filter(Boolean),
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
@@ -4788,6 +4846,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedEditAppScorer,
               (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); },
               () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); },
+              [editPortalScorer].filter(Boolean),
             )}
             {renderUserSearchDropdown(
               'Portal Scorer', editPortalScorerSearch, setEditPortalScorerSearch,
@@ -4795,6 +4854,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedEditPortalScorer,
               (u) => { setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); },
               () => { setSelectedEditPortalScorer(null); setEditPortalScorer(''); setEditPortalScorerSearch(''); },
+              [editAppScorer].filter(Boolean),
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
