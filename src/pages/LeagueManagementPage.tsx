@@ -408,7 +408,11 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
         return { ...old, items: old.items.map((b: any) => b.id === boardId ? { ...b, ...editOverlay } : b) };
       });
       qc.invalidateQueries({ queryKey: ['myBoards', userId] });
-      // Invalidate league boards list so Affiliate to League dropdown shows updated names
+      // Optimistically update league boards list so Affiliate to League dropdown shows updated names immediately
+      qc.setQueryData(['allBoardsForLeague'], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: any) => b.id === boardId ? { ...b, name: newName } : b);
+      });
       qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
       onSaved();
     },

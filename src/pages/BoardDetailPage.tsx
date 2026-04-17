@@ -399,7 +399,11 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
       } catch {}
       // Invalidate the boards list so dashboard reflects changes
       qc.invalidateQueries({ queryKey: ['myBoards', userId] });
-      // Invalidate league boards list so Affiliate to League dropdown shows updated names
+      // Optimistically update league boards list so Affiliate to League dropdown shows updated names immediately
+      qc.setQueryData(['allBoardsForLeague'], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((b: any) => b.id === boardId ? { ...b, name: editOverlay.name } : b);
+      });
       qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
       onSaved();
     },
