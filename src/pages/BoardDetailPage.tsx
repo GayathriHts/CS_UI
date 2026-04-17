@@ -1105,6 +1105,9 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
   const { data: boardGroundsList, isLoading: boardGroundsLoading } = useQuery({
     queryKey: ['allBoardsForLeague'],
     staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: 'always',
     queryFn: async () => {
       try {
         const res = await boardService.getByType(2, 1, 50);

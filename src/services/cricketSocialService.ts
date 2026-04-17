@@ -172,7 +172,8 @@ export const boardService = {
   // Get boards by type (e.g. boardType=1 for Team Boards)
   getByType: (boardType: number, page = 1, pageSize = 50) =>
     boardApi.get(`/Boards/bytype/${boardType}`, {
-      params: { page, pageSize },
+      params: { page, pageSize, _t: Date.now() },
+      headers: { 'Cache-Control': 'no-cache' },
     }),
 
   // Get team boards for a specific league board
