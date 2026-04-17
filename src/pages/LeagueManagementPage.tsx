@@ -5141,7 +5141,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Umpire</label><p className="text-sm text-gray-900">{m.umpireName || lookupUmpireName(m.umpireId)}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">App Scorer</label><p className="text-sm text-gray-900">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Portal Scorer</label><p className="text-sm text-gray-900">{lookupUserName(m.portalScorerId) || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Scheduled Date</label><p className="text-sm text-gray-900">{formatDateTime(m.startAtUtc || m.scheduledAt)}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Date & Time</label><p className="text-sm text-gray-900">{formatDateTime(m.startAtUtc || m.scheduledAt)}</p></div>
               </div>
               <div className="flex justify-end mt-6">
                 <button onClick={() => setViewMatchId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
