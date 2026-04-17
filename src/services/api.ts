@@ -153,13 +153,18 @@ api.interceptors.request.use((config) => {
 });
 
 // Handle 401 → redirect to login
+let isRedirecting = false;
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && !isAuthRequest(error.config?.url)) {
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+    if (error.response?.status === 401 && !isAuthRequest(error.config?.url) && !isRedirecting) {
+      isRedirecting = true;
+      // Use dynamic import to avoid circular dependency
+      import('../store/slices/authStore').then(({ useAuthStore }) => {
+        useAuthStore.getState().logout();
+        isRedirecting = false;
+      });
     }
     return Promise.reject(error);
   }

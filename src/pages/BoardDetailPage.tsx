@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
 import { fetchCountries, fetchStates, fetchCities } from '../services/locationService';
@@ -26,7 +26,17 @@ const isLeagueBoard = (boardType: any) => boardType === 2 || boardType === 'Leag
 
 export default function BoardDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const [activeTab, setActiveTab] = useState<BoardTab>('info');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialBoardTab = (searchParams.get('tab') as BoardTab) || 'info';
+  const [activeTab, setActiveTabState] = useState<BoardTab>(initialBoardTab);
+  const setActiveTab = (tab: BoardTab) => {
+    setActiveTabState(tab);
+    if (tab === 'info') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab }, { replace: true });
+    }
+  };
   const [rosterFormDirty, setRosterFormDirty] = useState(false);
   const [pendingTab, setPendingTab] = useState<BoardTab | null>(null);
   const qc = useQueryClient();
@@ -399,7 +409,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         setBoardNameError(error.message);
       } else if (error?.response?.status === 401) {
         alert('Session expired. Please sign in again.');
-        window.location.href = '/login';
+        useAuthStore.getState().logout();
       } else {
         alert(`Failed to update board. ${error?.response?.data?.title || error?.response?.data?.message || ''}`);
       }

@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './store/slices/authStore';
 
 import React, { Suspense } from 'react';
@@ -15,12 +15,15 @@ const LeagueManagementPage = React.lazy(() => import('./pages/LeagueManagementPa
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+  const location = useLocation();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" state={{ from: location }} replace />;
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  return isAuthenticated ? <Navigate to="/dashboard" /> : <>{children}</>;
+  const location = useLocation();
+  const from = (location.state as any)?.from?.pathname || '/dashboard';
+  return isAuthenticated ? <Navigate to={from} replace /> : <>{children}</>;
 }
 
 const LoadingSpinner = () => (

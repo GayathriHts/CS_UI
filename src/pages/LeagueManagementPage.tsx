@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { boardService, boardDetailService, leagueService, rosterService, tournamentService, userService } from '../services/cricketSocialService';
 import { fetchCountries, fetchStates, fetchCities, fetchCountryPhoneCodes } from '../services/locationService';
@@ -78,12 +78,35 @@ const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueT
 
 export default function LeagueManagementPage() {
   const { boardId } = useParams<{ boardId: string }>();
-  const [activeTab, setActiveTab] = useState<LeagueTab>('dashboard');
-  const [expandedSections, setExpandedSections] = useState<SidebarSection[]>([]);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // Map tab to its parent sidebar section
+  const tabToSection = (tab: LeagueTab): SidebarSection | null => {
+    for (const s of sidebarSections) {
+      if (s.items.some(i => i.id === tab)) return s.id;
+    }
+    return null;
+  };
+
+  const initialTab = (searchParams.get('tab') as LeagueTab) || 'dashboard';
+  const initialSection = tabToSection(initialTab);
+
+  const [activeTab, setActiveTabState] = useState<LeagueTab>(initialTab);
+  const [expandedSections, setExpandedSections] = useState<SidebarSection[]>(initialSection ? [initialSection] : []);
   const [pendingNav, setPendingNav] = useState<{ tab: LeagueTab; section: SidebarSection } | null>(null);
   const dirtyRef = useRef(false);
   const qc = useQueryClient();
   const { data: board } = useQuery({ queryKey: ['board', boardId], queryFn: () => boardService.getById(boardId!).then(r => r.data), enabled: !!boardId });
+
+  // Wrapper to sync activeTab with URL search params
+  const setActiveTab = (tab: LeagueTab) => {
+    setActiveTabState(tab);
+    if (tab === 'dashboard') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab }, { replace: true });
+    }
+  };
 
   const onDirtyChange = (dirty: boolean) => { dirtyRef.current = dirty; };
 
@@ -192,7 +215,7 @@ export default function LeagueManagementPage() {
         </div>
 
         {/* Content */}
-        <div className={`ml-64 flex-1 ${activeTab === 'edit' ? '' : 'p-6'}`}>
+        <div className={`ml-64 flex-1 overflow-x-hidden ${activeTab === 'edit' ? '' : 'p-6'}`}>
           {activeTab === 'dashboard' && <LeagueLandingTab boardId={boardId!} />}
           {activeTab === 'umpire-list' && <UmpireListTab boardId={boardId!} onDirtyChange={onDirtyChange} />}
           {activeTab === 'ground-list' && <GroundListTab boardId={boardId!} onDirtyChange={onDirtyChange} />}
@@ -394,7 +417,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
         setBoardNameError(error.message);
       } else if (error?.response?.status === 401) {
         alert('Session expired. Please sign in again.');
-        window.location.href = '/login';
+        useAuthStore.getState().logout();
       } else {
         alert(`Failed to update board. ${error?.response?.data?.title || error?.response?.data?.message || ''}`);
       }
@@ -1156,7 +1179,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
 function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, _setEditId] = useState<string | null>(() => sessionStorage.getItem('umpireEditId') || null);
+  const setEditId = (id: string | null) => { _setEditId(id); if (id) sessionStorage.setItem('umpireEditId', id); else sessionStorage.removeItem('umpireEditId'); };
   const [viewId, setViewId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -1588,6 +1612,23 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         const u: any = umpireList.find((x: any) => (x.id || x.umpireId) === viewId);
         if (!u) return null;
         const phone = formatPhone(u);
+        // Resolve country code using same logic as edit mode
+        const rawMobile = u.mobile || u.contactNumber || '';
+        const apiCC = u.countryCode || '';
+        const umpireCountry = (u.country || '').toLowerCase();
+        let cCode = '+1';
+        if (apiCC) {
+          cCode = apiCC;
+        } else if (rawMobile) {
+          const digits = rawMobile.replace(/\D/g, '');
+          if (digits.startsWith('91') && digits.length === 12) cCode = '+91';
+          else if (digits.startsWith('1') && digits.length === 11) cCode = '+1';
+          else if (umpireCountry === 'india') cCode = '+91';
+          else cCode = '+1';
+        } else {
+          if (umpireCountry === 'india') cCode = '+91';
+          else cCode = '+1';
+        }
         return (
           <div className="bg-white rounded-lg shadow-sm mb-6">
             <div className="bg-gray-100 px-6 py-3 border-b">
@@ -1630,7 +1671,17 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
-                  <input value={phone || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                  <div className="flex w-full border border-gray-400 rounded-lg h-[42px] bg-gray-100">
+                    <div className="flex-shrink-0 h-full px-2 text-sm flex items-center gap-1 border-r border-gray-300 bg-gray-100 rounded-l-lg">
+                      <img src={cCode === '+91' ? '/images/flag-in.svg' : '/images/flag-us.svg'} alt="" className="w-4 h-3 object-cover rounded-sm" />
+                      <span className="text-gray-900 text-xs">{cCode}</span>
+                    </div>
+                    <input
+                      value={phone || '-'}
+                      readOnly
+                      className="flex-1 min-w-0 px-3 h-full text-sm bg-transparent outline-none rounded-r-lg cursor-default"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email ID</label>
@@ -2305,7 +2356,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, _setEditId] = useState<string | null>(() => sessionStorage.getItem('groundEditId') || null);
+  const setEditId = (id: string | null) => { _setEditId(id); if (id) sessionStorage.setItem('groundEditId', id); else sessionStorage.removeItem('groundEditId'); };
   const [viewId, setViewId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -3300,7 +3352,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
           </div>
 
           {/* Groups */}
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
             {groups.map((group, gIdx) => (
               <div key={gIdx} className="border-2 border-red-500 rounded-lg overflow-hidden">
                 <button
@@ -3600,11 +3652,135 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   );
 }
 
+// -- TOURNAMENT VIEW DETAIL (fetches full detail including groups & teams) --
+function TournamentViewDetail({ tournamentId, boardId, onClose }: { tournamentId: string; boardId: string; onClose: () => void }) {
+  const { data: detail, isLoading } = useQuery({
+    queryKey: ['tournamentDetail', tournamentId],
+    queryFn: async () => {
+      const res = await tournamentService.getTournamentById(tournamentId);
+      return res.data as any;
+    },
+    enabled: !!tournamentId,
+  });
+
+  // Fetch team boards for this league to resolve team names
+  const { data: teamBoards } = useQuery({
+    queryKey: ['teamBoards', boardId],
+    queryFn: async () => {
+      const res = await boardService.getTeamBoardsByLeague(boardId, 1, 100);
+      const raw = res.data as any;
+      const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
+      return (Array.isArray(items) ? items : []).map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+        logoUrl: b.logoUrl || '',
+      }));
+    },
+  });
+
+  const resolveTeamName = (teamId: string) => {
+    const team = (teamBoards || []).find((b: any) => b.id === teamId);
+    return team?.name || teamId;
+  };
+
+  const resolveTeamLogo = (teamId: string) => {
+    const team = (teamBoards || []).find((b: any) => b.id === teamId);
+    return team?.logoUrl || '';
+  };
+
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm mb-6 p-6">
+        <div className="py-8 text-center text-gray-400">Loading tournament details...</div>
+      </div>
+    );
+  }
+
+  if (!detail) return null;
+
+  console.log('[TournamentViewDetail] detail:', JSON.stringify(detail, null, 2));
+
+  const rawGroups = detail.groups || detail.groupList || [];
+  const parsedGroups = Array.isArray(rawGroups) ? rawGroups : (rawGroups?.$values && Array.isArray(rawGroups.$values) ? rawGroups.$values : []);
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm mb-6">
+      <div className="bg-gray-100 px-6 py-3 border-b">
+        <h2 className="text-base font-bold text-gray-800">View Tournament</h2>
+      </div>
+      <div className="p-6">
+        {/* Basic info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
+          <div><label className="block text-sm font-medium text-gray-500 mb-1">Tournament Name</label><p className="text-sm text-gray-900">{detail.name || detail.tournamentName || '-'}</p></div>
+          <div><label className="block text-sm font-medium text-gray-500 mb-1">Win Points</label><p className="text-sm text-gray-900">{detail.winPoints ?? detail.winPoint ?? '-'}</p></div>
+        </div>
+
+        {/* Groups & Teams */}
+        {parsedGroups.length > 0 && (
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-3">Groups</h3>
+            <div className="space-y-4">
+              {parsedGroups.map((g: any, idx: number) => {
+                const rawTeams = g.teamBoardIds || g.teams || g.teamBoardId || [];
+                let teamIds: string[] = [];
+                if (Array.isArray(rawTeams)) {
+                  teamIds = rawTeams.map((item: any) => typeof item === 'string' ? item : item?.teamBoardId || item?.boardId || item?.id || '').filter(Boolean);
+                } else if (rawTeams?.$values && Array.isArray(rawTeams.$values)) {
+                  teamIds = rawTeams.$values.map((item: any) => typeof item === 'string' ? item : item?.teamBoardId || item?.boardId || item?.id || '').filter(Boolean);
+                }
+
+                return (
+                  <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
+                    <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                      <p className="text-sm font-semibold text-gray-800">{g.name || g.tournamentGroupName || `Group ${idx + 1}`}</p>
+                    </div>
+                    <div className="p-4">
+                      {teamIds.length > 0 ? (
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 mb-2">Teams</label>
+                          <div className="flex flex-wrap gap-2">
+                            {teamIds.map((teamId: string) => {
+                              const logo = resolveTeamLogo(teamId);
+                              return (
+                                <span key={teamId} className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-800 text-xs font-medium px-3 py-1.5 rounded-full">
+                                  {logo ? (
+                                    <img src={logo} alt="" className="w-4 h-4 rounded-full object-cover" />
+                                  ) : (
+                                    <span className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-[10px]">
+                                      {resolveTeamName(teamId)[0]?.toUpperCase() || '?'}
+                                    </span>
+                                  )}
+                                  {resolveTeamName(teamId)}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-gray-400">No teams assigned</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="flex justify-end mt-6">
+          <button onClick={onClose} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // -- TOURNAMENTS TAB --
 function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
+  const [editId, _setEditId] = useState<string | null>(() => sessionStorage.getItem('tournamentEditId') || null);
+  const setEditId = (id: string | null) => { _setEditId(id); if (id) sessionStorage.setItem('tournamentEditId', id); else sessionStorage.removeItem('tournamentEditId'); };
   const [viewId, setViewId] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState('');
@@ -3666,28 +3842,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
       {!showCreate && !editId && (
         <>
       {/* View details (read-only) */}
-      {viewId && (() => {
-        const t = tournamentList.find((x: any) => x.id === viewId);
-        if (!t) return null;
-        return (
-          <div className="bg-white rounded-lg shadow-sm mb-6">
-            <div className="bg-gray-100 px-6 py-3 border-b">
-              <h2 className="text-base font-bold text-gray-800">View Tournament</h2>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Tournament Name</label><p className="text-sm text-gray-900">{t.tournamentName || t.name || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Win Points</label><p className="text-sm text-gray-900">{t.winPoint ?? '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Match Type</label><p className="text-sm text-gray-900">{t.matchType || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Status</label><p className="text-sm text-gray-900">{t.active === 0 ? 'Inactive' : 'Active'}</p></div>
-              </div>
-              <div className="flex justify-end mt-6">
-                <button onClick={() => setViewId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      {viewId && <TournamentViewDetail tournamentId={viewId} boardId={boardId} onClose={() => setViewId(null)} />}
 
       {!viewId && (
       <>
@@ -3707,11 +3862,9 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                 <table className="w-full text-sm table-fixed">
                   <thead>
                     <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
-                      <th className="py-3 px-4 rounded-tl-lg w-[30%]">Tournament Name</th>
-                      <th className="py-3 px-4 w-[18%]">Win Points</th>
-                      <th className="py-3 px-4 w-[18%]">Match Type</th>
-                      <th className="py-3 px-4 w-[18%]">Status</th>
-                      <th className="py-3 px-4 rounded-tr-lg w-[16%]">Actions</th>
+                      <th className="py-3 px-4 rounded-tl-lg w-[50%]">Tournament Name</th>
+                      <th className="py-3 px-4 w-[25%]">Win Points</th>
+                      <th className="py-3 px-4 rounded-tr-lg w-[25%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3720,13 +3873,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       return (
                         <tr key={tid} className={`border-b last:border-b-0 hover:bg-gray-50 ${editId === tid ? 'bg-blue-50' : ''}`}>
                           <td className="py-3 px-4 font-medium truncate">{t.tournamentName || t.name || '-'}</td>
-                          <td className="py-3 px-4">{t.winPoint ?? '-'}</td>
-                          <td className="py-3 px-4">{t.matchType || '-'}</td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs ${t.active === 0 ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-                              {t.active === 0 ? 'Inactive' : 'Active'}
-                            </span>
-                          </td>
+                          <td className="py-3 px-4">{t.winPoints ?? t.winPoint ?? '-'}</td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2">
                               <button onClick={() => { setViewId(tid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
@@ -3744,7 +3891,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                       );
                     })}
                     {(!tournamentList.length) && (
-                      <tr><td colSpan={5} className="py-8 text-center text-gray-400">No tournaments created yet.</td></tr>
+                      <tr><td colSpan={3} className="py-8 text-center text-gray-400">No tournaments created yet.</td></tr>
                     )}
                   </tbody>
                 </table>
@@ -3770,10 +3917,8 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                           </button>
                         </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
-                        <div><span className="text-gray-400">Win Points:</span> {t.winPoint ?? '-'}</div>
-                        <div><span className="text-gray-400">Match Type:</span> {t.matchType || '-'}</div>
-                        <div><span className="text-gray-400">Status:</span> {t.active === 0 ? 'Inactive' : 'Active'}</div>
+                      <div className="text-sm text-gray-600">
+                        <div><span className="text-gray-400">Win Points:</span> {t.winPoints ?? t.winPoint ?? '-'}</div>
                       </div>
                     </div>
                   );

@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import ResendOtpButton from '../components/ResendOtpButton';
 import OtpInput from '../components/OtpInput';
@@ -11,6 +11,7 @@ import { getPasswordValidationError } from '../utils/passwordValidation';
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const login = useAuthStore((s) => s.login);
   const [error, setError] = useState('');
   const [showLoginPassword, setShowLoginPassword] = useState(false);
@@ -81,7 +82,7 @@ export default function LoginPage() {
         setError('Sign in response missing user information.');
         return;
       }
-      navigate('/dashboard');
+      navigate((location.state as any)?.from?.pathname || '/dashboard');
     } catch (err) {
       setError('Invalid email or password.');
       console.error('Login error:', err);

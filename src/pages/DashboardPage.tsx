@@ -325,7 +325,7 @@ export default function DashboardPage() {
         setBoardNameError(error.message);
       } else if (error?.response?.status === 401) {
         alert('Session expired. Please sign in again.');
-        window.location.href = '/login';
+        useAuthStore.getState().logout();
       } else {
         const detail = error?.response?.data?.title || error?.response?.data?.message || error?.response?.data?.errors ? JSON.stringify(error.response.data.errors) : '';
         console.error('Create board error:', error?.response?.status, error?.response?.data);
@@ -740,7 +740,7 @@ export default function DashboardPage() {
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setSelectedCoOwner(null); }}
                                     className="text-gray-400 hover:text-red-500 font-bold text-sm"
-                                  >×</button>
+                                  >ï¿½</button>
                                 </span>
                               ) : (
                                 <span className="text-gray-400">Select Co-Owner</span>
