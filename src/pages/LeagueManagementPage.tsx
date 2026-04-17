@@ -3006,7 +3006,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <td className="py-3 px-4 truncate">{g.city || '-'}</td>
                           <td className="py-3 px-4 truncate">{homeTeamDisplay}</td>
                           <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4">
                               <button onClick={() => { setViewId(gid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                               </button>
@@ -3040,7 +3040,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                           <span className="text-xl">???</span>
                           <h3 className="font-medium text-gray-800">{g.groundName || '-'}</h3>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-4">
                           <button onClick={() => { setViewId(gid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                             <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                           </button>
@@ -3945,9 +3945,9 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                 <table className="w-full text-sm table-fixed">
                   <thead>
                     <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
-                      <th className="py-3 px-4 rounded-tl-lg w-[50%]">Tournament Name</th>
-                      <th className="py-3 px-4 w-[25%]">Win Points</th>
-                      <th className="py-3 px-4 rounded-tr-lg w-[25%]">Actions</th>
+                      <th className="py-3 px-4 rounded-tl-lg w-[55%]">Tournament Name</th>
+                      <th className="py-3 px-4 w-[33%]">Win Points</th>
+                      <th className="py-3 px-4 rounded-tr-lg w-[12%]">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -3958,7 +3958,7 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
                           <td className="py-3 px-4 font-medium truncate">{t.tournamentName || t.name || '-'}</td>
                           <td className="py-3 px-4">{t.winPoints ?? t.winPoint ?? '-'}</td>
                           <td className="py-3 px-4">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-4">
                               <button onClick={() => { setViewId(tid); setEditId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                               </button>
@@ -4088,7 +4088,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const [newScheduledAt, setNewScheduledAt] = useState(() => {
     const utc = ssGet('startAtUtc');
     if (!utc) return '';
-    try { return new Date(utc).toISOString().slice(0, 16); } catch { return ''; }
+    try { return toLocalDateTimeStr(new Date(utc)); } catch { return ''; }
   });
   const [newGameType, setNewGameType] = useState(() => ssGet('gameType'));
   const [createError, setCreateError] = useState('');
@@ -4160,39 +4160,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
 
   // Fetch ALL schedules (wide date range) for duplicate validation
-  const { data: allSchedules } = useQuery({
-    queryKey: ['allSchedules', boardId],
-    queryFn: () => leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31').then(r => {
-      const d = r.data;
-      return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-    }),
-    enabled: !!boardId,
-    staleTime: 30000,
-    refetchOnMount: 'always',
-  });
-  const allMatchList = Array.isArray(allSchedules) ? allSchedules : [];
-
-  /** Check if a schedule with the same tournament already exists */
-  const checkDuplicateSchedule = (tournamentId: string, excludeMatchId?: string | null): string => {
-    if (!tournamentId) return '';
-    const dup = allMatchList.find((m: any) => {
-      if (excludeMatchId && (m.id || m.scheduleId) === excludeMatchId) return false;
-      return m.tournamentId === tournamentId;
-    });
-    return dup ? 'This tournament is already added. Duplicate entries are not allowed.' : '';
-  };
-
-  // Fetch tournaments from umpire API (has groupList with teamBoardId)
-  const { data: umpireTournaments } = useQuery({
-    queryKey: ['umpireTournaments', boardId],
-    queryFn: async () => {
-      const r = await tournamentService.getTournaments(boardId, 1, 100);
-      const d = r.data as any;
-      return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
-    },
-  });
-  const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
-
   // Helper: deeply unwrap $values from .NET JSON responses
   const unwrapValues = (d: any): any[] => {
     if (Array.isArray(d)) return d;
@@ -4212,6 +4179,65 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (Array.isArray(d.rosters?.$values)) return d.rosters.$values;
     return [];
   };
+
+  /** Convert a Date to local YYYY-MM-DDTHH:MM string for form display */
+  const toLocalDateTimeStr = (d: Date): string => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}`;
+  };
+
+  const { data: allSchedules } = useQuery({
+    queryKey: ['allSchedules', boardId],
+    queryFn: () => leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31').then(r => {
+      const d = r.data;
+      return unwrapValues(d);
+    }),
+    enabled: !!boardId,
+    staleTime: 30000,
+    refetchOnMount: 'always',
+  });
+  const allMatchList = Array.isArray(allSchedules) ? allSchedules : [];
+
+  /** Check if a schedule with the same Date & Time, Ground, Home Team, and Away Team already exists */
+  const toMinuteKey = (d: string | Date): string => { try { return new Date(d).toISOString().slice(0, 16); } catch { return ''; } };
+  const getHomeId = (m: any): string => m.homeTeamId || m.homeTeamBoardId || m.HomeTeamId || m.HomeTeamBoardId || '';
+  const getAwayId = (m: any): string => m.awayTeamId || m.awayTeamBoardId || m.AwayTeamId || m.AwayTeamBoardId || '';
+  const getGroundId = (m: any): string => m.groundId || m.GroundId || '';
+  const getSchedDate = (m: any): string => m.startAtUtc || m.StartAtUtc || m.scheduledAt || m.ScheduledAt || '';
+  const checkDuplicateSchedule = (scheduledAt: string, groundId: string, homeTeamId: string, awayTeamId: string, excludeMatchId?: string | null): string => {
+    if (!scheduledAt || !homeTeamId || !awayTeamId) return '';
+    const newKey = toMinuteKey(scheduledAt);
+    if (!newKey) return '';
+    console.log('[DupCheck] Checking against', allMatchList.length, 'schedules. newKey:', newKey, 'groundId:', groundId, 'homeTeamId:', homeTeamId, 'awayTeamId:', awayTeamId);
+    const dup = allMatchList.find((m: any) => {
+      if (excludeMatchId && (m.id || m.scheduleId || m.Id || m.ScheduleId) === excludeMatchId) return false;
+      const mKey = toMinuteKey(getSchedDate(m));
+      const mGround = getGroundId(m);
+      const mHome = getHomeId(m);
+      const mAway = getAwayId(m);
+      const match = mKey === newKey && mGround === groundId && mHome === homeTeamId && mAway === awayTeamId;
+      if (mHome === homeTeamId || mAway === awayTeamId) {
+        console.log('[DupCheck] Candidate:', { mKey, mGround, mHome, mAway, match });
+      }
+      return match;
+    });
+    return dup ? 'A schedule with the same Date & Time, Ground, Home Team, and Away Team already exists. Duplicate entries are not allowed.' : '';
+  };
+
+  // Fetch tournaments from umpire API (has groupList with teamBoardId)
+  const { data: umpireTournaments } = useQuery({
+    queryKey: ['umpireTournaments', boardId],
+    queryFn: async () => {
+      const r = await tournamentService.getTournaments(boardId, 1, 100);
+      const d = r.data as any;
+      return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
+    },
+  });
+  const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
 
   const mapTeamItem = (t: any) => ({
     id: t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
@@ -4639,7 +4665,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     setEditUmpire(m.umpireId || '');
     setEditAppScorer(m.appScorerId || '');
     setEditPortalScorer(m.portalScorerId || '');
-    const schedAt = m.startAtUtc ? new Date(m.startAtUtc).toISOString().slice(0, 16) : m.scheduledAt ? new Date(m.scheduledAt).toISOString().slice(0, 16) : '';
+    const schedAt = m.startAtUtc ? toLocalDateTimeStr(new Date(m.startAtUtc)) : m.scheduledAt ? toLocalDateTimeStr(new Date(m.scheduledAt)) : '';
     setEditScheduledAt(schedAt);
     setEditOriginal({ tournamentId: m.tournamentId || '', gameType: m.gameType || '', homeTeamId: m.homeTeamId || m.homeTeamBoardId || '', awayTeamId: m.awayTeamId || m.awayTeamBoardId || '', ground: m.groundId || '', umpire: m.umpireId || '', appScorer: m.appScorerId || '', portalScorer: m.portalScorerId || '', scheduledAt: schedAt });
     setEditError('');
@@ -4734,7 +4760,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   };
 
   // Check if all required fields for creating a match are filled
-  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newScheduledAt && newAppScorerId && newPortalScorerId) && !duplicateScheduleError;
+  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newUmpireId && newScheduledAt && newAppScorerId && newPortalScorerId);
 
   const validateAndCreate = async () => {
     const errors: Record<string, string> = {};
@@ -4743,27 +4769,38 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!newHomeTeamId) errors.homeTeam = 'Home Team is required';
     if (!newAwayTeamId) errors.awayTeam = 'Away Team is required';
     if (newHomeTeamId && newAwayTeamId && newHomeTeamId === newAwayTeamId) errors.awayTeam = 'Home and Away teams must be different';
+    if (!newUmpireId) errors.umpire = 'Umpire is required';
     if (!newScheduledAt) errors.scheduledAt = 'Date & Time is required';
     if (!newAppScorerId) errors.appScorer = 'App Scorer is required';
     if (!newPortalScorerId) errors.portalScorer = 'Portal Scorer is required';
     setFormErrors(errors);
     setCreateError('');
     setCreateSuccess('');
+    setDuplicateScheduleError('');
     if (Object.keys(errors).length > 0) return;
-    // Check for duplicate schedule (same tournament) via fresh API call
+    // Check for duplicate schedule (same Date & Time, Ground, Home Team, Away Team) via fresh API call
     try {
       const freshRes = await leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31');
       const freshData = freshRes.data;
-      const freshList = Array.isArray(freshData) ? freshData : (freshData as any)?.items ?? (freshData as any)?.data ?? [];
-      const dup = freshList.find((m: any) => m.tournamentId === newTournamentId);
+      const freshList = unwrapValues(freshData);
+      console.log('[DupCheck-Submit] freshList length:', freshList.length, freshList.length > 0 ? 'first item keys:' : '', freshList.length > 0 ? Object.keys(freshList[0]) : '');
+      const newKey = toMinuteKey(newScheduledAt);
+      console.log('[DupCheck-Submit] Checking newKey:', newKey, 'groundId:', newGroundId, 'homeTeamId:', newHomeTeamId, 'awayTeamId:', newAwayTeamId);
+      const dup = freshList.find((m: any) => {
+        const mKey = toMinuteKey(getSchedDate(m));
+        const mGround = getGroundId(m);
+        const mHome = getHomeId(m);
+        const mAway = getAwayId(m);
+        return mKey === newKey && mGround === newGroundId && mHome === newHomeTeamId && mAway === newAwayTeamId;
+      });
       if (dup) {
-        const dupMsg = 'This tournament is already added. Duplicate entries are not allowed.';
+        const dupMsg = 'A schedule with the same Date & Time, Ground, Home Team, and Away Team already exists. Duplicate entries are not allowed.';
         setDuplicateScheduleError(dupMsg);
         return;
       }
     } catch {
       // Fallback to cached data
-      const dupMsg = checkDuplicateSchedule(newTournamentId);
+      const dupMsg = checkDuplicateSchedule(newScheduledAt, newGroundId, newHomeTeamId, newAwayTeamId);
       if (dupMsg) {
         setDuplicateScheduleError(dupMsg);
         return;
@@ -4792,7 +4829,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     );
     return (
       <div className="relative">
-        <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Umpire <span className="text-red-500">*</span></label>
         {selected ? (
           <div className="flex items-center gap-2 input-field bg-gray-50">
             <span className="flex-1 text-sm truncate">{selected.name}</span>
@@ -5001,12 +5038,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
-              <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); ssSet('tournamentId', e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); setDuplicateScheduleError(checkDuplicateSchedule(e.target.value)); }} className={`input-field ${formErrors.tournament || duplicateScheduleError ? 'border-red-500' : ''}`}>
+              <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); ssSet('tournamentId', e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); }} className={`input-field ${formErrors.tournament ? 'border-red-500' : ''}`}>
                 <option value="">Select Tournament</option>
                 {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
               {formErrors.tournament && <p className="text-red-500 text-xs mt-1">{formErrors.tournament}</p>}
-              {duplicateScheduleError && <p className="text-red-500 text-xs mt-1">{duplicateScheduleError}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Game Type <span className="text-red-500">*</span></label>
@@ -5039,13 +5075,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
             </div>
-            {renderUmpireDropdown(
-              umpireSearch, setUmpireSearch,
-              showUmpireDropdown, setShowUmpireDropdown,
-              selectedUmpire,
-              (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); ssSet('umpireId', u.id); },
-              () => { setSelectedUmpire(null); setNewUmpireId(''); ssSet('umpireId', ''); setUmpireSearch(''); },
-            )}
+            <div>
+              {renderUmpireDropdown(
+                umpireSearch, setUmpireSearch,
+                showUmpireDropdown, setShowUmpireDropdown,
+                selectedUmpire,
+                (u) => { setSelectedUmpire(u); setNewUmpireId(u.id); ssSet('umpireId', u.id); if (formErrors.umpire) setFormErrors(p => ({ ...p, umpire: '' })); },
+                () => { setSelectedUmpire(null); setNewUmpireId(''); ssSet('umpireId', ''); setUmpireSearch(''); },
+              )}
+              {formErrors.umpire && <p className="text-red-500 text-xs mt-1">{formErrors.umpire}</p>}
+            </div>
             {renderUserSearchDropdown(
               'App Scorer *', appScorerSearch, setAppScorerSearch,
               showAppScorerDropdown, setShowAppScorerDropdown,
@@ -5066,12 +5105,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
                 <input type="date" max="9999-12-31" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
-                <div className="flex items-center gap-0">
-                  <select value={newScheduledAt ? newScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = newScheduledAt ? newScheduledAt.slice(14, 16) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-16 text-center appearance-none cursor-pointer rounded-r-none border-r-0 ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
+                <div className="flex items-center">
+                  <select value={newScheduledAt ? newScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = newScheduledAt ? newScheduledAt.slice(14, 16) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-r-none ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
                     {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
-                  <span className="text-gray-500 font-bold px-0.5">:</span>
-                  <select value={newScheduledAt ? newScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = newScheduledAt ? newScheduledAt.slice(11, 13) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-16 text-center appearance-none cursor-pointer rounded-l-none border-l-0 ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
+                  <select value={newScheduledAt ? newScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = newScheduledAt ? newScheduledAt.slice(11, 13) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-l-none ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
                     {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
@@ -5079,6 +5117,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
             </div>
           </div>
+          {duplicateScheduleError && <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{duplicateScheduleError}</div>}
           <div className="flex justify-end gap-2 mt-4">
             <button
               onClick={() => {
@@ -5121,11 +5160,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
-              <select value={editTournamentId} onChange={e => { setEditTournamentId(e.target.value); setEditHomeTeamId(''); setEditAwayTeamId(''); setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditDuplicateScheduleError(checkDuplicateSchedule(e.target.value, editMatchId)); }} className={`input-field ${editDuplicateScheduleError ? 'border-red-500' : ''}`}>
+              <select value={editTournamentId} onChange={e => { setEditTournamentId(e.target.value); setEditHomeTeamId(''); setEditAwayTeamId(''); setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditDuplicateScheduleError(''); }} className="input-field">
                 <option value="">Select Tournament</option>
                 {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
-              {editDuplicateScheduleError && <p className="text-red-500 text-xs mt-1">{editDuplicateScheduleError}</p>}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Game Type <span className="text-red-500">*</span></label>
@@ -5186,40 +5224,42 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
                 <input type="date" max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
-                <div className="flex items-center gap-0">
-                  <select value={editScheduledAt ? editScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = editScheduledAt ? editScheduledAt.slice(14, 16) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-16 text-center appearance-none cursor-pointer rounded-r-none border-r-0">
+                <div className="flex items-center">
+                  <select value={editScheduledAt ? editScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = editScheduledAt ? editScheduledAt.slice(14, 16) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-r-none">
                     {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
                   </select>
-                  <span className="text-gray-500 font-bold px-0.5">:</span>
-                  <select value={editScheduledAt ? editScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = editScheduledAt ? editScheduledAt.slice(11, 13) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-16 text-center appearance-none cursor-pointer rounded-l-none border-l-0">
+                  <select value={editScheduledAt ? editScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = editScheduledAt ? editScheduledAt.slice(11, 13) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-l-none">
                     {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
             </div>
           </div>
+          {editDuplicateScheduleError && <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{editDuplicateScheduleError}</div>}
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400 transition-colors">Cancel</button>
             <button onClick={async () => {
               try {
                 const freshRes = await leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31');
                 const freshData = freshRes.data;
-                const freshList = Array.isArray(freshData) ? freshData : (freshData as any)?.items ?? (freshData as any)?.data ?? [];
+                const freshList = unwrapValues(freshData);
+                const editKey = toMinuteKey(editScheduledAt);
                 const dup = freshList.find((m: any) => {
-                  if ((m.id || m.scheduleId) === editMatchId) return false;
-                  return m.tournamentId === editTournamentId;
+                  if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
+                  const mKey = toMinuteKey(getSchedDate(m));
+                  return mKey === editKey && getGroundId(m) === editGround && getHomeId(m) === editHomeTeamId && getAwayId(m) === editAwayTeamId;
                 });
                 if (dup) {
-                  const dupMsg = 'This tournament is already added. Duplicate entries are not allowed.';
+                  const dupMsg = 'A schedule with the same Date & Time, Ground, Home Team, and Away Team already exists. Duplicate entries are not allowed.';
                   setEditDuplicateScheduleError(dupMsg);
                   return;
                 }
               } catch {
-                const dupMsg = checkDuplicateSchedule(editTournamentId, editMatchId);
+                const dupMsg = checkDuplicateSchedule(editScheduledAt, editGround, editHomeTeamId, editAwayTeamId, editMatchId);
                 if (dupMsg) { setEditDuplicateScheduleError(dupMsg); return; }
               }
               updateMatchMutation.mutate();
-            }} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending || !!editDuplicateScheduleError} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Updating...' : 'Update'}</button>
+            }} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Updating...' : 'Update'}</button>
           </div>
         </div>
       )}
@@ -5256,7 +5296,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       {!editMatchId && !viewMatchId && (
       <div className="card">
         <table className="w-full text-sm table-fixed">
-          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[12%]">Umpire</th><th className="py-3 px-4 w-[12%]">App Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
+          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[10%]">Umpire</th><th className="py-3 px-4 w-[12%]">App Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[12%]">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -5267,7 +5307,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <td className="py-3 px-4 text-xs truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
                 <td className="py-3 px-4 text-xs truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
                 <td className="py-3 px-4 text-xs truncate">{formatDateTime(m.startAtUtc || m.scheduledAt)}</td>
-                <td className="py-3 px-4 text-xs"><div className="flex gap-2">
+                <td className="py-3 px-4"><div className="flex items-center gap-4">
                   <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                   </button>
