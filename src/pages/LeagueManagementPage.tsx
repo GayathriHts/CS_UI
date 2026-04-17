@@ -3110,10 +3110,27 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
   const dropdownTriggerRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [duplicateNameError, setDuplicateNameError] = useState('');
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+
+  /** Normalize a tournament name for comparison: trim, collapse internal spaces, lowercase */
+  const normalizeName = (n: string) => n.trim().replace(/\s+/g, ' ').toLowerCase();
+
+  /** Check if a tournament name already exists */
+  const isDuplicateName = (val: string): boolean => {
+    const normalized = normalizeName(val);
+    if (!normalized) return false;
+    return existingTournamentList.some((t: any) => {
+      // In edit mode, exclude the current tournament (API may use id or tournamentId)
+      const tid = t.id || t.tournamentId;
+      if (isEditMode && tid === editTournamentId) return false;
+      const tName = normalizeName(t.tournamentName || t.name || '');
+      return tName === normalized;
+    });
+  };
 
   // Fetch tournament details when in edit mode
   useEffect(() => {
@@ -3206,6 +3223,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       setName(''); setWinPoints('2'); setGroups([{ name: '', teamIds: [] }]); setTeamSearches(['']);
       setSuccessMsg('Tournament created successfully!');
       setErrorMsg('');
+      setDuplicateNameError('');
       if (onClose) onClose();
       setTimeout(() => { setSuccessMsg(''); }, 4000);
     },
@@ -3228,6 +3246,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
       qc.invalidateQueries({ queryKey: ['umpireTournaments'] });
       setSuccessMsg('Tournament updated successfully!');
       setErrorMsg('');
+      setDuplicateNameError('');
       setTimeout(() => { setSuccessMsg(''); if (onClose) onClose(); }, 4000);
     },
     onError: (err: any) => {
@@ -3331,9 +3350,27 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
               </label>
               <input
                 value={name}
-                onChange={e => setName(sanitizeTextInput(e.target.value))}
-                className="input-field"
+                onChange={e => {
+                  const val = sanitizeTextInput(e.target.value);
+                  setName(val);
+                  if (isDuplicateName(val)) {
+                    setDuplicateNameError('This tournament already exists. Please choose a different name.');
+                  } else {
+                    setDuplicateNameError('');
+                  }
+                }}
+                onBlur={() => {
+                  if (isDuplicateName(name)) {
+                    setDuplicateNameError('This tournament already exists. Please choose a different name.');
+                  } else {
+                    setDuplicateNameError('');
+                  }
+                }}
+                className={`input-field${duplicateNameError ? ' border-red-500' : ''}`}
               />
+              {duplicateNameError && (
+                <p className="text-red-500 text-xs mt-1">{duplicateNameError}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-800 mb-1">
@@ -3548,15 +3585,12 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
               onClick={() => {
                 setErrorMsg('');
                 if (!name.trim()) { setErrorMsg('Tournament Name is mandatory.'); return; }
-                // Check for duplicate tournament name
-                const dupTournament = existingTournamentList.find((t: any) => {
-                  const tName = (t.name || t.tournamentName || '').trim().toLowerCase();
-                  const isDup = tName === name.trim().toLowerCase();
-                  // In edit mode, exclude the current tournament
-                  if (isEditMode && (t.id === editTournamentId)) return false;
-                  return isDup;
-                });
-                if (dupTournament) { setErrorMsg('A tournament with this name already exists. Please use a different name.'); return; }
+                // Check for duplicate tournament name (case-insensitive, extra-space tolerant)
+                if (isDuplicateName(name)) {
+                  setDuplicateNameError('This tournament already exists. Please choose a different name.');
+                  setErrorMsg('This tournament already exists. Please choose a different name.');
+                  return;
+                }
                 if (groups.length === 0) { setErrorMsg('At least one group is required.'); return; }
                 for (let i = 0; i < groups.length; i++) {
                   if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
@@ -3585,7 +3619,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                 setDuplicateTeamErrors({});
                 saveMutation.mutate();
               }}
-              disabled={saveMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0)}
+              disabled={saveMutation.isPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0) || !!duplicateNameError}
               className="btn-primary text-sm px-6"
             >
               {saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Submit')}
