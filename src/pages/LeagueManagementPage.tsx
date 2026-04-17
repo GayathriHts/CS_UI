@@ -2647,28 +2647,28 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <input value={editAddress1} onChange={e => setEditAddress1(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
 
-            {/* Row 2: City, State, Country */}
+            {/* Row 2: Country, State, City */}
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
-              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
+              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
               <div
-                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
-                onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
+                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
+                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
               >
-                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {cityDropdownOpen && (
+              {countryDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCity === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setEditCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCountry === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setEditCountry(c); setEditState(''); setEditCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
                     ))}
-                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
+                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
@@ -2703,26 +2703,26 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               )}
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country <span className="text-red-500">*</span></label>
-              {countryDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCountryDropdownOpen(false); setCountrySearchText(''); }} />}
+              <label className="block text-sm font-medium text-gray-700 mb-1">City <span className="text-red-500">*</span></label>
+              {cityDropdownOpen && <div className="fixed inset-0 z-[5]" onClick={() => { setCityDropdownOpen(false); setCitySearchText(''); }} />}
               <div
-                className={`input-field cursor-pointer flex items-center justify-between border-gray-400 ${countriesLoading ? 'bg-gray-50' : ''}`}
-                onClick={() => { if (!countriesLoading) setCountryDropdownOpen(!countryDropdownOpen); }}
+                className={`input-field flex items-center justify-between border-gray-400 ${!editState || citiesLoading ? 'bg-gray-200 cursor-not-allowed pointer-events-none' : 'cursor-pointer'}`}
+                onClick={() => { if (editState && !citiesLoading) setCityDropdownOpen(!cityDropdownOpen); }}
               >
-                <span className={editCountry ? 'text-gray-900' : 'text-gray-400'}>{countriesLoading ? 'Loading countries...' : editCountry || ''}</span>
-                <svg className={`w-4 h-4 text-gray-400 transition-transform ${countryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                <span className={editCity ? 'text-gray-900' : 'text-gray-400'}>{!editState ? '' : citiesLoading ? 'Loading...' : editCity || ''}</span>
+                <svg className={`w-4 h-4 text-gray-400 transition-transform ${cityDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
               </div>
-              {countryDropdownOpen && (
+              {cityDropdownOpen && (
                 <div className="absolute z-10 top-full mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg">
                   <div className="p-2 border-b border-gray-100">
-                    <input type="text" value={countrySearchText} onChange={e => setCountrySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search country..." autoFocus onClick={e => e.stopPropagation()} />
+                    <input type="text" value={citySearchText} onChange={e => setCitySearchText(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm text-black focus:ring-2 focus:ring-brand-green focus:border-transparent" placeholder="Search city..." autoFocus onClick={e => e.stopPropagation()} />
                   </div>
                   <div className="max-h-60 overflow-y-auto">
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).map(c => (
-                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCountry === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
-                        onClick={() => { setEditCountry(c); setEditState(''); setEditCity(''); setCountryDropdownOpen(false); setCountrySearchText(''); }}>{c}</button>
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).map(c => (
+                      <button key={c} className={`w-full text-left px-4 py-2 text-sm hover:bg-brand-green/10 ${editCity === c ? 'bg-brand-green/10 text-brand-green font-medium' : 'text-gray-700'}`}
+                        onClick={() => { setEditCity(c); setCityDropdownOpen(false); setCitySearchText(''); }}>{c}</button>
                     ))}
-                    {countryList.filter(c => !countrySearchText || c.toLowerCase().includes(countrySearchText.toLowerCase())).length === 0 && (
+                    {cityList.filter(c => !citySearchText || c.toLowerCase().includes(citySearchText.toLowerCase())).length === 0 && (
                       <div className="px-4 py-3 text-sm text-gray-400 text-center">No results</div>
                     )}
                   </div>
@@ -3391,9 +3391,9 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
           </div>
 
           {/* Groups */}
-          <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+          <div className="space-y-4">
             {groups.map((group, gIdx) => (
-              <div key={gIdx} className="border-2 border-red-500 rounded-lg overflow-hidden">
+              <div key={gIdx} className="border-2 border-red-500 rounded-lg">
                 <button
                   type="button"
                   onClick={() => setCollapsedGroups(prev => {
@@ -3401,7 +3401,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                     if (next.has(gIdx)) next.delete(gIdx); else next.add(gIdx);
                     return next;
                   })}
-                  className="w-full bg-red-600 text-white px-4 py-2 flex items-center justify-between cursor-pointer"
+                  className="w-full bg-red-600 text-white px-4 py-2 flex items-center justify-between cursor-pointer rounded-t-md"
                 >
                   <span className="font-bold text-sm uppercase">{group.name || '\u00A0'}</span>
                   <div className="flex items-center gap-2">
