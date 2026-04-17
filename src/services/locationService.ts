@@ -1,69 +1,34 @@
-const COUNTRIES_NOW_BASE = 'https://countriesnow.space/api/v0.1';
+import locationData from '../data/locationData';
 
-// Simple in-memory cache to avoid redundant API calls
-const cache: { countries: string[] | null; states: Record<string, string[]>; cities: Record<string, string[]>; phoneCodes: { name: string; code: string; dial_code: string; flag: string }[] | null } = {
-  countries: null,
-  states: {},
-  cities: {},
-  phoneCodes: null,
-};
+const COUNTRIES_NOW_BASE = 'https://countriesnow.space/api/v0.1';
 
 const ALLOWED_COUNTRIES = ['India', 'United States'];
 
 export async function fetchCountries(): Promise<string[]> {
-  if (cache.countries) return cache.countries;
-  const res = await fetch(`${COUNTRIES_NOW_BASE}/countries/states`);
-  if (!res.ok) throw new Error('Failed to fetch countries');
-  const json = await res.json();
-  if (json.error) throw new Error(json.msg || 'API error');
-  const countries: string[] = json.data.map((c: { name: string }) => c.name).filter((n: string) => ALLOWED_COUNTRIES.includes(n)).sort((a: string, b: string) => a.localeCompare(b));
-  cache.countries = countries;
-  // Also cache states from this same response
-  for (const c of json.data) {
-    const stateNames: string[] = [...new Set((c.states || []).map((s: { name: string }) => s.name) as string[])].sort((a, b) => a.localeCompare(b));
-    cache.states[c.name] = stateNames;
-  }
-  return countries;
+  return Object.keys(locationData)
+    .filter(n => ALLOWED_COUNTRIES.includes(n))
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export async function fetchStates(country: string): Promise<string[]> {
-  if (!country) return [];
-  if (cache.states[country]) return cache.states[country];
-  // If countries were already fetched, states should be cached. Fetch if not.
-  const res = await fetch(`${COUNTRIES_NOW_BASE}/countries/states`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ country }),
-  });
-  if (!res.ok) return [];
-  const json = await res.json();
-  if (json.error) return [];
-  const states: string[] = [...new Set((json.data?.states || []).map((s: { name: string }) => s.name) as string[])].sort((a, b) => a.localeCompare(b));
-  cache.states[country] = states;
-  return states;
+  if (!country || !locationData[country]) return [];
+  return [...new Set(Object.keys(locationData[country]))]
+    .sort((a, b) => a.localeCompare(b));
 }
 
 export async function fetchCities(country: string, state: string): Promise<string[]> {
-  if (!country || !state) return [];
-  const key = `${country}|${state}`;
-  if (cache.cities[key]) return cache.cities[key];
-  const res = await fetch(`${COUNTRIES_NOW_BASE}/countries/state/cities`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ country, state }),
-  });
-  if (!res.ok) return [];
-  const json = await res.json();
-  if (json.error) return [];
-  const cities: string[] = [...new Set((json.data || []).filter((c: string) => c) as string[])].sort((a, b) => a.localeCompare(b));
-  cache.cities[key] = cities;
-  return cities;
+  if (!country || !state || !locationData[country]?.[state]) return [];
+  return [...new Set(locationData[country][state])]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 const ALLOWED_PHONE_CODES = ['IN', 'US'];
 
+let phoneCodesCache: { name: string; code: string; dial_code: string; flag: string }[] | null = null;
+
 export async function fetchCountryPhoneCodes(): Promise<{ name: string; code: string; dial_code: string; flag: string }[]> {
-  if (cache.phoneCodes) return cache.phoneCodes;
+  if (phoneCodesCache) return phoneCodesCache;
   const res = await fetch(`${COUNTRIES_NOW_BASE}/countries/codes`);
   if (!res.ok) throw new Error('Failed to fetch country phone codes');
   const json = await res.json();
@@ -73,6 +38,6 @@ export async function fetchCountryPhoneCodes(): Promise<{ name: string; code: st
     .filter(c => c.dial_code && ALLOWED_PHONE_CODES.includes(c.code))
     .map(c => ({ ...c, flag: flagMap[c.code] || '' }))
     .sort((a, b) => a.name.localeCompare(b.name));
-  cache.phoneCodes = codes;
+  phoneCodesCache = codes;
   return codes;
 }
