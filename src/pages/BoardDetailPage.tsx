@@ -836,8 +836,15 @@ interface RosterFormData {
 }
 
 function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(() => {
+    const mode = sessionStorage.getItem('squad_mode');
+    return mode === 'create' || mode === 'edit';
+  });
+  const [editingRosterId, setEditingRosterId] = useState<string | null>(() => {
+    const mode = sessionStorage.getItem('squad_mode');
+    if (mode === 'edit') return sessionStorage.getItem('editingRosterId') || null;
+    return null;
+  });
   const [formData, setFormData] = useState<RosterFormData>({
     rosterName: '', captain: '', viceCaptain: '', coach: '', members: [], leagueBoardIds: [], logoUrl: '',
   });
@@ -1342,6 +1349,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     setActiveSearchField(null);
     setErrors({});
     sessionStorage.removeItem('editingRosterId');
+    sessionStorage.removeItem('squad_mode');
     onDirtyChange?.(false);
     setIsFormDirty(false);
   };
@@ -1354,8 +1362,9 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
 
     setEditLoading(true);
     setEditingRosterId(rid);
-    // Store rosterId in sessionStorage for the update call
+    // Store rosterId and mode in sessionStorage so edit survives page refresh
     sessionStorage.setItem('editingRosterId', rid);
+    sessionStorage.setItem('squad_mode', 'edit');
 
     try {
       // Call GET /boards/{boardId}/Rosters/{rosterId} to fetch fresh details
@@ -1514,6 +1523,21 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // Restore edit form state on mount (after page refresh)
+  const editRestoredRef = useRef(false);
+  useEffect(() => {
+    if (editRestoredRef.current) return;
+    if (!editingRosterId || !showCreateForm) return;
+    // If formData already has a name, startEdit was already called
+    if (formData.rosterName) return;
+    // Find the roster in loaded data
+    const roster = (squads || []).find((r: any) => (r.id || r.Id || r.rosterId || r.RosterId) === editingRosterId);
+    if (roster) {
+      editRestoredRef.current = true;
+      startEdit(roster);
+    }
+  }, [editingRosterId, squads]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -1703,7 +1727,7 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
       {/* Create Roster Button */}
       {!showCreateForm && (
         <div className="mb-6 flex justify-end">
-          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); onDirtyChange?.(true); }} className="btn-primary text-sm flex items-center gap-2">
+          <button onClick={() => { setEditingRosterId(null); setShowCreateForm(true); sessionStorage.setItem('squad_mode', 'create'); onDirtyChange?.(true); }} className="btn-primary text-sm flex items-center gap-2">
             <span className="text-xl font-bold leading-none">+</span> Create New Roster
           </button>
         </div>

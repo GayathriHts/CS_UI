@@ -1847,16 +1847,6 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   const [zipCode, setZipCode] = useState('');
   const [landmark, setLandmark] = useState('');
 
-  // Fetch existing grounds for duplicate name validation
-  const { data: existingGrounds } = useQuery({
-    queryKey: ['grounds', boardId],
-    queryFn: () => leagueService.getGrounds(boardId).then(r => {
-      const d = r.data;
-      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
-    }),
-    enabled: !!boardId,
-  });
-  const existingGroundList = Array.isArray(existingGrounds) ? existingGrounds : [];
   const [homeTeam, setHomeTeam] = useState('');
   const [selectedHomeTeam, setSelectedHomeTeam] = useState<{ id: string; name: string; logoUrl?: string } | null>(null);
   const [homeTeamSearch, setHomeTeamSearch] = useState('');
@@ -1878,6 +1868,17 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
   const [wicketDropdownOpen, setWicketDropdownOpen] = useState(false);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+
+  // Fetch existing grounds for duplicate name check
+  const { data: existingGrounds } = useQuery({
+    queryKey: ['grounds', boardId],
+    queryFn: () => leagueService.getGrounds(boardId).then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
+    }),
+    enabled: !!boardId,
+  });
+  const existingGroundList = Array.isArray(existingGrounds) ? existingGrounds : [];
 
   // Location cascading dropdown state
   const [countryList, setCountryList] = useState<string[]>([]);
@@ -1947,8 +1948,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 
   const createMutation = useMutation({
     mutationFn: () => {
-      // Build permitTime as single string e.g. "01:30:00 AM EST"
-      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm} ${permitTimezone}` : '';
+      // Build permitTime as single string e.g. "01:30:00 AM"
+      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm}` : '';
       const payload = {
         boardId: boardId,
         groundName: name.trim(),
@@ -1984,32 +1985,17 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     onError: (err: any) => {
       console.error('Create ground error:', err?.response?.status, JSON.stringify(err?.response?.data, null, 2));
       const detail = err?.response?.data;
-      // Extract the most useful error message from various .NET response shapes
-      // Prioritize specific field errors over generic title
       const fieldErrors = detail?.errors ? Object.entries(detail.errors).map(([k, v]: [string, any]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ') : '';
       const status = err?.response?.status;
-      // Detect duplicate ground name from server error
-      if (status === 500 || status === 409 || status === 400) {
-        const errStr = JSON.stringify(detail).toLowerCase();
-        if (errStr.includes('duplicate') || errStr.includes('already exists') || errStr.includes('unique') || errStr.includes('conflict')) {
-          setErrorMsg('A ground with this name already exists. Please use a different name.');
-          setSuccessMsg('');
-          return;
-        }
-      }
-      // For 500 with no useful detail, show a friendly duplicate-likely message
-      if (status === 500 && (!detail || typeof detail !== 'object' || !fieldErrors)) {
-        setErrorMsg('A ground with this name already exists. Please use a different name.');
-        setSuccessMsg('');
-        return;
-      }
-      const msg = fieldErrors
-        || detail?.detail
-        || detail?.message
-        || detail?.title
-        || (typeof detail === 'string' ? detail : '')
-        || 'Failed to create ground. Please try again.';
-      setErrorMsg(`${msg}${detail?.status ? ` (Status: ${detail.status})` : ''}`);
+      const msg = (status === 500)
+        ? 'Ground name already exists. Please enter a unique name.'
+        : (fieldErrors
+          || detail?.detail
+          || detail?.message
+          || detail?.title
+          || (typeof detail === 'string' ? detail : '')
+          || 'Failed to create ground. Please try again.');
+      setErrorMsg(`${msg}${status && status !== 500 ? ` (Status: ${status})` : ''}`);
       setSuccessMsg('');
     },
   });
@@ -2025,9 +2011,11 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       return;
     }
     // Client-side duplicate ground name check
-    const duplicate = existingGroundList.find((g: any) => (g.groundName || g.name || '').trim().toLowerCase() === name.trim().toLowerCase());
+    const duplicate = existingGroundList.find((g: any) =>
+      (g.groundName || g.name || '').trim().toLowerCase() === name.trim().toLowerCase()
+    );
     if (duplicate) {
-      setErrorMsg('A ground with this name already exists. Please use a different name.');
+      setErrorMsg('Ground name already exists. Please enter a unique name.');
       return;
     }
     createMutation.mutate();
@@ -2271,29 +2259,38 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Permit Time <span className="text-red-500">*</span></label>
               <div className="flex items-center gap-2">
-                <input
+                <select
                   value={permitHour}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 12)) setPermitHour(v.slice(0, 2)); }}
-                  placeholder="HH"
-                  maxLength={2}
-                  className="input-field w-16 text-center"
-                />
+                  onChange={e => setPermitHour(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="">HH</option>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
                 <span className="text-gray-500 font-bold">:</span>
-                <input
+                <select
                   value={permitMinutes}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setPermitMinutes(v.slice(0, 2)); }}
-                  placeholder="MM"
-                  maxLength={2}
-                  className="input-field w-16 text-center"
-                />
+                  onChange={e => setPermitMinutes(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="">MM</option>
+                  {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
                 <span className="text-gray-500 font-bold">:</span>
-                <input
+                <select
                   value={permitSeconds}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setPermitSeconds(v.slice(0, 2)); }}
-                  placeholder="SS"
-                  maxLength={2}
-                  className="input-field w-16 text-center"
-                />
+                  onChange={e => setPermitSeconds(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="">SS</option>
+                  {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
                 <select
                   value={permitAmPm}
                   onChange={e => setPermitAmPm(e.target.value)}
@@ -2484,7 +2481,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm} ${editPermitTimezone}` : '';
+      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm}` : '';
       return leagueService.updateGround(boardId, editId!, {
         id: editId!,
         groundId: editId!,
@@ -2850,29 +2847,38 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Permit Time <span className="text-red-500">*</span></label>
               <div className="flex items-center gap-2">
-                <input
+                <select
                   value={editPermitHour}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 12)) setEditPermitHour(v.slice(0, 2)); }}
-                  placeholder="HH"
-                  maxLength={2}
-                  className="input-field w-16 text-center"
-                />
+                  onChange={e => setEditPermitHour(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="">HH</option>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
                 <span className="text-gray-500 font-bold">:</span>
-                <input
+                <select
                   value={editPermitMinutes}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setEditPermitMinutes(v.slice(0, 2)); }}
-                  placeholder="MM"
-                  maxLength={2}
-                  className="input-field w-16 text-center"
-                />
+                  onChange={e => setEditPermitMinutes(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="">MM</option>
+                  {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
                 <span className="text-gray-500 font-bold">:</span>
-                <input
+                <select
                   value={editPermitSeconds}
-                  onChange={e => { const v = e.target.value.replace(/\D/g, ''); if (v === '' || (Number(v) >= 0 && Number(v) <= 59)) setEditPermitSeconds(v.slice(0, 2)); }}
-                  placeholder="SS"
-                  maxLength={2}
-                  className="input-field w-16 text-center"
-                />
+                  onChange={e => setEditPermitSeconds(e.target.value)}
+                  className="input-field w-20 text-center appearance-none cursor-pointer"
+                >
+                  <option value="">SS</option>
+                  {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
                 <select
                   value={editPermitAmPm}
                   onChange={e => setEditPermitAmPm(e.target.value)}
@@ -4031,7 +4037,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const pad = (n: number) => String(n).padStart(2, '0');
   const [from, setFrom] = useState(`${today.getFullYear()}-${pad(today.getMonth() + 1)}-01`);
   const [to, setTo] = useState(() => { const last = new Date(today.getFullYear(), today.getMonth() + 2, 0); return `${last.getFullYear()}-${pad(last.getMonth() + 1)}-${pad(last.getDate())}`; });
-  const [editMatchId, setEditMatchId] = useState<string | null>(null);
+  const [editMatchId, setEditMatchId] = useState<string | null>(() => sessionStorage.getItem('schedule_edit_id') || null);
   const [viewMatchId, setViewMatchId] = useState<string | null>(null);
   const [editTournamentId, setEditTournamentId] = useState('');
   const [editGameType, setEditGameType] = useState('');
@@ -4047,7 +4053,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [editOriginal, setEditOriginal] = useState<any>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(() => sessionStorage.getItem('schedule_mode') === 'create');
   const [showCreateCancelConfirm, setShowCreateCancelConfirm] = useState(false);
 
   // SessionStorage helpers for schedule form
@@ -4058,15 +4064,19 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     ['tournamentId', 'gameType', 'homeTeamId', 'awayTeamId', 'groundId', 'umpireId', 'appScorerId', 'portalScorerId', 'startAtUtc'].forEach(k => sessionStorage.removeItem(SS_PREFIX + k));
   };
 
-  const [newTournamentId, setNewTournamentId] = useState('');
-  const [newHomeTeamId, setNewHomeTeamId] = useState('');
-  const [newAwayTeamId, setNewAwayTeamId] = useState('');
-  const [newGroundId, setNewGroundId] = useState('');
-  const [newUmpireId, setNewUmpireId] = useState('');
-  const [newAppScorerId, setNewAppScorerId] = useState('');
-  const [newPortalScorerId, setNewPortalScorerId] = useState('');
-  const [newScheduledAt, setNewScheduledAt] = useState('');
-  const [newGameType, setNewGameType] = useState('');
+  const [newTournamentId, setNewTournamentId] = useState(() => ssGet('tournamentId'));
+  const [newHomeTeamId, setNewHomeTeamId] = useState(() => ssGet('homeTeamId'));
+  const [newAwayTeamId, setNewAwayTeamId] = useState(() => ssGet('awayTeamId'));
+  const [newGroundId, setNewGroundId] = useState(() => ssGet('groundId'));
+  const [newUmpireId, setNewUmpireId] = useState(() => ssGet('umpireId'));
+  const [newAppScorerId, setNewAppScorerId] = useState(() => ssGet('appScorerId'));
+  const [newPortalScorerId, setNewPortalScorerId] = useState(() => ssGet('portalScorerId'));
+  const [newScheduledAt, setNewScheduledAt] = useState(() => {
+    const utc = ssGet('startAtUtc');
+    if (!utc) return '';
+    try { return new Date(utc).toISOString().slice(0, 16); } catch { return ''; }
+  });
+  const [newGameType, setNewGameType] = useState(() => ssGet('gameType'));
   const [createError, setCreateError] = useState('');
   const [createSuccess, setCreateSuccess] = useState('');
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -4394,8 +4404,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     );
   };
 
-  // Reset teams when tournament changes
+  // Reset teams when tournament changes (skip on initial mount to preserve restored state)
+  const tournamentMountRef = useRef(true);
   useEffect(() => {
+    if (tournamentMountRef.current) { tournamentMountRef.current = false; return; }
     setNewHomeTeamId('');
     setNewAwayTeamId('');
     setSelectedHomeTeam(null);
@@ -4409,6 +4421,40 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   useEffect(() => {
     if (!showCreate) return;
   }, [showCreate, tournamentList.length]);
+
+  // Restore create form searchable dropdown selections on mount (after page refresh)
+  const createRestoredRef = useRef(false);
+  useEffect(() => {
+    if (createRestoredRef.current || !showCreate) return;
+    const hasRestoredIds = !!(newHomeTeamId || newAwayTeamId || newUmpireId || newAppScorerId || newPortalScorerId);
+    if (!hasRestoredIds) return;
+    // Wait until data is loaded
+    if (!tournamentTeamList.length && !allBoards.length) return;
+    createRestoredRef.current = true;
+    // Restore team selections
+    if (newHomeTeamId) {
+      const team = tournamentTeamList.find((t: any) => t.id === newHomeTeamId) || allBoards.find((b: any) => b.id === newHomeTeamId);
+      if (team) setSelectedHomeTeam({ id: team.id, name: team.name });
+    }
+    if (newAwayTeamId) {
+      const team = tournamentTeamList.find((t: any) => t.id === newAwayTeamId) || allBoards.find((b: any) => b.id === newAwayTeamId);
+      if (team) setSelectedAwayTeam({ id: team.id, name: team.name });
+    }
+    // Restore umpire selection
+    if (newUmpireId) {
+      const ump = umpireList.find((u: any) => (u.id || u.umpireId) === newUmpireId) as any;
+      if (ump) setSelectedUmpire({ id: ump.id || ump.umpireId, name: ump.umpireName || ump.name || '', email: ump.email });
+    }
+    // Restore scorer selections
+    if (newAppScorerId) {
+      const u = normalizedUsers.find((u: any) => u.id === newAppScorerId);
+      if (u) setSelectedAppScorer({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email });
+    }
+    if (newPortalScorerId) {
+      const u = normalizedUsers.find((u: any) => u.id === newPortalScorerId);
+      if (u) setSelectedPortalScorer({ id: u.id, firstName: u.firstName, lastName: u.lastName, email: u.email });
+    }
+  }, [showCreate, tournamentTeamList.length, allBoards.length, umpireList.length, normalizedUsers.length]);
 
   // SessionStorage helpers for schedule edit form
   const EDIT_SS_PREFIX = 'schedule_edit_';
@@ -4453,6 +4499,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       editSsClearAll();
+      sessionStorage.removeItem('schedule_mode');
       setEditMatchId(null);
       setEditError('');
     },
@@ -4567,6 +4614,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const handleEditMatch = (m: any) => {
     // Store the selected schedule ID in sessionStorage so it persists
     editSsClearAll();
+    sessionStorage.setItem('schedule_mode', 'edit');
     editSsSet('id', m.id);
     setEditMatchId(m.id);
     setEditTournamentId(m.tournamentId || '');
@@ -4598,6 +4646,21 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     setShowEditHomeTeamDropdown(false); setShowEditAwayTeamDropdown(false); setShowEditUmpireDropdown(false); setShowEditAppScorerDropdown(false); setShowEditPortalScorerDropdown(false);
   };
 
+  // Restore edit form state from sessionStorage on mount (after page refresh)
+  const editRestoredRef = useRef(false);
+  useEffect(() => {
+    if (editRestoredRef.current) return;
+    if (!editMatchId) return;
+    // If editOriginal is already set, this isn't a fresh mount restore
+    if (editOriginal) return;
+    // Try to find the match in loaded data
+    const m = rawMatchList.find((x: any) => x.id === editMatchId) || allMatchList.find((x: any) => x.id === editMatchId);
+    if (m) {
+      editRestoredRef.current = true;
+      handleEditMatch(m);
+    }
+  }, [editMatchId, rawMatchList.length, allMatchList.length]);
+
   const cancelEdit = () => {
     if (editOriginal) {
       const hasChanges = editTournamentId !== editOriginal.tournamentId || editGameType !== editOriginal.gameType || editHomeTeamId !== editOriginal.homeTeamId || editAwayTeamId !== editOriginal.awayTeamId || editGround !== editOriginal.ground || editUmpire !== editOriginal.umpire || editAppScorer !== editOriginal.appScorer || editPortalScorer !== editOriginal.portalScorer || editScheduledAt !== editOriginal.scheduledAt;
@@ -4609,6 +4672,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const confirmCancelEdit = () => {
     setShowCancelConfirm(false);
     editSsClearAll();
+    sessionStorage.removeItem('schedule_mode');
     setEditMatchId(null);
     setEditTournamentId('');
     setEditGameType('');
@@ -4631,6 +4695,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const resetCreateForm = () => {
     ssClearAll();
+    sessionStorage.removeItem('schedule_mode');
     setNewTournamentId('');
     setNewGameType('');
     setNewHomeTeamId('');
@@ -4906,6 +4971,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         {!showCreate && !editMatchId && (
           <button onClick={() => {
             setShowCreate(true);
+            sessionStorage.setItem('schedule_mode', 'create');
             resetCreateForm(); setCreateError(''); setCreateSuccess('');
           }} className="btn-primary text-sm flex items-center gap-2">
             <span className="text-xl font-bold leading-none">+</span> Create Match
@@ -4984,9 +5050,17 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <input type="date" max="9999-12-31" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
-                <input type="time" value={newScheduledAt ? newScheduledAt.slice(11, 16) : ''} onChange={e => { const t = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const v = d && t ? `${d}T${t}` : newScheduledAt; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-28 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+                <div className="flex items-center gap-0">
+                  <select value={newScheduledAt ? newScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = newScheduledAt ? newScheduledAt.slice(14, 16) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-16 text-center appearance-none cursor-pointer rounded-r-none border-r-0 ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
+                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="text-gray-500 font-bold px-0.5">:</span>
+                  <select value={newScheduledAt ? newScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = newScheduledAt ? newScheduledAt.slice(11, 13) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-16 text-center appearance-none cursor-pointer rounded-l-none border-l-0 ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
+                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
               </div>
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
             </div>
@@ -4996,6 +5070,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               onClick={() => {
                 const hasData = newTournamentId || newHomeTeamId || newAwayTeamId || newGroundId || newUmpireId || newAppScorerId || newPortalScorerId || newScheduledAt || newGameType;
                 if (hasData) { setShowCreateCancelConfirm(true); return; }
+                sessionStorage.removeItem('schedule_mode');
+                ssClearAll();
                 setShowCreate(false);
               }}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
@@ -5094,9 +5170,17 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <input type="date" max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
-                <input type="time" value={editScheduledAt ? editScheduledAt.slice(11, 16) : ''} onChange={e => { const t = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); setEditScheduledAt(d && t ? `${d}T${t}` : editScheduledAt); }} className="input-field w-28" />
+                <div className="flex items-center gap-0">
+                  <select value={editScheduledAt ? editScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = editScheduledAt ? editScheduledAt.slice(14, 16) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-16 text-center appearance-none cursor-pointer rounded-r-none border-r-0">
+                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
+                  </select>
+                  <span className="text-gray-500 font-bold px-0.5">:</span>
+                  <select value={editScheduledAt ? editScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = editScheduledAt ? editScheduledAt.slice(11, 13) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-16 text-center appearance-none cursor-pointer rounded-l-none border-l-0">
+                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
