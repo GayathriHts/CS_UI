@@ -1988,7 +1988,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       const fieldErrors = detail?.errors ? Object.entries(detail.errors).map(([k, v]: [string, any]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`).join('; ') : '';
       const status = err?.response?.status;
       const msg = (status === 500)
-        ? 'Ground name already exists. Please enter a unique name.'
+        ? 'A ground with this name already exists. Please try a different name.'
         : (fieldErrors
           || detail?.detail
           || detail?.message
@@ -2000,7 +2000,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     },
   });
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setErrorMsg('');
     if (!name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim()) {
       setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country, Zip Code.');
@@ -2010,13 +2010,20 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
       setErrorMsg('Please fill in the Permit Time (HH and MM are required).');
       return;
     }
-    // Client-side duplicate ground name check
-    const duplicate = existingGroundList.find((g: any) =>
-      (g.groundName || g.name || '').trim().toLowerCase() === name.trim().toLowerCase()
-    );
-    if (duplicate) {
-      setErrorMsg('Ground name already exists. Please enter a unique name.');
-      return;
+    // Client-side duplicate ground name check — fetch fresh list to be accurate
+    try {
+      const freshRes = await leagueService.getGrounds(boardId);
+      const freshData = freshRes.data;
+      const freshList = Array.isArray(freshData) ? freshData : (freshData as any)?.data ?? (freshData as any)?.items ?? [];
+      const duplicate = freshList.find((g: any) =>
+        (g.groundName || g.name || '').trim().toLowerCase() === name.trim().toLowerCase()
+      );
+      if (duplicate) {
+        setErrorMsg('A ground with this name already exists. Please try a different name.');
+        return;
+      }
+    } catch {
+      // If fetch fails, fall through to server-side validation
     }
     createMutation.mutate();
   };
@@ -2902,15 +2909,22 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
           <div className="flex justify-end gap-2 mt-6">
             <button onClick={cancelEdit} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Cancel</button>
-            <button onClick={() => {
-              // Client-side duplicate ground name check (exclude current ground)
-              const duplicate = groundList.find((g: any) => {
-                const gid = g.id || g.groundId;
-                return gid !== editId && (g.groundName || g.name || '').trim().toLowerCase() === editName.trim().toLowerCase();
-              });
-              if (duplicate) {
-                setUpdateError('A ground with this name already exists. Please use a different name.');
-                return;
+            <button onClick={async () => {
+              // Client-side duplicate ground name check (exclude current ground) — fetch fresh list
+              try {
+                const freshRes = await leagueService.getGrounds(boardId);
+                const freshData = freshRes.data;
+                const freshList = Array.isArray(freshData) ? freshData : (freshData as any)?.data ?? (freshData as any)?.items ?? [];
+                const duplicate = freshList.find((g: any) => {
+                  const gid = g.id || g.groundId;
+                  return gid !== editId && (g.groundName || g.name || '').trim().toLowerCase() === editName.trim().toLowerCase();
+                });
+                if (duplicate) {
+                  setUpdateError('A ground with this name already exists. Please try a different name.');
+                  return;
+                }
+              } catch {
+                // If fetch fails, fall through to server-side validation
               }
               setUpdateError('');
               updateMutation.mutate();
