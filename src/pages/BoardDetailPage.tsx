@@ -2238,7 +2238,7 @@ function EventsTab({ boardId }: { boardId: string }) {
               <select value={eventType} onChange={e => setEventType(e.target.value)} className="input-field">
                 <option>Fixture</option><option>Social</option><option>Meeting</option><option>Practice</option>
               </select></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="datetime-local" value={eventDate} onChange={e => setEventDate(e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Date</label><input type="datetime-local" max="9999-12-31T23:59" value={eventDate} onChange={e => { const v = e.target.value; if (v && v.length > 16) return; setEventDate(v); }} className="input-field" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Location</label><input value={location} onChange={e => setLocation(e.target.value)} className="input-field" /></div>
             <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="input-field resize-none" rows={2} /></div>
           </div>

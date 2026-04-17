@@ -3639,8 +3639,8 @@ function CancelGameTab({ boardId }: { boardId: string }) {
         </div>
         <div className="p-6">
           <div className="flex flex-wrap gap-4 items-end">
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} max={to} onChange={e => { const v = e.target.value; if (v && to && v > to) { setFrom(v); setTo(v); } else { setFrom(v); } }} className="input-field" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} min={from} onChange={e => { const v = e.target.value; if (v && from && v < from) { setTo(v); setFrom(v); } else { setTo(v); } }} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} max={to || '9999-12-31'} onChange={e => { const v = e.target.value; if (v && v.length > 10) return; if (v && to && v > to) { setFrom(v); setTo(v); } else { setFrom(v); } }} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} min={from} max="9999-12-31" onChange={e => { const v = e.target.value; if (v && v.length > 10) return; if (v && from && v < from) { setTo(v); setFrom(v); } else { setTo(v); } }} className="input-field" /></div>
             <button onClick={() => bulkCancelMutation.mutate()} disabled={bulkCancelMutation.isPending || !from || !to}
               className="px-6 py-2 bg-red-600 text-white rounded text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
               {bulkCancelMutation.isPending ? 'Cancelling...' : 'Cancel Games'}
@@ -4895,7 +4895,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
-                <input type="date" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+                <input type="date" max="9999-12-31" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
                 <input type="time" value={newScheduledAt ? newScheduledAt.slice(11, 16) : ''} onChange={e => { const t = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const v = d && t ? `${d}T${t}` : newScheduledAt; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-28 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
               </div>
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
@@ -4928,8 +4928,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       {!editMatchId && (
       <div className="card mb-6">
         <div className="flex flex-wrap gap-4 items-end">
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} max={to} onChange={e => { const v = e.target.value; if (v && to && v > to) { setFrom(v); setTo(v); } else { setFrom(v); } }} className="input-field" /></div>
-          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} min={from} onChange={e => { const v = e.target.value; if (v && from && v < from) { setTo(v); setFrom(v); } else { setTo(v); } }} className="input-field" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">From</label><input type="date" value={from} max={to || '9999-12-31'} onChange={e => { const v = e.target.value; if (v && v.length > 10) return; if (v && to && v > to) { setFrom(v); setTo(v); } else { setFrom(v); } }} className="input-field" /></div>
+          <div><label className="block text-sm font-medium text-gray-700 mb-1">To</label><input type="date" value={to} min={from} max="9999-12-31" onChange={e => { const v = e.target.value; if (v && v.length > 10) return; if (v && from && v < from) { setTo(v); setFrom(v); } else { setTo(v); } }} className="input-field" /></div>
         </div>
       </div>
       )}
@@ -5004,7 +5004,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2">
-                <input type="date" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
+                <input type="date" max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
                 <input type="time" value={editScheduledAt ? editScheduledAt.slice(11, 16) : ''} onChange={e => { const t = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); setEditScheduledAt(d && t ? `${d}T${t}` : editScheduledAt); }} className="input-field w-28" />
               </div>
             </div>
@@ -5228,7 +5228,7 @@ function InvoicesTab({ boardId }: { boardId: string }) {
           <h3 className="font-semibold mb-4">Create Invoice</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Amount <span className="text-red-500">*</span></label><input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="input-field" /></div>
-            <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date <span className="text-red-500">*</span></label><input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} className="input-field" /></div>
+            <div><label className="block text-sm font-medium text-gray-700 mb-1">Due Date <span className="text-red-500">*</span></label><input type="date" max="9999-12-31" value={dueDate} onChange={e => { const v = e.target.value; if (v && v.length > 10) return; setDueDate(v); }} className="input-field" /></div>
             <div><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><input value={description} onChange={e => setDescription(e.target.value)} className="input-field" /></div>
           </div>
           <button onClick={() => amount && dueDate && createMutation.mutate()} disabled={!amount || !dueDate || createMutation.isPending}
