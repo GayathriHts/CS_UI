@@ -1890,8 +1890,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 
   const createMutation = useMutation({
     mutationFn: () => {
-      // Build permitTime as single string e.g. "01:30:00 AM"
-      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm}` : '';
+      // Build permitTime as single string e.g. "01:30:00 AM EST"
+      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm} ${permitTimezone}` : '';
       const payload = {
         boardId: boardId,
         groundName: name.trim(),
@@ -2426,7 +2426,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm}` : '';
+      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm} ${editPermitTimezone}` : '';
       return leagueService.updateGround(boardId, editId!, {
         id: editId!,
         groundId: editId!,
@@ -4691,7 +4691,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
-              <input type="datetime-local" value={newScheduledAt} onChange={e => { setNewScheduledAt(e.target.value); ssSet('startAtUtc', e.target.value ? new Date(e.target.value).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+              <div className="flex gap-2">
+                <input type="date" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+                <input type="time" value={newScheduledAt ? newScheduledAt.slice(11, 16) : ''} onChange={e => { const t = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const v = d && t ? `${d}T${t}` : newScheduledAt; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-28 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+              </div>
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
             </div>
           </div>
@@ -4795,7 +4798,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
-              <input type="datetime-local" value={editScheduledAt} onChange={e => setEditScheduledAt(e.target.value)} className="input-field" />
+              <div className="flex gap-2">
+                <input type="date" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
+                <input type="time" value={editScheduledAt ? editScheduledAt.slice(11, 16) : ''} onChange={e => { const t = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); setEditScheduledAt(d && t ? `${d}T${t}` : editScheduledAt); }} className="input-field w-28" />
+              </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">

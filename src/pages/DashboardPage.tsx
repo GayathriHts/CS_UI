@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../store/slices/authStore';
 import { boardService, tournamentService, userService, feedService } from '../services/cricketSocialService';
@@ -8,16 +8,16 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 type MenuSection = 'score' | 'pitch' | 'events' | 'fans' | 'fanof' | 'board' | 'buddies' | 'compare' | 'book' | 'invoices';
 
 const menuItems: { id: MenuSection; label: string; icon: string; iconImg?: string }[] = [
-  { id: 'score', label: 'My Score', icon: '📊', iconImg: '/images/MyScore.png' },
-  { id: 'pitch', label: 'Pitch', icon: '📢', iconImg: '/images/pitch-icon.png' },
-  { id: 'events', label: 'My Events & Fixtures', icon: '📅', iconImg: '/images/MyEvents.png' },
-  { id: 'fans', label: 'My Fans', icon: '👥', iconImg: '/images/MyFans.png' },
-  { id: 'fanof', label: 'I Am Fan Of', icon: '⭐', iconImg: '/images/IAmFanOf.png' },
-  { id: 'board', label: 'My Boards', icon: '🏟️', iconImg: '/images/MyBoard.png' },
-  { id: 'buddies', label: 'My Buddies', icon: '🤝', iconImg: '/images/MyBuddyList.png' },
-  { id: 'compare', label: 'Player Compare', icon: '⚖️', iconImg: '/images/PlayerCompare.png' },
-  { id: 'book', label: 'Cricket Book', icon: '📖', iconImg: '/images/CricketBook.png' },
-  { id: 'invoices', label: 'My Invoices', icon: '🧾' },
+  { id: 'score', label: 'My Score', icon: '??', iconImg: '/images/MyScore.png' },
+  { id: 'pitch', label: 'Pitch', icon: '??', iconImg: '/images/pitch-icon.png' },
+  { id: 'events', label: 'My Events & Fixtures', icon: '??', iconImg: '/images/MyEvents.png' },
+  { id: 'fans', label: 'My Fans', icon: '??', iconImg: '/images/MyFans.png' },
+  { id: 'fanof', label: 'I Am Fan Of', icon: '?', iconImg: '/images/IAmFanOf.png' },
+  { id: 'board', label: 'My Boards', icon: '???', iconImg: '/images/MyBoard.png' },
+  { id: 'buddies', label: 'My Buddies', icon: '??', iconImg: '/images/MyBuddyList.png' },
+  { id: 'compare', label: 'Player Compare', icon: '??', iconImg: '/images/PlayerCompare.png' },
+  { id: 'book', label: 'Cricket Book', icon: '??', iconImg: '/images/CricketBook.png' },
+  { id: 'invoices', label: 'My Invoices', icon: '??' },
 ];
 
 const visibleMenuItems = menuItems.filter((item) => item.id === 'board');
@@ -250,7 +250,7 @@ export default function DashboardPage() {
     feedService.addComment(id, content),
 
   onSuccess: () => {
-    // âœ… Refresh only feed (not boards)
+    // ✅ Refresh only feed (not boards)
     qc.invalidateQueries({ queryKey: ['feed'] });
 
     // Optional: also refresh comments for that post
@@ -478,8 +478,8 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex justify-between items-center mt-3 pt-3 border-t">
                     <div className="flex gap-2">
-                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">📷 Photo</button>
-                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">🎥 Video</button>
+                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">?? Photo</button>
+                      <button className="text-gray-400 hover:text-brand-green text-sm flex items-center gap-1">?? Video</button>
                     </div>
                     <button onClick={() => pitchContent.trim() && postMutation.mutate(pitchContent)} disabled={!pitchContent.trim() || postMutation.isPending}
                       className="btn-primary px-6 py-2 text-sm">{postMutation.isPending ? 'Posting...' : 'Post'}</button>
@@ -501,7 +501,7 @@ export default function DashboardPage() {
                     {post.content && <p className="text-gray-700 mb-3">{post.content}</p>}
                     {post.mediaUrl && <img src={post.mediaUrl} alt="" className="rounded-lg mb-3 w-full" />}
                     <div className="flex gap-6 pt-3 border-t text-sm text-gray-500">
-                      <button onClick={() => likeMutation.mutate(post.id)} className="flex items-center gap-1 hover:text-red-500">❤️ {post.likesCount}</button>
+                      <button onClick={() => likeMutation.mutate(post.id)} className="flex items-center gap-1 hover:text-red-500">?? {post.likesCount}</button>
                       <button
                         onClick={() => {
                           setCommentText('');
@@ -509,9 +509,9 @@ export default function DashboardPage() {
                         }}
                         className="flex items-center gap-1 hover:text-brand-green"
                       >
-                        💬 {post.commentsCount}
+                        ?? {post.commentsCount}
                       </button>
-                      <button className="flex items-center gap-1 hover:text-blue-500">🔗 Share</button>
+                      <button className="flex items-center gap-1 hover:text-blue-500">?? Share</button>
                     </div>
 
                     {activeCommentsPostId === post.id && (
@@ -740,7 +740,7 @@ export default function DashboardPage() {
                                     type="button"
                                     onClick={(e) => { e.stopPropagation(); setSelectedCoOwner(null); }}
                                     className="text-gray-400 hover:text-red-500 font-bold text-sm"
-                                  >×</button>
+                                  >�</button>
                                 </span>
                               ) : (
                                 <span className="text-gray-400">Select Co-Owner</span>
@@ -827,7 +827,7 @@ export default function DashboardPage() {
                           {b.logoUrl ? (
                             <img src={b.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
                           ) : (
-                            <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = '🏟️'; }} />
+                            <img src="/images/boardIcon.png" alt="" className="w-8 h-8" onError={(e) => { (e.target as HTMLImageElement).textContent = '???'; }} />
                           )}
                         </div>
                         <div className="flex-1">
@@ -964,10 +964,10 @@ export default function DashboardPage() {
           <div className="mb-6">
             <h3 className="font-semibold text-gray-800 mb-3">Quick Links</h3>
             <div className="space-y-2">
-              <Link to="/feed" className="block text-sm text-gray-600 hover:text-brand-green py-1">📢 Social Feed</Link>
-              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">📋 Leaderboard</a>
-              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">🏆 Tournaments</a>
-              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">📖 Help & Support</a>
+              <Link to="/feed" className="block text-sm text-gray-600 hover:text-brand-green py-1">?? Social Feed</Link>
+              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">?? Leaderboard</a>
+              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">?? Tournaments</a>
+              <a href="#" className="block text-sm text-gray-600 hover:text-brand-green py-1">?? Help & Support</a>
             </div>
           </div>
 

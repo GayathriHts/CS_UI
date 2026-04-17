@@ -1085,47 +1085,17 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     },
   });
 
-  // Load all boards for the League Board field — always enabled so list view can resolve names
+  // Load League boards via GET /Boards/bytype/2
   const { data: boardGroundsList, isLoading: boardGroundsLoading } = useQuery({
     queryKey: ['allBoardsForLeague'],
     queryFn: async () => {
       try {
-        const userId = useAuthStore.getState().user?.id;
-        if (!userId) return [];
-        const [ownerRes, coOwnerRes] = await Promise.all([
-          boardService.getByOwner(userId).catch(() => ({ data: null })),
-          boardService.getByOwner(undefined, userId).catch(() => ({ data: null })),
-        ]);
-
-        const extractItems = (raw: any): any[] => {
-          if (!raw) return [];
-          if (raw?.items) return raw.items;
-          if (Array.isArray(raw)) return raw;
-          if (raw?.data?.items) return raw.data.items;
-          if (raw?.data && Array.isArray(raw.data)) return raw.data;
-          return [];
-        };
-
-        const ownerItems = extractItems(ownerRes.data);
-        const coOwnerItems = extractItems(coOwnerRes.data);
-
-        // Merge and deduplicate
-        const seen = new Set<string>();
-        const items: any[] = [];
-        for (const b of [...ownerItems, ...coOwnerItems]) {
-          const bid = b.id || b.Id;
-          if (bid && !seen.has(bid)) {
-            seen.add(bid);
-            items.push(b);
-          }
-        }
-        // Filter to only League boards (boardType === 2 or 'League')
-        const leagueOnly = items.filter((b: any) => {
-          const bt = b.boardType ?? b.BoardType ?? b.board_type;
-          return bt === 2 || bt === 'League';
-        });
-        console.log('League Boards loaded:', leagueOnly.length, 'out of', items.length, 'total');
-        return leagueOnly.map((b: any) => ({
+        const res = await boardService.getByType(2, 1, 50);
+        const raw = res.data as any;
+        const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
+        const list = Array.isArray(items) ? items : [];
+        console.log('League Boards loaded:', list.length);
+        return list.map((b: any) => ({
           id: b.id || b.Id,
           name: b.name || b.Name || 'Unnamed',
         }));
