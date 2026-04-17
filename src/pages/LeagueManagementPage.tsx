@@ -4140,17 +4140,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     }),
     enabled: !!boardId,
     staleTime: 30000,
+    refetchOnMount: 'always',
   });
   const allMatchList = Array.isArray(allSchedules) ? allSchedules : [];
 
-  /** Check if a schedule with same tournament + home + away already exists */
-  const checkDuplicateSchedule = (tournamentId: string, homeId: string, awayId: string, excludeMatchId?: string | null): string => {
-    if (!tournamentId || !homeId || !awayId) return '';
+  /** Check if a schedule with the same tournament already exists */
+  const checkDuplicateSchedule = (tournamentId: string, excludeMatchId?: string | null): string => {
+    if (!tournamentId) return '';
     const dup = allMatchList.find((m: any) => {
       if (excludeMatchId && (m.id || m.scheduleId) === excludeMatchId) return false;
-      const mHome = m.homeTeamId || m.homeTeamBoardId || '';
-      const mAway = m.awayTeamId || m.awayTeamBoardId || '';
-      return m.tournamentId === tournamentId && mHome === homeId && mAway === awayId;
+      return m.tournamentId === tournamentId;
     });
     return dup ? 'This tournament is already added. Duplicate entries are not allowed.' : '';
   };
@@ -4654,7 +4653,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   // Check if all required fields for creating a match are filled
   const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newScheduledAt && newAppScorerId && newPortalScorerId) && !duplicateScheduleError;
 
-  const validateAndCreate = () => {
+  const validateAndCreate = async () => {
     const errors: Record<string, string> = {};
     if (!newTournamentId) errors.tournament = 'Tournament is required';
     if (!newGameType) errors.gameType = 'Game Type is required';
@@ -4668,12 +4667,24 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     setCreateError('');
     setCreateSuccess('');
     if (Object.keys(errors).length > 0) return;
-    // Check for duplicate schedule (same tournament, home, away)
-    const dupMsg = checkDuplicateSchedule(newTournamentId, newHomeTeamId, newAwayTeamId);
-    if (dupMsg) {
-      setDuplicateScheduleError(dupMsg);
-      setCreateError(dupMsg);
-      return;
+    // Check for duplicate schedule (same tournament) via fresh API call
+    try {
+      const freshRes = await leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31');
+      const freshData = freshRes.data;
+      const freshList = Array.isArray(freshData) ? freshData : (freshData as any)?.items ?? (freshData as any)?.data ?? [];
+      const dup = freshList.find((m: any) => m.tournamentId === newTournamentId);
+      if (dup) {
+        const dupMsg = 'This tournament is already added. Duplicate entries are not allowed.';
+        setDuplicateScheduleError(dupMsg);
+        return;
+      }
+    } catch {
+      // Fallback to cached data
+      const dupMsg = checkDuplicateSchedule(newTournamentId);
+      if (dupMsg) {
+        setDuplicateScheduleError(dupMsg);
+        return;
+      }
     }
     createMatchMutation.mutate();
   };
@@ -4906,7 +4917,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
-              <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); ssSet('tournamentId', e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); setDuplicateScheduleError(checkDuplicateSchedule(e.target.value, newHomeTeamId, newAwayTeamId)); }} className={`input-field ${formErrors.tournament || duplicateScheduleError ? 'border-red-500' : ''}`}>
+              <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); ssSet('tournamentId', e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); setDuplicateScheduleError(checkDuplicateSchedule(e.target.value)); }} className={`input-field ${formErrors.tournament || duplicateScheduleError ? 'border-red-500' : ''}`}>
                 <option value="">Select Tournament</option>
                 {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
@@ -4925,7 +4936,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'Home Team *', homeTeamSearch, setHomeTeamSearch,
               showHomeTeamDropdown, setShowHomeTeamDropdown,
               selectedHomeTeam,
-              (b) => { setSelectedHomeTeam(b); setNewHomeTeamId(b.id); ssSet('homeTeamId', b.id); if (b.id === newAwayTeamId) { setNewAwayTeamId(''); setSelectedAwayTeam(null); ssSet('awayTeamId', ''); } if (formErrors.homeTeam) setFormErrors(p => ({ ...p, homeTeam: '' })); setDuplicateScheduleError(checkDuplicateSchedule(newTournamentId, b.id, newAwayTeamId)); },
+              (b) => { setSelectedHomeTeam(b); setNewHomeTeamId(b.id); ssSet('homeTeamId', b.id); if (b.id === newAwayTeamId) { setNewAwayTeamId(''); setSelectedAwayTeam(null); ssSet('awayTeamId', ''); } if (formErrors.homeTeam) setFormErrors(p => ({ ...p, homeTeam: '' })); },
               () => { setSelectedHomeTeam(null); setNewHomeTeamId(''); ssSet('homeTeamId', ''); setHomeTeamSearch(''); },
               newAwayTeamId,
             )}
@@ -4933,7 +4944,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'Away Team *', awayTeamSearch, setAwayTeamSearch,
               showAwayTeamDropdown, setShowAwayTeamDropdown,
               selectedAwayTeam,
-              (b) => { setSelectedAwayTeam(b); setNewAwayTeamId(b.id); ssSet('awayTeamId', b.id); if (formErrors.awayTeam) setFormErrors(p => ({ ...p, awayTeam: '' })); setDuplicateScheduleError(checkDuplicateSchedule(newTournamentId, newHomeTeamId, b.id)); },
+              (b) => { setSelectedAwayTeam(b); setNewAwayTeamId(b.id); ssSet('awayTeamId', b.id); if (formErrors.awayTeam) setFormErrors(p => ({ ...p, awayTeam: '' })); },
               () => { setSelectedAwayTeam(null); setNewAwayTeamId(''); ssSet('awayTeamId', ''); setAwayTeamSearch(''); },
               newHomeTeamId,
             )}
@@ -5016,7 +5027,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
-              <select value={editTournamentId} onChange={e => { setEditTournamentId(e.target.value); setEditHomeTeamId(''); setEditAwayTeamId(''); setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditDuplicateScheduleError(''); }} className={`input-field ${editDuplicateScheduleError ? 'border-red-500' : ''}`}>
+              <select value={editTournamentId} onChange={e => { setEditTournamentId(e.target.value); setEditHomeTeamId(''); setEditAwayTeamId(''); setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditDuplicateScheduleError(checkDuplicateSchedule(e.target.value, editMatchId)); }} className={`input-field ${editDuplicateScheduleError ? 'border-red-500' : ''}`}>
                 <option value="">Select Tournament</option>
                 {tournamentList.map((t: any) => <option key={t.id} value={t.id}>{t.tournamentName || t.name}</option>)}
               </select>
@@ -5033,7 +5044,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'Home Team *', editHomeTeamSearch, setEditHomeTeamSearch,
               showEditHomeTeamDropdown, setShowEditHomeTeamDropdown,
               selectedEditHomeTeam,
-              (b) => { setSelectedEditHomeTeam(b); setEditHomeTeamId(b.id); if (b.id === editAwayTeamId) { setEditAwayTeamId(''); setSelectedEditAwayTeam(null); } setEditDuplicateScheduleError(checkDuplicateSchedule(editTournamentId, b.id, editAwayTeamId, editMatchId)); },
+              (b) => { setSelectedEditHomeTeam(b); setEditHomeTeamId(b.id); if (b.id === editAwayTeamId) { setEditAwayTeamId(''); setSelectedEditAwayTeam(null); } },
               () => { setSelectedEditHomeTeam(null); setEditHomeTeamId(''); setEditHomeTeamSearch(''); },
               editAwayTeamId,
               { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
@@ -5042,7 +5053,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'Away Team *', editAwayTeamSearch, setEditAwayTeamSearch,
               showEditAwayTeamDropdown, setShowEditAwayTeamDropdown,
               selectedEditAwayTeam,
-              (b) => { setSelectedEditAwayTeam(b); setEditAwayTeamId(b.id); setEditDuplicateScheduleError(checkDuplicateSchedule(editTournamentId, editHomeTeamId, b.id, editMatchId)); },
+              (b) => { setSelectedEditAwayTeam(b); setEditAwayTeamId(b.id); },
               () => { setSelectedEditAwayTeam(null); setEditAwayTeamId(''); setEditAwayTeamSearch(''); },
               editHomeTeamId,
               { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
@@ -5087,7 +5098,26 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <button onClick={cancelEdit} className="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-400 transition-colors">Cancel</button>
-            <button onClick={() => { const dupMsg = checkDuplicateSchedule(editTournamentId, editHomeTeamId, editAwayTeamId, editMatchId); if (dupMsg) { setEditDuplicateScheduleError(dupMsg); setEditError(dupMsg); return; } updateMatchMutation.mutate(); }} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending || !!editDuplicateScheduleError} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Updating...' : 'Update'}</button>
+            <button onClick={async () => {
+              try {
+                const freshRes = await leagueService.getSchedule(boardId, '2020-01-01', '2030-12-31');
+                const freshData = freshRes.data;
+                const freshList = Array.isArray(freshData) ? freshData : (freshData as any)?.items ?? (freshData as any)?.data ?? [];
+                const dup = freshList.find((m: any) => {
+                  if ((m.id || m.scheduleId) === editMatchId) return false;
+                  return m.tournamentId === editTournamentId;
+                });
+                if (dup) {
+                  const dupMsg = 'This tournament is already added. Duplicate entries are not allowed.';
+                  setEditDuplicateScheduleError(dupMsg);
+                  return;
+                }
+              } catch {
+                const dupMsg = checkDuplicateSchedule(editTournamentId, editMatchId);
+                if (dupMsg) { setEditDuplicateScheduleError(dupMsg); return; }
+              }
+              updateMatchMutation.mutate();
+            }} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending || !!editDuplicateScheduleError} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Updating...' : 'Update'}</button>
           </div>
         </div>
       )}
