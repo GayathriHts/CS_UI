@@ -70,7 +70,7 @@ const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueT
   {
     id: 'schedules', label: 'SCHEDULES AND RESULTS',
     items: [
-      { id: 'schedule', label: 'Schedule' },
+      { id: 'schedule', label: 'Schedule List' },
       { id: 'cancel-game', label: 'Cancel Game by Date' },
     ],
   },
@@ -1256,7 +1256,11 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     }),
     enabled: !!boardId,
   });
-  const umpireList = Array.isArray(umpires) ? umpires : [];
+  const umpireList = (Array.isArray(umpires) ? umpires : []).slice().sort((a: any, b: any) => {
+    const nameA = (a.umpireName || a.name || '').toLowerCase();
+    const nameB = (b.umpireName || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const formatPhone = (u: any): string => {
     const raw = u.mobile || u.contactNumber || '';
@@ -2477,7 +2481,11 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     }),
     enabled: !!boardId,
   });
-  const groundList = Array.isArray(grounds) ? grounds : [];
+  const groundList = (Array.isArray(grounds) ? grounds : []).slice().sort((a: any, b: any) => {
+    const nameA = (a.groundName || a.name || '').toLowerCase();
+    const nameB = (b.groundName || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => leagueService.deleteGround(boardId, id),
@@ -3881,7 +3889,11 @@ function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCh
       return list;
     },
   });
-  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
+  const tournamentList = (Array.isArray(tournaments) ? tournaments : []).slice().sort((a: any, b: any) => {
+    const nameA = (a.tournamentName || a.name || '').toLowerCase();
+    const nameB = (b.tournamentName || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => tournamentService.deleteTournament(id),
@@ -4107,6 +4119,12 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const [selectedAppScorer, setSelectedAppScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
   const [selectedPortalScorer, setSelectedPortalScorer] = useState<{ id: string; firstName: string; lastName: string; email: string } | null>(null);
 
+  // Time picker dropdown state
+  const [showHourDropdown, setShowHourDropdown] = useState(false);
+  const [showMinuteDropdown, setShowMinuteDropdown] = useState(false);
+  const [showEditHourDropdown, setShowEditHourDropdown] = useState(false);
+  const [showEditMinuteDropdown, setShowEditMinuteDropdown] = useState(false);
+
   // Team board search state for Home/Away
   const [homeTeamSearch, setHomeTeamSearch] = useState('');
   const [awayTeamSearch, setAwayTeamSearch] = useState('');
@@ -4237,7 +4255,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
     },
   });
-  const tournamentList = Array.isArray(umpireTournaments) ? umpireTournaments : [];
+  const tournamentList = (Array.isArray(umpireTournaments) ? umpireTournaments : []).slice().sort((a: any, b: any) => {
+    const nameA = (a.tournamentName || a.name || '').toLowerCase();
+    const nameB = (b.tournamentName || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
 
   const mapTeamItem = (t: any) => ({
     id: t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.TeamId || t.teamBoardId || t.TeamBoardId || t.boardId || t.BoardId || '',
@@ -4369,7 +4391,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
 
   const umpireList = Array.isArray(umpires) ? umpires : [];
-  const groundList = Array.isArray(grounds) ? grounds : [];
+  const groundList = (Array.isArray(grounds) ? grounds : []).slice().sort((a: any, b: any) => {
+    const nameA = (a.groundName || a.name || '').toLowerCase();
+    const nameB = (b.groundName || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
   const rawMatchList = Array.isArray(matches) ? matches : [];
 
   // Client-side date range filter as safety net
@@ -4378,6 +4404,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!d || !from || !to) return true;
     const dateStr = d.split('T')[0];
     return dateStr >= from && dateStr <= to;
+  }).slice().sort((a: any, b: any) => {
+    const dateA = new Date(a.startAtUtc || a.scheduledAt || 0).getTime();
+    const dateB = new Date(b.startAtUtc || b.scheduledAt || 0).getTime();
+    return dateB - dateA;
   });
 
   // Collect unique tournament IDs from schedule to fetch team names
@@ -4811,6 +4841,44 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const statusColor = (s: string) => s === 'Scheduled' ? 'bg-blue-100 text-blue-700' : s === 'Live' ? 'bg-green-100 text-green-700' : s === 'Completed' ? 'bg-gray-100 text-gray-600' : 'bg-red-100 text-red-700';
 
+  // Custom time dropdown (replaces native <select> for hour/minute)
+  const renderTimeDropdown = (
+    value: string,
+    options: string[],
+    showDd: boolean,
+    setShowDd: (v: boolean) => void,
+    onChange: (v: string) => void,
+    error?: boolean,
+  ) => (
+    <div className="relative">
+      {showDd && <div className="fixed inset-0 z-[5]" onClick={() => setShowDd(false)} />}
+      <button
+        type="button"
+        onClick={() => setShowDd(!showDd)}
+        className={`input-field w-20 text-center cursor-pointer ${error ? 'border-red-500' : ''}`}
+      >
+        {value}
+      </button>
+      {showDd && (
+        <div className="absolute z-20 mt-1 w-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+          {options.map(o => (
+            <button
+              key={o}
+              type="button"
+              onClick={() => { onChange(o); setShowDd(false); }}
+              className={`w-full text-center px-2 py-1.5 text-sm hover:bg-brand-green/10 border-b last:border-b-0 ${o === value ? 'bg-brand-green/20 font-medium' : ''}`}
+            >
+              {o}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const hourOptions = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+  const minuteOptions = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'));
+
   // Searchable umpire dropdown using Umpire API data
   const renderUmpireDropdown = (
     search: string,
@@ -5031,11 +5099,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       </div>
 
       {showCreate && (
-        <div className="card mb-6">
+        <div className="card mb-6 overflow-visible">
           <h3 className="font-semibold mb-4">Create Match</h3>
           {createError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{createError}</div>}
           {createSuccess && <div className="mb-4 p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{createSuccess}</div>}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
               <select value={newTournamentId} onChange={e => { setNewTournamentId(e.target.value); ssSet('tournamentId', e.target.value); if (formErrors.tournament) setFormErrors(p => ({ ...p, tournament: '' })); }} className={`input-field ${formErrors.tournament ? 'border-red-500' : ''}`}>
@@ -5105,14 +5173,22 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
                 <input type="date" max="9999-12-31" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
-                <div className="flex items-center">
-                  <select value={newScheduledAt ? newScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = newScheduledAt ? newScheduledAt.slice(14, 16) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-r-none ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
-                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                  <select value={newScheduledAt ? newScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = newScheduledAt ? newScheduledAt.slice(11, 13) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-l-none ${formErrors.scheduledAt ? 'border-red-500' : ''}`}>
-                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
+                {renderTimeDropdown(
+                  newScheduledAt ? newScheduledAt.slice(11, 13) : '00',
+                  hourOptions,
+                  showHourDropdown,
+                  setShowHourDropdown,
+                  (h) => { const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = newScheduledAt ? newScheduledAt.slice(14, 16) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); },
+                  !!formErrors.scheduledAt,
+                )}
+                {renderTimeDropdown(
+                  newScheduledAt ? newScheduledAt.slice(14, 16) : '00',
+                  minuteOptions,
+                  showMinuteDropdown,
+                  setShowMinuteDropdown,
+                  (m) => { const d = newScheduledAt ? newScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = newScheduledAt ? newScheduledAt.slice(11, 13) : '00'; const v = `${d}T${h}:${m}`; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); },
+                  !!formErrors.scheduledAt,
+                )}
               </div>
               {formErrors.scheduledAt && <p className="text-red-500 text-xs mt-1">{formErrors.scheduledAt}</p>}
             </div>
@@ -5154,10 +5230,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       )}
 
       {editMatchId && (
-        <div className="card mb-6">
+        <div className="card mb-6 overflow-visible">
           <h3 className="font-semibold mb-4">Edit Schedule</h3>
           {editError && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm">{editError}</div>}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tournament <span className="text-red-500">*</span></label>
               <select value={editTournamentId} onChange={e => { setEditTournamentId(e.target.value); setEditHomeTeamId(''); setEditAwayTeamId(''); setSelectedEditHomeTeam(null); setSelectedEditAwayTeam(null); setEditHomeTeamSearch(''); setEditAwayTeamSearch(''); setEditDuplicateScheduleError(''); }} className="input-field">
@@ -5224,14 +5300,20 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
                 <input type="date" max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
-                <div className="flex items-center">
-                  <select value={editScheduledAt ? editScheduledAt.slice(11, 13) : '00'} onChange={e => { const h = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = editScheduledAt ? editScheduledAt.slice(14, 16) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-r-none">
-                    {Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')).map(h => <option key={h} value={h}>{h}</option>)}
-                  </select>
-                  <select value={editScheduledAt ? editScheduledAt.slice(14, 16) : '00'} onChange={e => { const m = e.target.value; const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = editScheduledAt ? editScheduledAt.slice(11, 13) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); }} className="input-field w-[4.5rem] !pr-6 text-center appearance-none cursor-pointer rounded-l-none">
-                    {Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0')).map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
+                {renderTimeDropdown(
+                  editScheduledAt ? editScheduledAt.slice(11, 13) : '00',
+                  hourOptions,
+                  showEditHourDropdown,
+                  setShowEditHourDropdown,
+                  (h) => { const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const m = editScheduledAt ? editScheduledAt.slice(14, 16) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); },
+                )}
+                {renderTimeDropdown(
+                  editScheduledAt ? editScheduledAt.slice(14, 16) : '00',
+                  minuteOptions,
+                  showEditMinuteDropdown,
+                  setShowEditMinuteDropdown,
+                  (m) => { const d = editScheduledAt ? editScheduledAt.slice(0, 10) : new Date().toISOString().slice(0, 10); const h = editScheduledAt ? editScheduledAt.slice(11, 13) : '00'; setEditScheduledAt(`${d}T${h}:${m}`); },
+                )}
               </div>
             </div>
           </div>
@@ -5398,7 +5480,11 @@ function ApplicationsTab({ boardId }: { boardId: string }) {
     const d = r.data;
     return Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
   }) });
-  const tournamentList = Array.isArray(tournaments) ? tournaments : [];
+  const tournamentList = (Array.isArray(tournaments) ? tournaments : []).slice().sort((a: any, b: any) => {
+    const nameA = (a.tournamentName || a.name || '').toLowerCase();
+    const nameB = (b.tournamentName || b.name || '').toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
   const { data: apps } = useQuery({
     queryKey: ['applications', selectedTournament],
     queryFn: () => leagueService.getApplications(selectedTournament).then(r => r.data),
