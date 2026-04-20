@@ -10,6 +10,15 @@
   }
 }
 
+/* Hide scrollbar but keep scroll functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 @layer components {
   .btn-primary {
     @apply bg-brand-green text-white px-6 py-2.5 rounded-lg font-semibold 
@@ -23,6 +32,9 @@
     @apply w-full border border-gray-400 rounded-lg px-4 py-2.5 h-[42px] text-sm bg-white
            focus:ring-2 focus:ring-brand-green focus:border-transparent outline-none
            transition-all duration-200;
+  }
+  textarea.input-field {
+    @apply h-auto;
   }
   select.input-field {
     -webkit-appearance: none;

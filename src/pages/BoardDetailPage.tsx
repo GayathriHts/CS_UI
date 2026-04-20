@@ -351,7 +351,7 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
       console.log('Updating board:', boardId, 'payload:', JSON.stringify(payload));
       return boardService.update(boardId, payload).then((r) => r.data);
     },
-    onSuccess: (updatedBoard: any) => {
+    onSuccess: async (updatedBoard: any) => {
       // Use server response for text fields but use local logoPreview as truth
       // (server may return old logo URL if it didn't process the clear)
       const newName = updatedBoard?.name || name;
@@ -400,11 +400,16 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
       // Invalidate the boards list so dashboard reflects changes
       qc.invalidateQueries({ queryKey: ['myBoards', userId] });
       // Optimistically update league boards list so Affiliate to League dropdown shows updated names immediately
+      // Cancel any in-flight refetches first so they don't overwrite our optimistic update
+      await qc.cancelQueries({ queryKey: ['allBoardsForLeague'] });
       qc.setQueryData(['allBoardsForLeague'], (old: any) => {
         if (!Array.isArray(old)) return old;
         return old.map((b: any) => b.id === boardId ? { ...b, name: editOverlay.name } : b);
       });
-      qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
+      // Use a delayed invalidation so the backend has time to persist the change
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
+      }, 2000);
       onSaved();
     },
     onError: (error: any) => {
@@ -1122,10 +1127,17 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
         const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
         const list = Array.isArray(items) ? items : [];
         console.log('League Boards loaded:', list.length);
-        return list.map((b: any) => ({
-          id: b.id || b.Id,
-          name: b.name || b.Name || 'Unnamed',
-        }));
+        // Apply any pending board edits from sessionStorage (covers backend lag)
+        let edits: Record<string, any> = {};
+        try { edits = JSON.parse(sessionStorage.getItem('boardEdits') || '{}'); } catch {}
+        return list.map((b: any) => {
+          const id = b.id || b.Id;
+          const editOverlay = edits[id];
+          return {
+            id,
+            name: editOverlay?.name || b.name || b.Name || 'Unnamed',
+          };
+        });
       } catch (err) {
         console.error('Failed to load league boards:', err);
         return [];
