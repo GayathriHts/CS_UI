@@ -406,10 +406,10 @@ function EditBoardForm({ board, boardId, onClose, onSaved }: { board: any; board
         if (!Array.isArray(old)) return old;
         return old.map((b: any) => b.id === boardId ? { ...b, name: editOverlay.name } : b);
       });
-      // Use a delayed invalidation so the backend has time to persist the change
+      // Delayed invalidation so the backend has time to persist the change
       setTimeout(() => {
         qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
-      }, 2000);
+      }, 4000);
       onSaved();
     },
     onError: (error: any) => {
@@ -1113,24 +1113,28 @@ function SquadTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?:
     },
   });
 
-  // Load League boards via GET /Boards/bytype/2
+  // Load League boards where current user is Owner or Co-Owner via GET /Boards/byowner
+  const currentUserId = useAuthStore.getState().user?.id || '';
   const { data: boardGroundsList, isLoading: boardGroundsLoading } = useQuery({
-    queryKey: ['allBoardsForLeague'],
+    queryKey: ['allBoardsForLeague', currentUserId],
     staleTime: 0,
-    gcTime: 0,
+    gcTime: 5 * 60 * 1000,
     refetchOnMount: 'always',
     refetchOnWindowFocus: 'always',
+    enabled: !!currentUserId,
     queryFn: async () => {
       try {
-        const res = await boardService.getByType(2, 1, 50);
+        const res = await boardService.getByOwner(currentUserId, currentUserId);
         const raw = res.data as any;
         const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
         const list = Array.isArray(items) ? items : [];
-        console.log('League Boards loaded:', list.length);
+        // Filter to only league-type boards (boardType === 2)
+        const leagueBoards = list.filter((b: any) => (b.boardType ?? b.BoardType ?? b.type) === 2);
+        console.log('League Boards (owner/co-owner) loaded:', leagueBoards.length);
         // Apply any pending board edits from sessionStorage (covers backend lag)
         let edits: Record<string, any> = {};
         try { edits = JSON.parse(sessionStorage.getItem('boardEdits') || '{}'); } catch {}
-        return list.map((b: any) => {
+        return leagueBoards.map((b: any) => {
           const id = b.id || b.Id;
           const editOverlay = edits[id];
           return {

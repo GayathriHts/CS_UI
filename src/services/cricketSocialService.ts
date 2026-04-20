@@ -512,8 +512,18 @@ export const leagueService = {
     id: string; umpireName: string; address1: string; address2: string;
     city: string; state: string; country: string; zipcode: string;
     homePhone: string; workPhone: string; mobile: string; countryCode: string; email: string;
-  }) =>
-    umpireApi.put(`/tournament/boards/${boardId}/Umpire/${umpireId}`, { boardId, ...data }),
+  }) => {
+    const payload = { boardId, ...data };
+    console.log('[updateUmpire] PUT /tournament/boards/' + boardId + '/Umpire/' + umpireId);
+    console.log('[updateUmpire] payload:', JSON.stringify(payload, null, 2));
+    return umpireApi.put(`/tournament/boards/${boardId}/Umpire/${umpireId}`, payload).then(res => {
+      console.log('[updateUmpire] Success:', res.status, JSON.stringify(res.data, null, 2));
+      return res;
+    }).catch(err => {
+      console.error('[updateUmpire] Error:', err?.response?.status, JSON.stringify(err?.response?.data, null, 2));
+      throw err;
+    });
+  },
   deleteUmpire: (boardId: string, umpireId: string) => umpireApi.delete(`/tournament/boards/${boardId}/Umpire/${umpireId}`),
   // Grounds
   createGround: (data: {

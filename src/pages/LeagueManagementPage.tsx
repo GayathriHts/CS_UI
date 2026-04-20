@@ -415,10 +415,10 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
         if (!Array.isArray(old)) return old;
         return old.map((b: any) => b.id === boardId ? { ...b, name: newName } : b);
       });
-      // Use a delayed invalidation so the backend has time to persist the change
+      // Delayed invalidation so the backend has time to persist the change
       setTimeout(() => {
         qc.invalidateQueries({ queryKey: ['allBoardsForLeague'] });
-      }, 2000);
+      }, 4000);
       onSaved();
     },
     onError: (error: any) => {
@@ -1755,7 +1755,15 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     queryKey: ['umpires', boardId],
     queryFn: () => leagueService.getUmpires(boardId).then(r => {
       const d = r.data;
-      return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Umpire[];
+      const list = (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Umpire[];
+      // Apply any pending umpire edits from sessionStorage (covers backend not persisting countryCode)
+      let edits: Record<string, any> = {};
+      try { edits = JSON.parse(sessionStorage.getItem('umpireEdits') || '{}'); } catch {}
+      return list.map((u: any) => {
+        const uid = u.id || u.umpireId;
+        const overlay = edits[uid];
+        return overlay ? { ...u, ...overlay } : u;
+      });
     }),
     enabled: !!boardId,
   });
@@ -1818,7 +1826,43 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       email: editEmail,
     }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['umpires', boardId] });
+      // Cancel any in-flight refetches so they don't overwrite our optimistic update
+      qc.cancelQueries({ queryKey: ['umpires', boardId] });
+
+      // Persist the edit overlay in sessionStorage so it survives refetch/reload
+      const editOverlay = {
+        umpireName: editName,
+        address1: editAddress1,
+        address2: editAddress2,
+        city: editCity,
+        state: editState,
+        country: editCountry,
+        zipcode: editZipcode,
+        homePhone: editHomePhone,
+        workPhone: editWorkPhone,
+        mobile: editMobile.trim(),
+        countryCode: editMobile.trim() ? editCountryCode : '',
+        email: editEmail,
+      };
+      try {
+        const pending = JSON.parse(sessionStorage.getItem('umpireEdits') || '{}');
+        pending[editId!] = editOverlay;
+        sessionStorage.setItem('umpireEdits', JSON.stringify(pending));
+      } catch {}
+
+      // Optimistically update the umpire in the cache so country code + mobile show immediately
+      qc.setQueryData(['umpires', boardId], (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((u: any) => {
+          const uid = u.id || u.umpireId;
+          if (uid !== editId) return u;
+          return { ...u, ...editOverlay };
+        });
+      });
+      // Delay the refetch so the backend has time to persist the change
+      setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ['umpires', boardId] });
+      }, 3000);
       setEditId(null);
       setUpdateError('');
       setUpdateSuccess('Umpire updated successfully!');
@@ -1892,8 +1936,16 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditId(uid);
     setUpdateError('');
     setUpdateSuccess('');
-    // Pre-fill from list data immediately
-    populateEditFields(u);
+
+    // Apply sessionStorage overlay to the list data before populating
+    let editData = { ...u };
+    try {
+      const edits = JSON.parse(sessionStorage.getItem('umpireEdits') || '{}');
+      if (edits[uid]) editData = { ...editData, ...edits[uid] };
+    } catch {}
+
+    // Pre-fill from list data (with overlay) immediately
+    populateEditFields(editData);
     // Then fetch full data from API to ensure all fields are populated
     setEditLoading(true);
     leagueService.getUmpireById(boardId, uid)
@@ -1902,7 +1954,17 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         const full = raw?.data || raw;
         if (full && typeof full === 'object') {
           console.log('Umpire full data from API:', JSON.stringify(full, null, 2));
-          populateEditFields(full);
+          // Merge: sessionStorage overlay > list data > API response (for countryCode/mobile)
+          const mergedFull = { ...full };
+          // Apply sessionStorage overlay on top of API response
+          try {
+            const edits = JSON.parse(sessionStorage.getItem('umpireEdits') || '{}');
+            if (edits[uid]) {
+              if (edits[uid].countryCode) mergedFull.countryCode = edits[uid].countryCode;
+              if (edits[uid].mobile) mergedFull.mobile = edits[uid].mobile;
+            }
+          } catch {}
+          populateEditFields(mergedFull);
         }
       })
       .catch(err => {
@@ -2420,13 +2482,13 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     fetchCities(country, state).then(setCityList).catch(() => setCityList([])).finally(() => setCitiesLoading(false));
   }, [country, state]);
 
-  // Fetch Team Boards from GET /Boards/bytype/1 (boardType=1 = Team Boards)
+  // Fetch Team Boards associated to this league via GET /Boards/teamboards/league/{leagueBoardId}
   const { data: boardsList, isLoading: boardsLoading } = useQuery({
-    queryKey: ['teamBoards'],
+    queryKey: ['teamBoardsByLeague', boardId],
     queryFn: async () => {
-      const res = await boardService.getByType(1, 1, 50);
+      const res = await boardService.getTeamBoardsByLeague(boardId, 1, 50);
       const raw = res.data as any;
-      console.log('[TeamBoards-Schedule] API response:', raw);
+      console.log('[TeamBoards-League] API response:', raw);
       const items = Array.isArray(raw) ? raw : (raw?.items ?? raw?.data ?? (Array.isArray(raw?.result) ? raw.result : []));
       return (Array.isArray(items) ? items : []).map((b: any) => ({
         id: b.id || b.Id || b.boardId || '',
@@ -2436,6 +2498,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
     },
     staleTime: 60000,
     retry: 1,
+    enabled: !!boardId,
   });
 
   const teamList = Array.isArray(boardsList) ? boardsList : [];
@@ -2509,8 +2572,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 
   const handleSubmit = async () => {
     setErrorMsg('');
-    if (!name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim()) {
-      setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country, Zip Code.');
+    if (!name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !homeTeam.trim()) {
+      setErrorMsg('Please fill in all mandatory fields: Ground Name, City, State, Country, Zip Code, Home Team.');
       return;
     }
     if (!permitHour.trim() || !permitMinutes.trim()) {
@@ -2667,7 +2730,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
               <input value={landmark} onChange={e => setLandmark(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground <span className="text-red-500">*</span></label>
               {selectedHomeTeam ? (
                 <div className="flex items-center gap-2 input-field bg-gray-50">
                   <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
@@ -2835,7 +2898,7 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
             </button>
             <button
               onClick={handleSubmit}
-              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !permitHour.trim() || !permitMinutes.trim()}
+              disabled={createMutation.isPending || !name.trim() || !city.trim() || !state.trim() || !country.trim() || !zipCode.trim() || !homeTeam.trim() || !permitHour.trim() || !permitMinutes.trim()}
               className="btn-primary px-8 py-2 text-sm"
             >
               {createMutation.isPending ? 'Submitting...' : 'Submit'}
@@ -3259,7 +3322,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <input value={editLandmark} onChange={e => setEditLandmark(sanitizeTextInput(e.target.value, true))} className="input-field" />
             </div>
             <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground <span className="text-red-500">*</span></label>
               {editSelectedHomeTeam ? (
                 <div className="flex items-center gap-2 input-field bg-gray-50">
                   <div className="w-6 h-6 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs">
@@ -3439,7 +3502,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               }
               setUpdateError('');
               updateMutation.mutate();
-            }} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editPermitHour.trim() || !editPermitMinutes.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
+            }} disabled={!editName.trim() || !editCity.trim() || !editState.trim() || !editCountry.trim() || !editZipcode.trim() || !editHomeTeam.trim() || !editPermitHour.trim() || !editPermitMinutes.trim() || updateMutation.isPending} className="btn-primary text-sm px-8">
               {updateMutation.isPending ? 'Updating...' : 'Update'}
             </button>
           </div>
@@ -3735,7 +3798,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
         throw err;
       }
     },
-    enabled: isEditMode,
+    enabled: !!boardId,
     staleTime: 60000,
     retry: 1,
   });
@@ -3859,10 +3922,8 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
 
   const getFilteredBoards = (groupIdx: number) => {
     const search = teamSearches[groupIdx]?.toLowerCase() || '';
-    const alreadySelected = groups[groupIdx].teamIds;
     const selectedInOtherGroups = groups.flatMap((g, i) => i !== groupIdx ? g.teamIds : []);
     return (boardsList || []).filter((b: any) =>
-      !alreadySelected.includes(b.id) &&
       !selectedInOtherGroups.includes(b.id) &&
       (!search || b.name.toLowerCase().includes(search))
     );
@@ -4034,15 +4095,19 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                               return filtered.length === 0 ? (
                                 <div className="px-4 py-3 text-sm text-gray-500 text-center">No Team Boards Available</div>
                               ) : (
-                                filtered.map((b: any) => (
+                                filtered.map((b: any) => {
+                                  const isSelected = groups[gIdx].teamIds.includes(b.id);
+                                  return (
                                   <button
                                     key={b.id}
                                     onClick={() => {
-                                      addTeamToGroup(gIdx, b.id);
-                                      setOpenDropdown(null);
-                                      setDropdownPos(null);
+                                      if (isSelected) {
+                                        removeTeamFromGroup(gIdx, b.id);
+                                      } else {
+                                        addTeamToGroup(gIdx, b.id);
+                                      }
                                     }}
-                                    className="w-full text-left px-4 py-2 hover:bg-brand-green/5 flex items-center gap-2 text-sm border-b last:border-0"
+                                    className={`w-full text-left px-4 py-2 flex items-center gap-2 text-sm border-b last:border-0 ${isSelected ? 'bg-brand-green/10' : 'hover:bg-brand-green/5'}`}
                                   >
                                     <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs flex-shrink-0">
                                       {b.logoUrl
@@ -4050,12 +4115,17 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                                         : b.name?.[0]?.toUpperCase() || '?'
                                       }
                                     </div>
-                                    <div className="min-w-0">
+                                    <div className="min-w-0 flex-1">
                                       <span className="block font-medium text-gray-900 truncate">{b.name}</span>
-                                      {b.description && <span className="block text-xs text-gray-600 truncate">{b.description}</span>}
                                     </div>
+                                    {isSelected && (
+                                      <svg className="w-5 h-5 text-brand-green flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
                                   </button>
-                                ))
+                                  );
+                                })
                               );
                             })()}
                           </div>
@@ -4073,7 +4143,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                             <div key={tid} className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm min-w-[140px] max-w-[180px]">
                               {board?.logoUrl
                                 ? <img src={board.logoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0" />
-                                : <div className="w-7 h-7 bg-red-100 rounded-full flex items-center justify-center text-xs flex-shrink-0">??</div>
+                                : <div className="w-7 h-7 bg-brand-green/10 rounded-full flex items-center justify-center text-brand-green font-bold text-xs flex-shrink-0">{board?.name?.[0]?.toUpperCase() || '?'}</div>
                               }
                               <span className="text-sm font-medium text-gray-800 truncate flex-1">{board?.name || tid}</span>
                               <button
@@ -4151,7 +4221,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                   }
                 }
                 setCheckingDuplicate(false);
-                if (groups.length === 0) { setErrorMsg('At least one group is required.'); return; }
+                if (groups.length < 2) { setErrorMsg('At least two groups are required to create a tournament.'); return; }
                 for (let i = 0; i < groups.length; i++) {
                   if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
                   if (groups[i].teamIds.length === 0) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have at least one team.`); return; }
@@ -4179,7 +4249,7 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                 setDuplicateTeamErrors({});
                 saveMutation.mutate();
               }}
-              disabled={saveMutation.isPending || checkingDuplicate || tournamentsPending || !name.trim() || !winPoints.trim() || groups.length === 0 || groups.some(g => !g.name.trim() || g.teamIds.length === 0) || !!duplicateNameError}
+              disabled={saveMutation.isPending || checkingDuplicate || tournamentsPending || !name.trim() || !winPoints.trim() || groups.length < 2 || groups.some(g => !g.name.trim() || g.teamIds.length === 0) || !!duplicateNameError}
               className="btn-primary text-sm px-6"
             >
               {checkingDuplicate ? 'Checking...' : saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Submit')}
@@ -5293,7 +5363,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   };
 
   // Check if all required fields for creating a match are filled
-  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newUmpireId && newScheduledAt && newAppScorerId && newPortalScorerId);
+  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newGroundId && newUmpireId && newScheduledAt && newAppScorerId && newPortalScorerId);
 
   const validateAndCreate = async () => {
     const errors: Record<string, string> = {};
@@ -5302,6 +5372,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!newHomeTeamId) errors.homeTeam = 'Home Team is required';
     if (!newAwayTeamId) errors.awayTeam = 'Away Team is required';
     if (newHomeTeamId && newAwayTeamId && newHomeTeamId === newAwayTeamId) errors.awayTeam = 'Home and Away teams must be different';
+    if (!newGroundId) errors.ground = 'Ground is required';
     if (!newUmpireId) errors.umpire = 'Umpire is required';
     if (!newScheduledAt) errors.scheduledAt = 'Date & Time is required';
     if (!newAppScorerId) errors.appScorer = 'App Scorer is required';
@@ -5640,11 +5711,12 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               newHomeTeamId,
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
-              <select value={newGroundId} onChange={e => { setNewGroundId(e.target.value); ssSet('groundId', e.target.value); }} className="input-field">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground <span className="text-red-500">*</span></label>
+              <select value={newGroundId} onChange={e => { setNewGroundId(e.target.value); ssSet('groundId', e.target.value); if (formErrors.ground) setFormErrors(p => ({ ...p, ground: '' })); }} className={`input-field ${formErrors.ground ? 'border-red-500' : ''}`}>
                 <option value="">Select Ground</option>
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
               </select>
+              {formErrors.ground && <p className="text-red-500 text-xs mt-1">{formErrors.ground}</p>}
             </div>
             <div>
               {renderUmpireDropdown(
