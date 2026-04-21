@@ -29,6 +29,12 @@ export default defineConfig({
         secure: false,
         rewrite: (path) => path.replace(/^\/umpire-api/, '/api'),
       },
+      '/scoring-api': {
+        target: 'http://10.10.20.24:9005',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/scoring-api/, '/api'),
+      },
       '/hubs': {
         target: 'http://10.10.20.24:9002',
         changeOrigin: true,

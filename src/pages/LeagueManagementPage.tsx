@@ -621,6 +621,203 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
   );
 }
 
+// -- LIVE TAB CONTENT (fetches from ScoringService API) --
+function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: string; scorecard: any; scorecardLoading: boolean }) {
+  const { data: liveMatches, isLoading: liveLoading } = useQuery({
+    queryKey: ['liveMatches'],
+    queryFn: () => scoringService.getLiveMatches().then(r => r.data),
+    refetchInterval: 15000,
+  });
+
+  const isLive = Array.isArray(liveMatches) && liveMatches.some((m: any) => m.id === matchId);
+
+  if (liveLoading || scorecardLoading) {
+    return (
+      <div className="bg-white border-t p-8 flex justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isLive) {
+    return (
+      <div className="bg-white border-t p-8 text-center text-gray-500 text-sm">
+        <div className="flex flex-col items-center justify-center">
+          <span className="text-2xl mb-2">▶</span>
+          <h4 className="text-sm font-bold text-gray-800 mb-1">Live Score</h4>
+          <p className="text-xs text-gray-500">Live scoring updates will appear here when a match is in progress.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get the live match data from the scoring API response
+  const liveMatch = liveMatches.find((m: any) => m.id === matchId);
+
+  // Use scorecard innings data if available, otherwise fall back to live match data
+  const innings = scorecard?.innings ?? liveMatch?.innings ?? [];
+  const currentInnings = innings.length > 0 ? innings[innings.length - 1] : null;
+
+  // Extract batting, bowling from current innings
+  const battingEntries = currentInnings?.batting ?? currentInnings?.battingEntries ?? [];
+  const bowlingEntries = currentInnings?.bowling ?? currentInnings?.bowlingEntries ?? [];
+  const battingTeamName = currentInnings?.battingTeamName ?? '';
+  const inningsNumber = currentInnings?.inningsNumber ?? 1;
+  const ordinal = inningsNumber === 1 ? '1st' : inningsNumber === 2 ? '2nd' : `${inningsNumber}th`;
+
+  // Current batsmen (not out)
+  const currentBatsmen = battingEntries.filter((b: any) =>
+    !b.dismissalType && b.dismissal !== 'out' && (b.dismissal === 'not out' || b.dismissal === undefined || b.dismissal === '' || b.status === 'Batting')
+  );
+
+  // Current partnership
+  const partnershipRuns = currentBatsmen.reduce((sum: number, b: any) => sum + (b.runsScored ?? b.runs ?? 0), 0);
+  const partnershipBalls = currentBatsmen.reduce((sum: number, b: any) => sum + (b.ballsFaced ?? b.balls ?? 0), 0);
+
+  // Last six balls from live match or scorecard
+  const lastSixBalls: string[] = liveMatch?.lastSixBalls
+    ? (typeof liveMatch.lastSixBalls === 'string' ? liveMatch.lastSixBalls.split(',') : liveMatch.lastSixBalls)
+    : [];
+
+  // Match info
+  const tossInfo = scorecard?.tossWonBy
+    ? `${scorecard.tossWonBy} won the toss and Elected to ${scorecard.tossDecision ?? 'bat'}`
+    : liveMatch?.tossInfo ?? '-';
+  const scorerName = liveMatch?.scorerName ?? scorecard?.scorerName ?? '-';
+  const playerOfMatch = liveMatch?.playerOfTheMatch ?? scorecard?.playerOfTheMatch ?? 'none';
+
+  return (
+    <div className="bg-white border-t">
+      {/* BATSMEN Section */}
+      <div className="px-4 py-3 border-b bg-gray-50">
+        <h4 className="text-sm font-bold text-gray-800">
+          BATSMEN - {battingTeamName} ({ordinal} Innings)
+        </h4>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-gray-50">
+            <th className="text-left py-2 px-3 font-bold text-gray-700 w-[40%]"></th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">R</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">B</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">4s</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">6s</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">SR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(currentBatsmen.length > 0 ? currentBatsmen : battingEntries.slice(0, 2)).map((b: any, idx: number) => {
+            const runs = b.runsScored ?? b.runs ?? 0;
+            const balls = b.ballsFaced ?? b.balls ?? 0;
+            const fours = b.fours ?? 0;
+            const sixes = b.sixes ?? 0;
+            const sr = balls > 0 ? ((runs / balls) * 100).toFixed(2) : '0.00';
+            const isStriker = b.isStriker || idx === 0;
+            return (
+              <tr key={idx} className="border-b border-gray-200">
+                <td className="py-2.5 px-3 font-medium text-gray-800">
+                  {b.batsmanName ?? b.name}{isStriker ? ' *' : ''}
+                </td>
+                <td className="py-2.5 px-2 text-center font-bold">{runs}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{balls}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{fours}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{sixes}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{sr}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* Current Partnership */}
+      <div className="px-4 py-2 border-b text-sm">
+        <span className="font-bold text-blue-700">Current Partnership: </span>
+        <span className="text-gray-700">{partnershipRuns}({partnershipBalls})</span>
+      </div>
+
+      {/* Last Six Balls */}
+      {lastSixBalls.length > 0 && (
+        <div className="px-4 py-2 border-b text-sm flex items-center gap-2">
+          <span className="font-bold text-gray-700">Last Six Balls:</span>
+          <div className="flex gap-1.5">
+            {lastSixBalls.map((ball: string, idx: number) => {
+              const val = ball.trim();
+              const isWicket = val.toUpperCase() === 'W';
+              return (
+                <span
+                  key={idx}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border ${
+                    isWicket
+                      ? 'bg-red-500 text-white border-red-600'
+                      : 'bg-gray-100 text-gray-800 border-gray-300'
+                  }`}
+                >
+                  {val}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* BOWLER Section */}
+      <div className="px-4 py-3 border-b bg-gray-50 mt-2">
+        <h4 className="text-sm font-bold text-gray-800">BOWLER</h4>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b bg-gray-50">
+            <th className="text-left py-2 px-3 font-bold text-gray-700 w-[40%]"></th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">O</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">M</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">R</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">W</th>
+            <th className="text-center py-2 px-2 font-bold text-gray-700">ECON</th>
+          </tr>
+        </thead>
+        <tbody>
+          {bowlingEntries.map((bw: any, idx: number) => {
+            const overs = bw.overs ?? 0;
+            const maidens = bw.maidens ?? 0;
+            const runs = bw.runsConceded ?? bw.runs ?? 0;
+            const wickets = bw.wickets ?? 0;
+            const econ = overs > 0 ? (runs / overs).toFixed(1) : '0.0';
+            return (
+              <tr key={idx} className="border-b border-gray-200">
+                <td className="py-2.5 px-3 font-medium text-gray-800">{bw.bowlerName ?? bw.name}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{overs}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{maidens}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{runs}</td>
+                <td className="py-2.5 px-2 text-center font-bold text-red-600">{wickets}</td>
+                <td className="py-2.5 px-2 text-center text-gray-600">{econ}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+
+      {/* MATCH INFO */}
+      <div className="px-4 py-3 border-t border-b bg-gray-50 mt-2">
+        <h4 className="text-sm font-bold text-gray-800">MATCH INFO</h4>
+      </div>
+      <div className="px-4 py-2 text-sm space-y-2">
+        <div className="flex">
+          <span className="font-bold text-gray-700 w-40">Toss</span>
+          <span className="text-gray-600">{tossInfo}</span>
+        </div>
+        <div className="flex">
+          <span className="font-bold text-gray-700 w-40">Scorer Name</span>
+          <span className="text-gray-600">{scorerName}</span>
+        </div>
+        <div className="flex">
+          <span className="font-bold text-gray-700 w-40">Player of The Match</span>
+          <span className="text-gray-600">{playerOfMatch}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // -- MATCH SCORECARD VIEW (shown when View Score is clicked) --
 type ScorecardTab = 'live' | 'scorecard' | 'ball-by-ball' | 'wagon-wheel' | 'pitch-map' | 'squad';
 function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match: any; onBack: () => void }) {
@@ -680,13 +877,7 @@ function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match
       {/* Tab content */}
       <div className="mt-0">
         {activeTab === 'live' && (
-          <div className="bg-white border-t p-8 text-center text-gray-500 text-sm">
-            <div className="flex flex-col items-center justify-center">
-              <span className="text-2xl mb-2">▶</span>
-              <h4 className="text-sm font-bold text-gray-800 mb-1">Live Score</h4>
-              <p className="text-xs text-gray-500">Live scoring updates will appear here when a match is in progress.</p>
-            </div>
-          </div>
+          <LiveTabContent matchId={matchId} scorecard={scorecard as any} scorecardLoading={scorecardLoading} />
         )}
         {activeTab === 'scorecard' && <ScorecardTabContent scorecard={scorecard as any} loading={scorecardLoading} />}
         {activeTab === 'ball-by-ball' && <BallByBallTabContent scorecard={scorecard as any} matchId={matchId} />}
@@ -3562,30 +3753,69 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
               <h2 className="text-base font-bold text-gray-800">View Ground</h2>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground Name</label><p className="text-sm text-gray-900">{g.groundName || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Place of Ground</label><p className="text-sm text-gray-900">{g.address1 || g.placeOfGround || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Address Line 1</label><p className="text-sm text-gray-900">{g.address2 || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Country</label><p className="text-sm text-gray-900">{g.country || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">State</label><p className="text-sm text-gray-900">{g.state || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">City</label><p className="text-sm text-gray-900">{g.city || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Zip Code</label><p className="text-sm text-gray-900">{g.zipcode || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Landmark</label><p className="text-sm text-gray-900">{g.landmark || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Home Team for the Ground</label><p className="text-sm text-gray-900">{homeTeamDisplay}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Additional Direction</label><p className="text-sm text-gray-900">{g.additionalDirection || g.additonalDirection || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground Facilities</label><p className="text-sm text-gray-900">{g.groundFacilities || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Pitch Description</label><p className="text-sm text-gray-900">{g.pitchDescription || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Wicket Type</label><p className="text-sm text-gray-900">{g.wicketType || '-'}</p></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ground Name</label>
+                  <input value={g.groundName || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Place of Ground</label>
+                  <input value={g.address1 || g.placeOfGround || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                  <input value={g.address2 || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                  <input value={g.country || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                  <input value={g.state || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <input value={g.city || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Zip Code</label>
+                  <input value={g.zipcode || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Landmark</label>
+                  <input value={g.landmark || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Home Team for the Ground</label>
+                  <input value={homeTeamDisplay} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Additional Direction</label>
+                  <input value={g.additionalDirection || g.additonalDirection || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ground Facilities</label>
+                  <input value={g.groundFacilities || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Pitch Description</label>
+                  <input value={g.pitchDescription || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Wicket Type</label>
+                  <input value={g.wicketType || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
                 <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-500 mb-1">Permit Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Permit Time</label>
                   <div className="flex items-center gap-2">
-                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptHour}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-400 rounded-lg text-sm text-gray-900 bg-gray-100">{ptHour}</span>
                     <span className="text-gray-500 font-bold">:</span>
-                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptMin}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-400 rounded-lg text-sm text-gray-900 bg-gray-100">{ptMin}</span>
                     <span className="text-gray-500 font-bold">:</span>
-                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptSec}</span>
-                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptAmPm}</span>
-                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptTz}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-400 rounded-lg text-sm text-gray-900 bg-gray-100">{ptSec}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-400 rounded-lg text-sm text-gray-900 bg-gray-100">{ptAmPm}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-400 rounded-lg text-sm text-gray-900 bg-gray-100">{ptTz}</span>
                   </div>
                 </div>
               </div>
@@ -4271,10 +4501,9 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                   }
                 }
                 setCheckingDuplicate(false);
-                if (groups.length < 2) { setErrorMsg('At least two groups are required to create a tournament.'); return; }
                 for (let i = 0; i < groups.length; i++) {
                   if (!groups[i].name.trim()) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have a name.`); return; }
-                  if (groups[i].teamIds.length === 0) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have at least one team.`); return; }
+                  if (groups[i].teamIds.length < 2) { setErrorMsg(`Group ${String.fromCharCode(65 + i)} must have at least two teams.`); return; }
                 }
                 const groupNames = groups.map(g => g.name.trim().toLowerCase());
                 const duplicates = groupNames.filter((n, i) => groupNames.indexOf(n) !== i);
@@ -4297,9 +4526,15 @@ function CreateTrophyTab({ boardId, onClose, editTournamentId }: { boardId: stri
                   return;
                 }
                 setDuplicateTeamErrors({});
+                // Check that each group has at least 2 teams
+                const insufficientGroups = groups.filter(g => g.teamIds.length < 2);
+                if (insufficientGroups.length > 0) {
+                  setErrorMsg('Each group must have at least 2 Team Boards.');
+                  return;
+                }
                 saveMutation.mutate();
               }}
-              disabled={saveMutation.isPending || checkingDuplicate || tournamentsPending || !name.trim() || !winPoints.trim() || groups.length < 2 || groups.some(g => !g.name.trim() || g.teamIds.length === 0) || !!duplicateNameError}
+              disabled={saveMutation.isPending || checkingDuplicate || tournamentsPending || !name.trim() || !winPoints.trim() || groups.length < 1 || groups.some(g => !g.name.trim() || g.teamIds.length < 2) || !!duplicateNameError}
               className="btn-primary text-sm px-6"
             >
               {checkingDuplicate ? 'Checking...' : saveMutation.isPending ? (isEditMode ? 'Updating...' : 'Submitting...') : (isEditMode ? 'Update' : 'Submit')}
@@ -4424,9 +4659,15 @@ function TournamentViewDetail({ tournamentId, boardId, onClose }: { tournamentId
       </div>
       <div className="p-6">
         {/* Basic info */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-6">
-          <div><label className="block text-sm font-medium text-gray-500 mb-1">Tournament Name</label><p className="text-sm text-gray-900">{detail.name || detail.tournamentName || '-'}</p></div>
-          <div><label className="block text-sm font-medium text-gray-500 mb-1">Win Points</label><p className="text-sm text-gray-900">{detail.winPoints ?? detail.winPoint ?? '-'}</p></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tournament Name</label>
+            <input value={detail.name || detail.tournamentName || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Win Points</label>
+            <input value={String(detail.winPoints ?? detail.winPoint ?? '-')} readOnly className="input-field bg-gray-100 cursor-default" />
+          </div>
         </div>
 
         {/* Groups & Teams */}
@@ -4444,8 +4685,8 @@ function TournamentViewDetail({ tournamentId, boardId, onClose }: { tournamentId
                 }
 
                 return (
-                  <div key={idx} className="border border-gray-200 rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200">
+                  <div key={idx} className="border border-gray-400 rounded-lg overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-2.5 border-b border-gray-400">
                       <p className="text-sm font-semibold text-gray-800">{g.name || g.tournamentGroupName || `Group ${idx + 1}`}</p>
                     </div>
                     <div className="p-4">
@@ -4849,6 +5090,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const getAwayId = (m: any): string => m.awayTeamId || m.awayTeamBoardId || m.AwayTeamId || m.AwayTeamBoardId || '';
   const getGroundId = (m: any): string => m.groundId || m.GroundId || '';
   const getSchedDate = (m: any): string => m.startAtUtc || m.StartAtUtc || m.scheduledAt || m.ScheduledAt || '';
+  const getMatchUmpire = (m: any): string => m.umpireId || m.UmpireId || '';
   const checkDuplicateSchedule = (scheduledAt: string, groundId: string, homeTeamId: string, awayTeamId: string, excludeMatchId?: string | null): string => {
     if (!scheduledAt || !homeTeamId || !awayTeamId) return '';
     const newKey = toMinuteKey(scheduledAt);
@@ -5425,6 +5667,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!newGroundId) errors.ground = 'Ground is required';
     if (!newUmpireId) errors.umpire = 'Umpire is required';
     if (!newScheduledAt) errors.scheduledAt = 'Date & Time is required';
+    else if (new Date(newScheduledAt) < new Date(new Date().toDateString())) errors.scheduledAt = 'Cannot schedule a match in the past';
     if (!newAppScorerId) errors.appScorer = 'App Scorer is required';
     if (!newPortalScorerId) errors.portalScorer = 'Portal Scorer is required';
     setFormErrors(errors);
@@ -5452,12 +5695,33 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         setDuplicateScheduleError(dupMsg);
         return;
       }
+      // Check umpire conflict: same umpire at same date & time
+      const umpireConflict = freshList.find((m: any) => {
+        const mKey = toMinuteKey(getSchedDate(m));
+        return mKey === newKey && getMatchUmpire(m) === newUmpireId;
+      });
+      if (umpireConflict) {
+        setDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.');
+        return;
+      }
     } catch {
       // Fallback to cached data
       const dupMsg = checkDuplicateSchedule(newScheduledAt, newGroundId, newHomeTeamId, newAwayTeamId);
       if (dupMsg) {
         setDuplicateScheduleError(dupMsg);
         return;
+      }
+      // Fallback umpire conflict check
+      const newKey = toMinuteKey(newScheduledAt);
+      if (newKey && newUmpireId) {
+        const umpireConflict = allMatchList.find((m: any) => {
+          const mKey = toMinuteKey(getSchedDate(m));
+          return mKey === newKey && getMatchUmpire(m) === newUmpireId;
+        });
+        if (umpireConflict) {
+          setDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.');
+          return;
+        }
       }
     }
     createMatchMutation.mutate();
@@ -5591,11 +5855,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             type="text"
             placeholder={`Search ${label.replace(' *', '').toLowerCase()}`}
             value={search}
-            onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
-            onFocus={() => setShowDropdown(true)}
+            onChange={e => { setSearch(e.target.value); setShowDropdown(e.target.value.trim().length > 0); }}
+            onFocus={() => { if (search.trim().length > 0) setShowDropdown(true); }}
             className="input-field"
           />
-          {showDropdown && (
+          {showDropdown && search.trim().length > 0 && (
             <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {filteredList.length > 0 ? filteredList.slice(0, 20).map((u: any) => (
                 <button
@@ -5784,7 +6048,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedAppScorer,
               (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); },
               () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); },
-              [newPortalScorerId].filter(Boolean),
             )}
             {renderUserSearchDropdown(
               'Portal Scorer *', portalScorerSearch, setPortalScorerSearch,
@@ -5792,12 +6055,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedPortalScorer,
               (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); },
               () => { setSelectedPortalScorer(null); setNewPortalScorerId(''); ssSet('portalScorerId', ''); setPortalScorerSearch(''); },
-              [newAppScorerId].filter(Boolean),
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
-                <input type="date" max="9999-12-31" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
+                <input type="date" min={new Date().toISOString().slice(0, 10)} max="9999-12-31" value={newScheduledAt ? newScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = newScheduledAt ? newScheduledAt.slice(11) : '00:00'; const v = d ? `${d}T${t}` : ''; setNewScheduledAt(v); ssSet('startAtUtc', v ? new Date(v).toISOString() : ''); if (formErrors.scheduledAt) setFormErrors(p => ({ ...p, scheduledAt: '' })); }} className={`input-field flex-1 ${formErrors.scheduledAt ? 'border-red-500' : ''}`} />
                 {renderTimeDropdown(
                   newScheduledAt ? newScheduledAt.slice(11, 13) : '00',
                   hourOptions,
@@ -5911,7 +6173,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedEditAppScorer,
               (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); },
               () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); },
-              [editPortalScorer].filter(Boolean),
             )}
             {renderUserSearchDropdown(
               'Portal Scorer', editPortalScorerSearch, setEditPortalScorerSearch,
@@ -5919,12 +6180,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               selectedEditPortalScorer,
               (u) => { setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); },
               () => { setSelectedEditPortalScorer(null); setEditPortalScorer(''); setEditPortalScorerSearch(''); },
-              [editAppScorer].filter(Boolean),
             )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
-                <input type="date" max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
+                <input type="date" min={new Date().toISOString().slice(0, 10)} max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
                 {renderTimeDropdown(
                   editScheduledAt ? editScheduledAt.slice(11, 13) : '00',
                   hourOptions,
@@ -5961,9 +6221,29 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                   setEditDuplicateScheduleError(dupMsg);
                   return;
                 }
+                // Check umpire conflict: same umpire at same date & time
+                const umpireConflict = freshList.find((m: any) => {
+                  if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
+                  const mKey = toMinuteKey(getSchedDate(m));
+                  return mKey === editKey && getMatchUmpire(m) === editUmpire;
+                });
+                if (umpireConflict) {
+                  setEditDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.');
+                  return;
+                }
               } catch {
                 const dupMsg = checkDuplicateSchedule(editScheduledAt, editGround, editHomeTeamId, editAwayTeamId, editMatchId);
                 if (dupMsg) { setEditDuplicateScheduleError(dupMsg); return; }
+                // Fallback umpire conflict check
+                const editKey = toMinuteKey(editScheduledAt);
+                if (editKey && editUmpire) {
+                  const umpireConflict = allMatchList.find((m: any) => {
+                    if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
+                    const mKey = toMinuteKey(getSchedDate(m));
+                    return mKey === editKey && getMatchUmpire(m) === editUmpire;
+                  });
+                  if (umpireConflict) { setEditDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.'); return; }
+                }
               }
               updateMatchMutation.mutate();
             }} disabled={!editTournamentId || !editGameType || !editHomeTeamId || !editAwayTeamId || !editScheduledAt || updateMatchMutation.isPending} className="btn-primary text-sm px-6">{updateMatchMutation.isPending ? 'Updating...' : 'Update'}</button>
@@ -5981,16 +6261,47 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               <h2 className="text-base font-bold text-gray-800">View Schedule</h2>
             </div>
             <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4">
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Tournament</label><p className="text-sm text-gray-900">{lookupTournamentName(m)}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Game Type</label><p className="text-sm text-gray-900">{m.gameType || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Home Team</label><p className="text-sm text-gray-900">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Away Team</label><p className="text-sm text-gray-900">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground</label><p className="text-sm text-gray-900">{m.groundName || lookupGroundName(m.groundId)}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Umpire</label><p className="text-sm text-gray-900">{m.umpireName || lookupUmpireName(m.umpireId)}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">App Scorer</label><p className="text-sm text-gray-900">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Portal Scorer</label><p className="text-sm text-gray-900">{lookupUserName(m.portalScorerId) || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Date & Time</label><p className="text-sm text-gray-900">{formatDateTime(m.startAtUtc || m.scheduledAt)}</p></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tournament</label>
+                  <input value={lookupTournamentName(m)} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Game Type</label>
+                  <input value={m.gameType || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Home Team</label>
+                  <input value={m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Away Team</label>
+                  <input value={m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
+                  <input value={m.groundName || lookupGroundName(m.groundId)} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Umpire</label>
+                  <input value={m.umpireName || lookupUmpireName(m.umpireId)} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">App Scorer</label>
+                  <input value={m.scorerName || lookupUserName(m.appScorerId) || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Portal Scorer</label>
+                  <input value={lookupUserName(m.portalScorerId) || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                  <div className="flex gap-2 items-center">
+                    <input type="date" value={(() => { const raw = m.startAtUtc || m.scheduledAt; if (!raw) return ''; try { return new Date(raw).toISOString().slice(0, 10); } catch { return ''; } })()} readOnly className="input-field flex-1 bg-gray-100 cursor-default" />
+                    <input value={(() => { const raw = m.startAtUtc || m.scheduledAt; if (!raw) return '00'; try { return String(new Date(raw).getHours()).padStart(2, '0'); } catch { return '00'; } })()} readOnly className="input-field w-16 text-center bg-gray-100 cursor-default" />
+                    <input value={(() => { const raw = m.startAtUtc || m.scheduledAt; if (!raw) return '00'; try { return String(new Date(raw).getMinutes()).padStart(2, '0'); } catch { return '00'; } })()} readOnly className="input-field w-16 text-center bg-gray-100 cursor-default" />
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end mt-6">
                 <button onClick={() => setViewMatchId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
@@ -6007,13 +6318,13 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                <td className="py-3 px-4 text-xs truncate">{lookupTournamentName(m)}</td>
-                <td className="py-3 px-4 font-medium text-sm truncate">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
-                <td className="py-3 px-4 font-medium text-sm truncate">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
-                <td className="py-3 px-4 text-xs truncate">{m.groundName || lookupGroundName(m.groundId)}</td>
-                <td className="py-3 px-4 text-xs truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
-                <td className="py-3 px-4 text-xs truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
-                <td className="py-3 px-4 text-xs truncate">{formatDateTime(m.startAtUtc || m.scheduledAt)}</td>
+                <td className="py-3 px-4 truncate">{lookupTournamentName(m)}</td>
+                <td className="py-3 px-4 truncate">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
+                <td className="py-3 px-4 truncate">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
+                <td className="py-3 px-4 truncate">{m.groundName || lookupGroundName(m.groundId)}</td>
+                <td className="py-3 px-4 truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
+                <td className="py-3 px-4 truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
+                <td className="py-3 px-4 truncate">{formatDateTime(m.startAtUtc || m.scheduledAt)}</td>
                 <td className="py-3 px-4"><div className="flex items-center gap-4">
                   <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>

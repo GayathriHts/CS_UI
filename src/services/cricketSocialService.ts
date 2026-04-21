@@ -1,4 +1,4 @@
-import api, { boardApi, umpireApi } from './api';
+import api, { boardApi, umpireApi, scoringApi } from './api';
 
 /** crypto.randomUUID() is only available in secure contexts (HTTPS/localhost).
  *  This fallback works on plain HTTP too. */
@@ -357,6 +357,9 @@ export const scoringService = {
   lockScorecard: (scorecardId: string) => api.put(`/scoring/${scorecardId}/lock`),
   unlockScorecard: (scorecardId: string, verificationCode: string) =>
     api.put(`/scoring/${scorecardId}/unlock`, { verificationCode }),
+
+  // E5: Live Matches (ScoringService API - port 9005)
+  getLiveMatches: () => scoringApi.get('/matches', { params: { status: 'Live' } }),
 };
 
 // ── Feeds (EPIC F) ──

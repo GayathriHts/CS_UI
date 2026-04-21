@@ -11,6 +11,8 @@ const BOARD_API_BASE_URL = isDev ? '/board-api/v1' : 'http://10.10.20.24:9003/ap
 
 const UMPIRE_API_BASE_URL = isDev ? '/umpire-api/v1' : 'http://10.10.20.24:9004/api/v1';
 
+const SCORING_API_BASE_URL = isDev ? '/scoring-api/v1' : 'http://10.10.20.24:9005/api/v1';
+
 const getBoardToken = () => {
   return sessionStorage.getItem('token') || localStorage.getItem('token');
 };
@@ -148,7 +150,21 @@ const umpireApi = {
   },
 };
 
-export { boardApi, umpireApi };
+const scoringApi = {
+  get: (url: string, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+    return axios.get(SCORING_API_BASE_URL + url, {
+      timeout: 15000,
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
+      },
+    });
+  },
+};
+
+export { boardApi, umpireApi, scoringApi };
 
 const isAuthRequest = (url?: string) => !!url && /\/auth\//.test(url);
 
