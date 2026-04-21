@@ -98,6 +98,15 @@ export default function LeagueManagementPage() {
   const qc = useQueryClient();
   const { data: board } = useQuery({ queryKey: ['board', boardId], queryFn: () => boardService.getById(boardId!).then(r => r.data), enabled: !!boardId });
 
+  // Block browser refresh/close when there are unsaved changes
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirtyRef.current) { e.preventDefault(); }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
   // Wrapper to sync activeTab with URL search params
   const setActiveTab = (tab: LeagueTab) => {
     setActiveTabState(tab);
@@ -2518,8 +2527,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 
   const createMutation = useMutation({
     mutationFn: () => {
-      // Build permitTime as single string e.g. "01:30:00 AM"
-      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm}` : '';
+      // Build permitTime as single string e.g. "01:30:00 PM EST"
+      const permitTime = (permitHour && permitMinutes) ? `${permitHour.padStart(2, '0')}:${permitMinutes.padStart(2, '0')}:${(permitSeconds || '0').padStart(2, '0')} ${permitAmPm} ${permitTimezone}` : '';
       const payload = {
         boardId: boardId,
         groundName: name.trim(),
@@ -3062,7 +3071,7 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm}` : '';
+      const permitTime = (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm} ${editPermitTimezone}` : '';
       return leagueService.updateGround(boardId, editId!, {
         id: editId!,
         groundId: editId!,
@@ -3084,6 +3093,15 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       });
     },
     onSuccess: () => {
+      // Persist the edit overlay in sessionStorage so permitTime timezone survives refetch
+      const groundOverlay = {
+        permitTime: (editPermitHour && editPermitMinutes) ? `${editPermitHour.padStart(2, '0')}:${editPermitMinutes.padStart(2, '0')}:${(editPermitSeconds || '0').padStart(2, '0')} ${editPermitAmPm} ${editPermitTimezone}` : '',
+      };
+      try {
+        const pending = JSON.parse(sessionStorage.getItem('groundEdits') || '{}');
+        pending[editId!] = groundOverlay;
+        sessionStorage.setItem('groundEdits', JSON.stringify(pending));
+      } catch {}
       qc.invalidateQueries({ queryKey: ['grounds', boardId] });
       setEditId(null);
       setUpdateError('');
@@ -3136,8 +3154,14 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
     setEditPitchDescription(g.pitchDescription || '');
     setEditWicketType(g.wicketType || 'Regular Turf');
     // Parse permitTime string "HH:MM:SS AM/PM TZ" into separate fields
-    const pt = g.permitTime || '';
-    const ptMatch = pt.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)(?:\s+(EST|IST))?$/i);
+    // Apply sessionStorage overlay if available (API may not persist timezone)
+    let pt = g.permitTime || '';
+    try {
+      const edits = JSON.parse(sessionStorage.getItem('groundEdits') || '{}');
+      const gid = g.id || g.groundId;
+      if (edits[gid]?.permitTime) pt = edits[gid].permitTime;
+    } catch {}
+    const ptMatch = pt.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)(?:\s+(\w+))?$/i);
     setEditPermitHour(ptMatch ? ptMatch[1] : '');
     setEditPermitMinutes(ptMatch ? ptMatch[2] : '');
     setEditPermitSeconds(ptMatch && ptMatch[3] ? ptMatch[3] : '');
@@ -3516,7 +3540,22 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
         if (!g) return null;
         const homeTeamBoard = g.homeTeam ? editTeamList.find((b: any) => b.id === g.homeTeam) : null;
         const homeTeamDisplay = homeTeamBoard?.name || g.homeTeamName || (!g.homeTeam ? '-' : g.homeTeam);
-        const pt = g.permitTime || '-';
+        // Parse permitTime string e.g. "11:16:16 AM IST" into parts
+        // Also check sessionStorage overlay (API may not persist timezone)
+        let ptRaw = g.permitTime || '';
+        try {
+          const edits = JSON.parse(sessionStorage.getItem('groundEdits') || '{}');
+          const gid2 = g.id || g.groundId;
+          if (edits[gid2]?.permitTime) ptRaw = edits[gid2].permitTime;
+        } catch {}
+        let ptHour = '-', ptMin = '-', ptSec = '-', ptAmPm = '-', ptTz = '-';
+        if (ptRaw) {
+          const ptMatch = ptRaw.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)(?:\s+(\w+))?$/i);
+          if (ptMatch) {
+            ptHour = ptMatch[1]; ptMin = ptMatch[2]; ptSec = ptMatch[3] || '00';
+            ptAmPm = ptMatch[4].toUpperCase(); ptTz = ptMatch[5]?.toUpperCase() || 'EST';
+          }
+        }
         return (
           <div className="bg-white rounded-lg shadow-sm mb-6">
             <div className="bg-gray-100 px-6 py-3 border-b">
@@ -3532,12 +3571,23 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">City</label><p className="text-sm text-gray-900">{g.city || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Zip Code</label><p className="text-sm text-gray-900">{g.zipcode || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Landmark</label><p className="text-sm text-gray-900">{g.landmark || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Home Team</label><p className="text-sm text-gray-900">{homeTeamDisplay}</p></div>
+                <div><label className="block text-sm font-medium text-gray-500 mb-1">Home Team for the Ground</label><p className="text-sm text-gray-900">{homeTeamDisplay}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Additional Direction</label><p className="text-sm text-gray-900">{g.additionalDirection || g.additonalDirection || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Ground Facilities</label><p className="text-sm text-gray-900">{g.groundFacilities || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Pitch Description</label><p className="text-sm text-gray-900">{g.pitchDescription || '-'}</p></div>
                 <div><label className="block text-sm font-medium text-gray-500 mb-1">Wicket Type</label><p className="text-sm text-gray-900">{g.wicketType || '-'}</p></div>
-                <div><label className="block text-sm font-medium text-gray-500 mb-1">Permit Time</label><p className="text-sm text-gray-900">{pt}</p></div>
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Permit Time</label>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptHour}</span>
+                    <span className="text-gray-500 font-bold">:</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptMin}</span>
+                    <span className="text-gray-500 font-bold">:</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptSec}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptAmPm}</span>
+                    <span className="inline-block w-16 text-center py-2 border border-gray-200 rounded-lg text-sm text-gray-900 bg-gray-50">{ptTz}</span>
+                  </div>
+                </div>
               </div>
               <div className="flex justify-end mt-6">
                 <button onClick={() => setViewId(null)} className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">Close</button>
@@ -4729,9 +4779,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   // Fetch game types from API
   const { data: gameTypeOptions } = useQuery({
-    queryKey: ['gameTypes'],
+    queryKey: ['gameTypes', boardId],
     queryFn: async () => {
-      const r = await leagueService.getGameTypes();
+      const r = await leagueService.getGameTypes(boardId);
       const d = r.data;
       const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? (d as any)?.$values ?? [];
       return list as string[];
@@ -4864,7 +4914,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const { data: tournamentTeams, isLoading: tournamentTeamsLoading } = useQuery({
     queryKey: ['tournamentTeams', newTournamentId],
     queryFn: async () => {
-      const r = await leagueService.getTeamsByTournament(newTournamentId);
+      const r = await leagueService.getTeamsByTournament(boardId, newTournamentId);
       const d = r.data as any;
       console.log('?? Tournament teams raw response:', JSON.stringify(d, null, 2));
       // Try multiple response shapes from the API
@@ -4896,7 +4946,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const { data: editTournamentTeamsData, isLoading: editTournamentTeamsLoading } = useQuery({
     queryKey: ['editTournamentTeams', editTournamentId],
     queryFn: async () => {
-      const r = await leagueService.getTeamsByTournament(editTournamentId);
+      const r = await leagueService.getTeamsByTournament(boardId, editTournamentId);
       const d = r.data as any;
       console.log('?? Edit tournament teams raw response:', JSON.stringify(d, null, 2));
       const inner = d?.data || d;
@@ -4991,7 +5041,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       const map: Record<string, string> = {};
       await Promise.all(scheduleTournamentIds.map(async (tid) => {
         try {
-          const r = await leagueService.getTeamsByTournament(tid);
+          const r = await leagueService.getTeamsByTournament(boardId, tid);
           const d = r.data as any;
           const inner = d?.data || d;
           const rosters = Array.isArray(inner?.rosters) ? inner.rosters
@@ -5137,7 +5187,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       };
       console.log('?? Schedule PUT payload (from sessionStorage):', JSON.stringify(payload, null, 2));
       console.log('?? Schedule PUT id:', scheduleId);
-      return leagueService.updateSchedule(scheduleId, payload);
+      return leagueService.updateSchedule(boardId, scheduleId, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
@@ -5158,7 +5208,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
 
   const deleteMatchMutation = useMutation({
-    mutationFn: (id: string) => leagueService.deleteSchedule(id),
+    mutationFn: (id: string) => leagueService.deleteSchedule(boardId, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['schedule', boardId] });
       setDeleteConfirmId(null);
@@ -5196,7 +5246,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         active: true,
       };
       console.log('?? Schedule POST payload (from sessionStorage):', JSON.stringify(payload, null, 2));
-      return tournamentService.createSchedule(payload as any);
+      return tournamentService.createSchedule({ boardId, ...payload } as any);
     },
     onSuccess: (response: any) => {
       console.log('? Schedule created successfully:', response?.data);

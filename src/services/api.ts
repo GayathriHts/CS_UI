@@ -134,6 +134,18 @@ const umpireApi = {
       },
     });
   },
+  patch: (url: string, data: any = {}, config: BoardApiConfig = {}) => {
+    const token = getBoardToken();
+    return axios.patch(UMPIRE_API_BASE_URL + url, data, {
+      timeout: 15000,
+      ...config,
+      headers: {
+        ...(config.headers ?? {}),
+        Authorization: isValidToken(token) ? `Bearer ${token}` : undefined,
+        'Content-Type': 'application/json',
+      },
+    });
+  },
 };
 
 export { boardApi, umpireApi };
