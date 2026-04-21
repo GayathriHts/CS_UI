@@ -2482,7 +2482,7 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
                   <thead>
                     <tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}>
                       <th className="py-3 px-4 rounded-tl-lg w-[18%]">Umpire Name</th>
-                      <th className="py-3 px-4 w-[22%]">Email-ID</th>
+                      <th className="py-3 px-4 w-[22%]">Email ID</th>
                       <th className="py-3 px-4 w-[18%]">Contact Number</th>
                       <th className="py-3 px-4 w-[16%]">Rating</th>
                       <th className="py-3 px-4 w-[14%]">Matches</th>
@@ -6154,7 +6154,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               { tournamentId: editTournamentId, teamSource: editTournamentTeamList, teamsLoading: editTournamentTeamsLoading },
             )}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ground</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ground <span className="text-red-500">*</span></label>
               <select value={editGround} onChange={e => setEditGround(e.target.value)} className="input-field">
                 <option value="">Select Ground</option>
                 {groundList.map((g: any) => <option key={g.groundId} value={g.groundId}>{g.groundName}</option>)}
@@ -6168,14 +6168,14 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               () => { setSelectedEditUmpire(null); setEditUmpire(''); setEditUmpireSearchText(''); },
             )}
             {renderUserSearchDropdown(
-              'App Scorer', editAppScorerSearch, setEditAppScorerSearch,
+              'App Scorer *', editAppScorerSearch, setEditAppScorerSearch,
               showEditAppScorerDropdown, setShowEditAppScorerDropdown,
               selectedEditAppScorer,
               (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); },
               () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); },
             )}
             {renderUserSearchDropdown(
-              'Portal Scorer', editPortalScorerSearch, setEditPortalScorerSearch,
+              'Portal Scorer *', editPortalScorerSearch, setEditPortalScorerSearch,
               showEditPortalScorerDropdown, setShowEditPortalScorerDropdown,
               selectedEditPortalScorer,
               (u) => { setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); },
