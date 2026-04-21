@@ -4618,11 +4618,205 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   const today = new Date();
   const [from, setFrom] = useState(new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]);
   const [to, setTo] = useState(new Date(today.getFullYear(), today.getMonth() + 2, 0).toISOString().split('T')[0]);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
   const qc = useQueryClient();
   const bulkCancelMutation = useMutation({
     mutationFn: () => leagueService.cancelGames(boardId, from, to),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['schedule', boardId] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['schedule', boardId] });
+      qc.invalidateQueries({ queryKey: ['cancelGameSchedule', boardId] });
+      qc.invalidateQueries({ queryKey: ['allSchedules', boardId] });
+    },
   });
+
+  // Single match cancel mutation using DELETE /Schedules/{id}
+  const cancelSingleMutation = useMutation({
+    mutationFn: (matchId: string) => {
+      console.log('[CancelGame] Deleting schedule with id:', matchId, 'boardId:', boardId);
+      return leagueService.deleteSchedule(boardId, matchId);
+    },
+    onSuccess: () => {
+      setCancelConfirmId(null);
+      setCancellingId(null);
+      qc.invalidateQueries({ queryKey: ['schedule', boardId] });
+      qc.invalidateQueries({ queryKey: ['cancelGameSchedule', boardId] });
+      qc.invalidateQueries({ queryKey: ['allSchedules', boardId] });
+    },
+    onError: (err: any) => {
+      console.error('[CancelGame] Delete failed:', err?.response?.status, err?.response?.data, err);
+      setCancellingId(null);
+    },
+  });
+
+  // Helper: deeply unwrap $values from .NET JSON responses
+  const unwrapCancelValues = (d: any): any[] => {
+    if (Array.isArray(d)) return d;
+    if (!d || typeof d !== 'object') return [];
+    if (Array.isArray(d.$values)) return d.$values;
+    if (Array.isArray(d.data?.$values)) return d.data.$values;
+    if (Array.isArray(d.items)) return d.items;
+    if (Array.isArray(d.data)) return d.data;
+    if (Array.isArray(d.result)) return d.result;
+    return [];
+  };
+
+  // Fetch matches for the selected date range
+  const { data: cancelMatches, isLoading: isLoadingMatches } = useQuery({
+    queryKey: ['cancelGameSchedule', boardId, from, to],
+    queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
+      const d = r.data;
+      const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+      return list;
+    }),
+    enabled: !!from && !!to,
+  });
+
+  const rawMatchList = Array.isArray(cancelMatches) ? cancelMatches : [];
+  if (rawMatchList.length > 0) console.log('[CancelGame] First match keys:', Object.keys(rawMatchList[0]), 'id:', rawMatchList[0].id, 'scheduleId:', rawMatchList[0].scheduleId, 'Id:', rawMatchList[0].Id, 'ScheduleId:', rawMatchList[0].ScheduleId);
+  const getMatchId = (m: any): string => m.scheduleId || m.ScheduleId || m.id || m.Id || '';
+  const matchList = rawMatchList.filter((m: any) => {
+    const d = ensureUtc(m.startAtUtc || m.scheduledAt);
+    if (!d || !from || !to) return true;
+    const dateStr = d.split('T')[0];
+    return dateStr >= from && dateStr <= to;
+  }).slice().sort((a: any, b: any) => {
+    const dateA = new Date(ensureUtc(a.startAtUtc || a.scheduledAt) || 0).getTime();
+    const dateB = new Date(ensureUtc(b.startAtUtc || b.scheduledAt) || 0).getTime();
+    return dateB - dateA;
+  });
+
+  // Fetch tournaments for name lookup
+  const { data: cancelTournaments } = useQuery({
+    queryKey: ['umpireTournaments', boardId],
+    queryFn: async () => {
+      const r = await tournamentService.getTournaments(boardId, 1, 100);
+      const d = r.data as any;
+      return Array.isArray(d) ? d : d?.items ?? d?.data ?? [];
+    },
+  });
+  const cancelTournamentList = Array.isArray(cancelTournaments) ? cancelTournaments : [];
+
+  // Fetch grounds for name lookup
+  const { data: cancelGrounds } = useQuery({
+    queryKey: ['grounds', boardId],
+    queryFn: () => leagueService.getGrounds(boardId).then(r => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d as any)?.data ?? (d as any)?.items ?? [];
+    }),
+    enabled: !!boardId,
+  });
+  const cancelGroundList = Array.isArray(cancelGrounds) ? cancelGrounds : [];
+
+  // Fetch umpires for name lookup
+  const { data: cancelUmpires } = useQuery({
+    queryKey: ['umpires', boardId],
+    queryFn: () => leagueService.getUmpires(boardId).then(r => {
+      const d = r.data;
+      return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Umpire[];
+    }),
+    enabled: !!boardId,
+  });
+  const cancelUmpireList = Array.isArray(cancelUmpires) ? cancelUmpires : [];
+
+  // Fetch team boards for name lookup
+  const { data: cancelBoardsList } = useQuery({
+    queryKey: ['teamBoards'],
+    queryFn: async () => {
+      const res = await boardService.getByType(1, 1, 50);
+      const raw = res.data as any;
+      const items = unwrapCancelValues(raw);
+      return items.map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+      }));
+    },
+    staleTime: 60000,
+  });
+  const cancelAllBoards = Array.isArray(cancelBoardsList) ? cancelBoardsList : [];
+
+  // Fetch roster name map for team name resolution
+  const cancelScheduleTournamentIds = Array.from(new Set(matchList.map((m: any) => m.tournamentId).filter(Boolean))) as string[];
+  const { data: cancelRosterNameMap } = useQuery({
+    queryKey: ['rosterNameMap', cancelScheduleTournamentIds.join(',')],
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      await Promise.all(cancelScheduleTournamentIds.map(async (tid) => {
+        try {
+          const r = await leagueService.getTeamsByTournament(boardId, tid);
+          const d = r.data as any;
+          const inner = d?.data || d;
+          const rosters = Array.isArray(inner?.rosters) ? inner.rosters
+            : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
+            : Array.isArray(inner?.Rosters) ? inner.Rosters
+            : [];
+          const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard
+            : Array.isArray(inner?.teamsBoard) ? inner.teamsBoard
+            : Array.isArray(inner?.teams) ? inner.teams
+            : [];
+          const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : unwrapCancelValues(inner);
+          list.forEach((t: any) => {
+            const id = t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.teamBoardId || t.boardId || '';
+            const name = t.rosterName || t.RosterName || t.name || t.teamName || t.boardName || t.Name || '';
+            if (id && name) map[id] = name;
+          });
+        } catch { /* skip failed lookups */ }
+      }));
+      return map;
+    },
+    enabled: cancelScheduleTournamentIds.length > 0,
+    staleTime: 60000,
+  });
+  const cancelRosterLookup = cancelRosterNameMap || {};
+
+  // Fetch users for scorer name lookup
+  const { data: cancelUserList } = useQuery({
+    queryKey: ['users'],
+    queryFn: async () => {
+      const r = await userService.list();
+      const raw = r.data as any;
+      const list = Array.isArray(raw) ? raw
+        : Array.isArray(raw?.data) ? raw.data
+        : Array.isArray(raw?.items) ? raw.items
+        : Array.isArray(raw?.users) ? raw.users
+        : Array.isArray(raw?.result) ? raw.result
+        : raw ? [raw] : [];
+      return list.map((u: any) => {
+        const first = u.firstName || u.name?.split(' ')[0] || u.fullName?.split(' ')[0] || '';
+        const last = u.lastName || u.name?.split(' ').slice(1).join(' ') || u.fullName?.split(' ').slice(1).join(' ') || '';
+        const email = u.email || u.emailAddress || '';
+        return {
+          id: u.id || u.Id || u.userId || u.UserId,
+          firstName: first || email.split('@')[0] || email,
+          lastName: last,
+          email,
+        };
+      });
+    },
+  });
+  const cancelNormalizedUsers = Array.isArray(cancelUserList) ? cancelUserList : [];
+
+  // Lookup helpers
+  const clkTournamentName = (m: any) =>
+    m.tournamentName || cancelTournamentList.find((t: any) => t.id === m.tournamentId)?.tournamentName || cancelTournamentList.find((t: any) => t.id === m.tournamentId)?.name || '-';
+  const clkTeamName = (teamId: string | undefined) => {
+    if (!teamId) return '-';
+    return cancelRosterLookup[teamId] || cancelAllBoards.find((b: any) => b.id === teamId)?.name || teamId.slice(0, 8) + '...';
+  };
+  const clkGroundName = (groundId: string | undefined) => {
+    if (!groundId) return '-';
+    return cancelGroundList.find((g: any) => (g.groundId || g.id) === groundId)?.groundName || cancelGroundList.find((g: any) => (g.groundId || g.id) === groundId)?.name || '-';
+  };
+  const clkUmpireName = (umpireId: string | undefined) => {
+    if (!umpireId) return '-';
+    const u = cancelUmpireList.find((u: any) => (u.id || (u as any).umpireId) === umpireId) as any;
+    return u?.umpireName || u?.name || '-';
+  };
+  const clkUserName = (userId: string | undefined) => {
+    if (!userId) return '-';
+    const u = cancelNormalizedUsers.find((u: any) => u.id === userId);
+    return u ? `${u.firstName} ${u.lastName}`.trim() : '-';
+  };
 
   return (
     <div className="animate-fade-in">
@@ -4641,6 +4835,80 @@ function CancelGameTab({ boardId }: { boardId: string }) {
           </div>
         </div>
       </div>
+
+      {/* Match list grid */}
+      <div className="card mt-6">
+        {isLoadingMatches ? (
+          <div className="py-8 text-center text-gray-400">Loading matches...</div>
+        ) : (
+          <table className="w-full text-sm table-fixed">
+            <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[5%]"></th><th className="py-3 px-4 w-[13%]">Tournament</th><th className="py-3 px-4 w-[11%]">Home</th><th className="py-3 px-4 w-[11%]">Away</th><th className="py-3 px-4 w-[11%]">Ground</th><th className="py-3 px-4 w-[11%]">Umpire</th><th className="py-3 px-4 w-[13%]">App Scorer</th><th className="py-3 px-4 rounded-tr-lg w-[16%]">Date</th></tr></thead>
+            <tbody>
+              {matchList.map((m: any) => {
+                const mId = getMatchId(m);
+                const matchDate = new Date(ensureUtc(m.startAtUtc || m.scheduledAt));
+                const isFuture = matchDate.getTime() > Date.now();
+                return (
+                <tr key={mId} className={`border-b last:border-b-0 ${isFuture ? 'hover:bg-gray-50' : 'bg-gray-50 opacity-60'}`}>
+                  <td className="py-3 px-4 text-center">
+                    <input
+                      type="checkbox"
+                      checked={cancelConfirmId === mId}
+                      disabled={!isFuture}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setCancelConfirmId(mId);
+                        } else {
+                          setCancelConfirmId(null);
+                        }
+                      }}
+                      className={`w-4 h-4 accent-red-600 ${isFuture ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}
+                      title={isFuture ? 'Select to cancel' : 'Past matches cannot be cancelled'}
+                    />
+                  </td>
+                  <td className="py-3 px-4 truncate">{clkTournamentName(m)}</td>
+                  <td className="py-3 px-4 truncate">{m.homeTeamName || clkTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
+                  <td className="py-3 px-4 truncate">{m.awayTeamName || clkTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
+                  <td className="py-3 px-4 truncate">{m.groundName || clkGroundName(m.groundId)}</td>
+                  <td className="py-3 px-4 truncate">{m.umpireName || clkUmpireName(m.umpireId)}</td>
+                  <td className="py-3 px-4 truncate">{m.scorerName || clkUserName(m.appScorerId) || '-'}</td>
+                  <td className="py-3 px-4 truncate">{formatDateTime(ensureUtc(m.startAtUtc || m.scheduledAt))}</td>
+                </tr>
+              ); })}
+              {(!matchList.length) && <tr><td colSpan={8} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Cancel Confirmation Modal */}
+      {cancelConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => { if (!cancellingId) setCancelConfirmId(null); }} />
+          <div className="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-sm mx-4 animate-fade-in">
+            <div className="flex flex-col items-center text-center">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              </div>
+              <h3 className="text-base font-bold text-gray-800 mb-1">Cancel Game?</h3>
+              <p className="text-xs text-gray-500 mb-4">Are you sure you want to cancel this game? This action cannot be undone.</p>
+              <div className="flex gap-3 w-full">
+                <button onClick={() => setCancelConfirmId(null)} disabled={!!cancellingId} className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors text-sm disabled:opacity-50">No</button>
+                <button
+                  onClick={() => {
+                    setCancellingId(cancelConfirmId);
+                    cancelSingleMutation.mutate(cancelConfirmId);
+                  }}
+                  disabled={!!cancellingId}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors text-sm disabled:opacity-50"
+                >
+                  {cancellingId === cancelConfirmId ? 'Cancelling...' : 'Yes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
