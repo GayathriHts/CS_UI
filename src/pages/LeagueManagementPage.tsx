@@ -1885,7 +1885,8 @@ function CreateUmpireTab({ boardId, onClose }: { boardId: string; onClose?: () =
 // -- UMPIRE LIST TAB --
 function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, _setShowCreateUmpire] = useState(() => sessionStorage.getItem('umpire_mode') === 'create');
+  const setShowCreate = (v: boolean) => { _setShowCreateUmpire(v); if (v) sessionStorage.setItem('umpire_mode', 'create'); else sessionStorage.removeItem('umpire_mode'); };
   const [editId, _setEditId] = useState<string | null>(() => sessionStorage.getItem('umpireEditId') || null);
   const setEditId = (id: string | null) => { _setEditId(id); if (id) sessionStorage.setItem('umpireEditId', id); else sessionStorage.removeItem('umpireEditId'); };
   const [viewId, setViewId] = useState<string | null>(null);
@@ -2172,6 +2173,15 @@ function UmpireListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       })
       .finally(() => setEditLoading(false));
   };
+
+  // Restore edit form state from sessionStorage on mount (after page refresh)
+  const editRestoredUmpireRef = useRef(false);
+  useEffect(() => {
+    if (editRestoredUmpireRef.current) return;
+    if (!editId || editOriginal) return;
+    const u = umpireList.find((x: any) => (x.id || x.umpireId) === editId);
+    if (u) { editRestoredUmpireRef.current = true; handleEdit(u); }
+  }, [editId, umpireList.length]);
 
   const cancelEdit = () => {
     const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editHomePhone !== editOriginal.homePhone || editWorkPhone !== editOriginal.workPhone || editMobile !== editOriginal.mobile || editCountryCode !== editOriginal.countryCode || editEmail !== editOriginal.email);
@@ -3133,7 +3143,8 @@ function CreateGroundTab({ boardId, onCreated, onClose }: { boardId: string; onC
 // -- GROUND LIST TAB --
 function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, _setShowCreateGround] = useState(() => sessionStorage.getItem('ground_mode') === 'create');
+  const setShowCreate = (v: boolean) => { _setShowCreateGround(v); if (v) sessionStorage.setItem('ground_mode', 'create'); else sessionStorage.removeItem('ground_mode'); };
   const [editId, _setEditId] = useState<string | null>(() => sessionStorage.getItem('groundEditId') || null);
   const setEditId = (id: string | null) => { _setEditId(id); if (id) sessionStorage.setItem('groundEditId', id); else sessionStorage.removeItem('groundEditId'); };
   const [viewId, setViewId] = useState<string | null>(null);
@@ -3385,6 +3396,15 @@ function GroundListTab({ boardId, onDirtyChange }: { boardId: string; onDirtyCha
       })
       .finally(() => setEditLoading(false));
   };
+
+  // Restore edit form state from sessionStorage on mount (after page refresh)
+  const editRestoredGroundRef = useRef(false);
+  useEffect(() => {
+    if (editRestoredGroundRef.current) return;
+    if (!editId || editOriginal) return;
+    const g = groundList.find((x: any) => (x.id || x.groundId) === editId);
+    if (g) { editRestoredGroundRef.current = true; handleEdit(g); }
+  }, [editId, groundList.length]);
 
   const cancelEdit = () => {
     const hasChanges = editOriginal && (editName !== editOriginal.name || editAddress1 !== editOriginal.address1 || editAddress2 !== editOriginal.address2 || editCity !== editOriginal.city || editState !== editOriginal.state || editCountry !== editOriginal.country || editZipcode !== editOriginal.zipcode || editLandmark !== editOriginal.landmark || editHomeTeam !== editOriginal.homeTeam || editPlaceOfGround !== editOriginal.placeOfGround || editAdditionalDirection !== editOriginal.additionalDirection || editGroundFacilities !== editOriginal.groundFacilities || editPitchDescription !== editOriginal.pitchDescription || editWicketType !== editOriginal.wicketType || editPermitHour !== editOriginal.permitTimeHour || editPermitMinutes !== editOriginal.permitTimeMinutes || editPermitAmPm !== editOriginal.permitTimeAmPm);
@@ -4733,7 +4753,8 @@ function TournamentViewDetail({ tournamentId, boardId, onClose }: { tournamentId
 // -- TOURNAMENTS TAB --
 function TournamentsTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChange?: (dirty: boolean) => void }) {
   const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, _setShowCreateTournament] = useState(() => sessionStorage.getItem('tournament_mode') === 'create');
+  const setShowCreate = (v: boolean) => { _setShowCreateTournament(v); if (v) sessionStorage.setItem('tournament_mode', 'create'); else sessionStorage.removeItem('tournament_mode'); };
   const [editId, _setEditId] = useState<string | null>(() => sessionStorage.getItem('tournamentEditId') || null);
   const setEditId = (id: string | null) => { _setEditId(id); if (id) sessionStorage.setItem('tournamentEditId', id); else sessionStorage.removeItem('tournamentEditId'); };
   const [viewId, setViewId] = useState<string | null>(null);
