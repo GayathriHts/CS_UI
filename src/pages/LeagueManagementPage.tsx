@@ -909,59 +909,84 @@ function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match
 
 // -- SCORECARD TAB CONTENT --
 function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: boolean }) {
-  // Dummy data matching the reference UI
-  const dummyInnings = [
-    {
-      id: 'inn1',
-      inningsNumber: 1,
-      battingTeamName: 'Mi Team',
-      status: 'Declared',
-      totalRuns: 58,
-      totalWickets: 2,
-      totalOvers: 2.2,
-      extras: { total: 0, noBall: 0, wide: 0, legByes: 0, byes: 0 },
-      runRate: 24.86,
-      batting: [
-        { batsmanName: 'Aakash Mi', dismissal: 'b Anand P', runs: 37, balls: 8, fours: 0, sixes: 6, sr: 462.50 },
-        { batsmanName: 'Hendry Mi', dismissal: 'not out', runs: 21, balls: 5, fours: 0, sixes: 3, sr: 420.00 },
-        { batsmanName: 'Jim Mi', dismissal: 'c Ashok P b Anand P', runs: 0, balls: 1, fours: 0, sixes: 0, sr: 0.00 },
-      ],
-      fallOfWickets: '58-1 (Aakash Mi, 2.1 Ov), 58-2 (Jim Mi, 2.2 Ov)',
-      didNotBat: ['Karthick Mi', 'Kathir Mi'],
-      bowling: [
-        { bowlerName: 'Anand Px', overs: 1.2, maidens: 0, runs: 36, wickets: 2, econ: 27, dots: 2, fours: 0, sixes: 6, wides: 0, noBalls: 0 },
-        { bowlerName: 'Barath Px', overs: 1.0, maidens: 0, runs: 22, wickets: 0, econ: 22, dots: 0, fours: 0, sixes: 3, wides: 0, noBalls: 0 },
-      ],
-    },
-    {
-      id: 'inn2',
-      inningsNumber: 1,
-      battingTeamName: 'Phoenix Team',
-      status: 'Declared',
-      totalRuns: 17,
-      totalWickets: 1,
-      totalOvers: 1.1,
-      extras: { total: 0, noBall: 0, wide: 0, legByes: 0, byes: 0 },
-      runRate: 14.57,
-      batting: [
-        { batsmanName: 'Ashok P', dismissal: 'b Aakash Mi', runs: 10, balls: 4, fours: 1, sixes: 1, sr: 250.00 },
-        { batsmanName: 'Barath Px', dismissal: 'not out', runs: 7, balls: 3, fours: 0, sixes: 1, sr: 233.33 },
-      ],
-      fallOfWickets: '17-1 (Ashok P, 1.1 Ov)',
-      didNotBat: ['Anand Px'],
-      bowling: [
-        { bowlerName: 'Aakash Mi', overs: 1.1, maidens: 0, runs: 17, wickets: 1, econ: 14.57, dots: 1, fours: 1, sixes: 2, wides: 0, noBalls: 0 },
-      ],
-    },
-  ];
+  // Map API innings data to display format
+  const apiInnings: any[] = scorecard?.innings ?? [];
+  const mappedInnings = apiInnings.map((inn: any, idx: number) => {
+    const batsmen = inn.batsmen ?? inn.batting ?? [];
+    const bowlers = inn.bowlers ?? inn.bowling ?? [];
+    const inningsNo = inn.inningsNo ?? inn.inningsNumber ?? (idx + 1);
+    const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? `Team ${idx + 1}`;
+    const status = inn.status ?? inn.inningsStatus ?? scorecard?.status ?? '-';
 
-  const [expandedInnings, setExpandedInnings] = useState<string[]>([dummyInnings[0].id]);
+    // Map batsmen
+    const batting = batsmen.map((b: any) => {
+      const name = b.batsmanName ?? (`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim() || '-');
+      const runs = b.runsScored ?? b.runs ?? 0;
+      const balls = b.ballsFaced ?? b.balls ?? 0;
+      const fours = b.fours ?? 0;
+      const sixes = b.sixes ?? 0;
+      const sr = balls > 0 ? ((runs / balls) * 100) : 0;
+      const dismissal = b.dismissal ?? b.dismissalType ?? b.howOut ?? 'not out';
+      return { batsmanName: name, dismissal, runs, balls, fours, sixes, sr };
+    });
+
+    // Map bowlers
+    const bowling = bowlers.map((bw: any) => {
+      const name = bw.bowlerName ?? (`${bw.firstName ?? ''} ${bw.lastName ?? ''}`.trim() || '-');
+      const overs = bw.overs ?? 0;
+      const maidens = bw.maidens ?? 0;
+      const runs = bw.runsConceded ?? bw.runs ?? 0;
+      const wickets = bw.wickets ?? 0;
+      const econ = bw.econ ?? bw.economy ?? (overs > 0 ? +(runs / overs).toFixed(2) : 0);
+      const dots = bw.dots ?? bw.dotBalls ?? 0;
+      const fours = bw.fours ?? bw.foursConceded ?? 0;
+      const sixes = bw.sixes ?? bw.sixesConceded ?? 0;
+      const wides = bw.wides ?? 0;
+      const noBalls = bw.noBalls ?? 0;
+      return { bowlerName: name, overs, maidens, runs, wickets, econ, dots, fours, sixes, wides, noBalls };
+    });
+
+    // Calculate totals from batting data
+    const totalRuns = inn.totalRuns ?? inn.total ?? batting.reduce((s: number, b: any) => s + b.runs, 0) + (inn.extras?.total ?? inn.extras ?? 0);
+    const totalWickets = inn.totalWickets ?? inn.wickets ?? batting.filter((b: any) => b.dismissal !== 'not out' && b.dismissal !== 'batting' && b.dismissal !== '').length;
+    const totalOvers = inn.totalOvers ?? inn.overs ?? (bowlers.length > 0 ? Math.max(...bowlers.map((bw: any) => bw.overs ?? 0)) : 0);
+    const extras = typeof inn.extras === 'object' ? inn.extras : { total: inn.extras ?? 0, noBall: inn.noBalls ?? 0, wide: inn.wides ?? 0, legByes: inn.legByes ?? 0, byes: inn.byes ?? 0 };
+    const runRate = totalOvers > 0 ? +(totalRuns / totalOvers).toFixed(2) : 0;
+
+    // Fall of wickets
+    const fallOfWickets = inn.fallOfWickets ?? ((inn.fow ?? []).map((f: any) => `${f.score}-${f.wicketNo} (${f.batsmanName ?? f.playerName ?? ''}, ${f.over ?? ''} Ov)`).join(', ') || '-');
+
+    // Did not bat
+    const didNotBat = inn.didNotBat ?? (inn.yetToBat ?? []).map((p: any) => p.name ?? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()) ?? [];
+
+    return {
+      id: inn.id ?? `inn-${idx}`,
+      inningsNumber: inningsNo,
+      battingTeamName,
+      status,
+      totalRuns,
+      totalWickets,
+      totalOvers,
+      extras,
+      runRate,
+      batting,
+      fallOfWickets,
+      didNotBat,
+      bowling,
+    };
+  });
+
+  const [expandedInnings, setExpandedInnings] = useState<string[]>(mappedInnings.length > 0 ? [mappedInnings[0].id] : []);
 
   const toggleInnings = (id: string) => {
     setExpandedInnings(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
   if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
+
+  if (!scorecard || mappedInnings.length === 0) {
+    return <div className="bg-white border-t p-6 text-center text-gray-500 text-sm">No scorecard data available for this match.</div>;
+  }
 
   return (
     <div className="bg-white border-t">
@@ -971,7 +996,7 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
       </div>
 
       <div>
-        {dummyInnings.map((inn) => {
+        {mappedInnings.map((inn) => {
           const isExpanded = expandedInnings.includes(inn.id);
           const ordinal = inn.inningsNumber === 1 ? '1st' : inn.inningsNumber === 2 ? '2nd' : `${inn.inningsNumber}th`;
           return (
@@ -1011,7 +1036,7 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
                       </tr>
                     </thead>
                     <tbody>
-                      {inn.batting.map((b, idx) => (
+                      {inn.batting.map((b: any, idx: number) => (
                         <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50/30">
                           <td className="py-2.5 px-3 text-blue-700 font-medium">{b.batsmanName}</td>
                           <td className="py-2.5 px-3 text-gray-500 text-sm">{b.dismissal}</td>
@@ -1019,7 +1044,7 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
                           <td className="py-2.5 px-2 text-center text-gray-600">{b.balls}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600">{b.fours}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600">{b.sixes}</td>
-                          <td className="py-2.5 px-2 text-center text-gray-600">{b.sr.toFixed(2)}</td>
+                          <td className="py-2.5 px-2 text-center text-gray-600">{(typeof b.sr === 'number' ? b.sr : 0).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1028,10 +1053,10 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
                   {/* Extras */}
                   <div className="flex justify-between items-center py-2 px-3 border-b border-gray-200 text-sm">
                     <span className="text-gray-600">
-                      Extras {inn.extras.total} (NoBall {inn.extras.noBall}, Wide {inn.extras.wide}, LegByes {inn.extras.legByes}, Byes {inn.extras.byes})
+                      Extras {inn.extras?.total ?? 0} (NoBall {inn.extras?.noBall ?? 0}, Wide {inn.extras?.wide ?? 0}, LegByes {inn.extras?.legByes ?? 0}, Byes {inn.extras?.byes ?? 0})
                     </span>
                     <span className="font-bold text-gray-800">
-                      {inn.totalRuns}/{inn.totalWickets} ({inn.totalOvers} overs RR: {inn.runRate.toFixed(2)})
+                      {inn.totalRuns}/{inn.totalWickets} ({inn.totalOvers} overs RR: {(typeof inn.runRate === 'number' ? inn.runRate : 0).toFixed(2)})
                     </span>
                   </div>
 
@@ -1067,7 +1092,7 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
                       </tr>
                     </thead>
                     <tbody>
-                      {inn.bowling.map((bw, idx) => (
+                      {inn.bowling.map((bw: any, idx: number) => (
                         <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50/30">
                           <td className="py-2.5 px-3 text-blue-700 font-medium">{bw.bowlerName}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600">{bw.overs}</td>
@@ -1096,47 +1121,140 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
 
 // -- BALL BY BALL TAB CONTENT --
 function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId: string }) {
-  // Dummy ball-by-ball data matching the reference UI
-  const dummyInnings = [
-    {
-      id: 'bbb-inn1',
-      battingTeamName: 'Mi Team',
-      inningsNumber: 1,
-      totalRuns: 58,
-      totalWickets: 2,
-      totalOvers: 2.2,
-      overs: [
-        {
-          overNumber: 3,
-          runs: 0,
-          wickets: 2,
-          runningTotal: { runs: 58, wickets: 2 },
-          balls: [
-            { ball: '2.2', runs: 0, isWicket: true, label: 'W', commentary: 'Anand Px to Jim Mi, OUT Catch', time: '05:32:08 PM' },
-            { ball: '2.1', runs: 0, isWicket: true, label: 'W', commentary: 'Anand Px to Aakash Mi, OUT Bowled', time: '05:32:03 PM' },
-          ],
-        },
-        {
-          overNumber: 2,
-          runs: 22,
-          wickets: 0,
-          runningTotal: { runs: 58, wickets: 0 },
-          balls: [
-            { ball: '2.0', runs: 1, isWicket: false, label: '1', commentary: 'Barath Px to Aakash Mi, 1 run', time: '05:31:56 PM' },
-            { ball: '1.5', runs: 1, isWicket: false, label: '1', commentary: 'Barath Px to Hendry Mi, 1 run', time: '05:31:55 PM' },
-            { ball: '1.4', runs: 6, isWicket: false, label: '6', commentary: 'Barath Px to Hendry Mi, 6 runs', time: '05:31:54 PM' },
-            { ball: '1.3', runs: 6, isWicket: false, label: '6', commentary: 'Barath Px to Hendry Mi, 6 runs', time: '05:31:53 PM' },
-            { ball: '1.2', runs: 6, isWicket: false, label: '6', commentary: 'Barath Px to Hendry Mi, 6 runs', time: '05:31:52 PM' },
-            { ball: '1.1', runs: 2, isWicket: false, label: '2', commentary: 'Barath Px to Hendry Mi, 2 runs', time: '05:31:51 PM' },
-          ],
-        },
-      ],
-    },
-  ];
+  const apiInnings: any[] = scorecard?.innings ?? [];
 
-  const [selectedInningsIdx, setSelectedInningsIdx] = useState(0);
-  const [expandedInnings, setExpandedInnings] = useState<string[]>([dummyInnings[0].id]);
-  const currentInnings = dummyInnings[selectedInningsIdx];
+  // Build player ID → name lookup from scorecard batsmen/bowlers
+  const playerNameMap: Record<string, string> = {};
+  apiInnings.forEach((inn: any) => {
+    (inn.batsmen ?? inn.batting ?? []).forEach((p: any) => {
+      const id = p.playerId ?? p.batsmanId ?? p.id ?? '';
+      const name = p.batsmanName ?? (`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || '');
+      if (id && name) playerNameMap[id] = name;
+    });
+    (inn.bowlers ?? inn.bowling ?? []).forEach((p: any) => {
+      const id = p.playerId ?? p.bowlerId ?? p.id ?? '';
+      const name = p.bowlerName ?? (`${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() || '');
+      if (id && name) playerNameMap[id] = name;
+    });
+  });
+
+  const getPlayerName = (id: string | undefined) => (id && playerNameMap[id]) ? playerNameMap[id] : (id?.slice(0, 8) ?? '');
+
+  // Fetch deliveries per innings
+  const inningsNumbers = apiInnings.map((inn: any, idx: number) => inn.inningsNo ?? inn.inningsNumber ?? (idx + 1));
+
+  const { data: deliveriesData, isLoading: deliveriesLoading } = useQuery({
+    queryKey: ['deliveries', matchId, inningsNumbers.join(',')],
+    queryFn: async () => {
+      const results: Record<number, any[]> = {};
+      await Promise.all(
+        inningsNumbers.map(async (inningsNo: number) => {
+          try {
+            const res = await scoringService.getDeliveries(matchId, inningsNo, 0, 200);
+            const data = res.data;
+            results[inningsNo] = Array.isArray(data) ? data : (data as any)?.$values ?? (data as any)?.items ?? [];
+          } catch {
+            results[inningsNo] = [];
+          }
+        })
+      );
+      return results;
+    },
+    enabled: !!matchId && inningsNumbers.length > 0,
+  });
+
+  // Map innings with their fetched deliveries
+  const mappedInnings = apiInnings.map((inn: any, idx: number) => {
+    const inningsNo = inn.inningsNo ?? inn.inningsNumber ?? (idx + 1);
+    const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? `Team ${idx + 1}`;
+
+    // Get deliveries for this innings
+    const deliveries: any[] = (deliveriesData?.[inningsNo] ?? [])
+      .filter((d: any) => !d.isVoided)
+      .sort((a: any, b: any) => (a.seq ?? 0) - (b.seq ?? 0));
+
+    // Calculate totals from deliveries
+    const totalRuns = deliveries.reduce((s: number, d: any) => s + (d.totalRuns ?? 0), 0);
+    const totalWickets = deliveries.filter((d: any) => d.isWicket).length;
+    // Calculate overs: count legal deliveries
+    const legalBalls = deliveries.filter((d: any) => d.isLegalDelivery !== false).length;
+    const completedOvers = Math.floor(legalBalls / 6);
+    const remainingBalls = legalBalls % 6;
+    const totalOvers = remainingBalls > 0 ? parseFloat(`${completedOvers}.${remainingBalls}`) : completedOvers;
+
+    // Use scorecard totals if deliveries are empty but scorecard has data
+    const finalTotalRuns = deliveries.length > 0 ? totalRuns : (inn.totalRuns ?? inn.total ?? 0);
+    const finalTotalWickets = deliveries.length > 0 ? totalWickets : (inn.totalWickets ?? inn.wickets ?? 0);
+    const finalTotalOvers = deliveries.length > 0 ? totalOvers : (inn.totalOvers ?? inn.overs ?? 0);
+
+    // Group deliveries by overNo
+    const overMap: Record<number, any[]> = {};
+    deliveries.forEach((d: any) => {
+      const overNum = d.overNo ?? 0;
+      if (!overMap[overNum]) overMap[overNum] = [];
+      overMap[overNum].push(d);
+    });
+
+    // Build over display objects sorted descending
+    const overs = Object.entries(overMap)
+      .sort(([a], [b]) => Number(b) - Number(a))
+      .map(([overNum, balls]) => {
+        const overRuns = balls.reduce((s: number, d: any) => s + (d.totalRuns ?? 0), 0);
+        const overWickets = balls.filter((d: any) => d.isWicket).length;
+
+        // Running total: all deliveries up to and including this over
+        let runningRuns = 0;
+        let runningWickets = 0;
+        deliveries.forEach((d: any) => {
+          const dOver = d.overNo ?? 0;
+          if (dOver <= Number(overNum)) {
+            runningRuns += d.totalRuns ?? 0;
+            if (d.isWicket) runningWickets++;
+          }
+        });
+
+        // Map individual balls sorted descending by ballIndexLegal
+        const mappedBalls = [...balls]
+          .sort((a: any, b: any) => (b.ballIndexLegal ?? b.seq ?? 0) - (a.ballIndexLegal ?? a.seq ?? 0))
+          .map((d: any) => {
+            const overDisplay = Number(overNum);
+            const ballIndex = d.ballIndexLegal ?? 0;
+            const ballId = `${overDisplay}.${ballIndex + 1}`;
+            const batRuns = d.runsOfBat ?? 0;
+            const extras = (d.wideRuns ?? 0) + (d.noBallRuns ?? 0) + (d.byeRuns ?? 0) + (d.legByeRuns ?? 0);
+            const runs = d.totalRuns ?? (batRuns + extras);
+            const isWicket = !!d.isWicket;
+            const label = isWicket ? 'W' : String(runs);
+
+            const bowlerName = getPlayerName(d.bowlerId);
+            const batsmanName = getPlayerName(d.strikerId);
+            const dismissalKind = d.dismissalKind ?? '';
+
+            let commentary: string;
+            if (isWicket) {
+              commentary = `${bowlerName} to ${batsmanName}, OUT ${dismissalKind}`;
+            } else if (d.wideRuns) {
+              commentary = `${bowlerName} to ${batsmanName}, wide, ${runs} run${runs !== 1 ? 's' : ''}`;
+            } else if (d.noBallRuns) {
+              commentary = `${bowlerName} to ${batsmanName}, no ball, ${runs} run${runs !== 1 ? 's' : ''}`;
+            } else {
+              commentary = `${bowlerName} to ${batsmanName}, ${runs} run${runs !== 1 ? 's' : ''}`;
+            }
+
+            const time = d.createdAt
+              ? new Date(d.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+              : '';
+
+            return { ball: ballId, runs, isWicket, label, commentary, time };
+          });
+
+        return { overNumber: Number(overNum) + 1, runs: overRuns, wickets: overWickets, runningTotal: { runs: runningRuns, wickets: runningWickets }, balls: mappedBalls };
+      });
+
+    return { id: inn.id ?? `bbb-inn-${idx}`, battingTeamName, inningsNumber: inningsNo, totalRuns: finalTotalRuns, totalWickets: finalTotalWickets, totalOvers: finalTotalOvers, overs };
+  });
+
+  const [expandedInnings, setExpandedInnings] = useState<string[]>(mappedInnings.length > 0 ? [mappedInnings[0].id] : []);
 
   const toggleInnings = (id: string) => {
     setExpandedInnings(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -1150,6 +1268,14 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
     return 'bg-green-500 text-white';
   };
 
+  if (!scorecard || mappedInnings.length === 0) {
+    return <div className="bg-white border-t p-6 text-center text-gray-500 text-sm">No ball-by-ball data available for this match.</div>;
+  }
+
+  if (deliveriesLoading) {
+    return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
+  }
+
   return (
     <div className="bg-white border-t">
       {/* Header */}
@@ -1158,7 +1284,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
       </div>
 
       {/* Innings selector header */}
-      {dummyInnings.map((inn) => {
+      {mappedInnings.map((inn) => {
         const isExpanded = expandedInnings.includes(inn.id);
         const ordinal = inn.inningsNumber === 1 ? '1st' : inn.inningsNumber === 2 ? '2nd' : `${inn.inningsNumber}th`;
         return (
@@ -5401,6 +5527,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const toMinuteKey = (d: string | Date): string => { try { return new Date(d).toISOString().slice(0, 16); } catch { return ''; } };
   /** Compare by local date + time for umpire conflict (same local date & time = conflict) */
   const toLocalMinuteKey = (d: string | Date): string => { try { const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}T${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`; } catch { return ''; } };
+  /** Compare by local date only for umpire conflict (same date = conflict, regardless of time) */
+  const toLocalDateKey = (d: string | Date): string => { try { const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; } catch { return ''; } };
   const getHomeId = (m: any): string => m.homeTeamId || m.homeTeamBoardId || m.HomeTeamId || m.HomeTeamBoardId || '';
   const getAwayId = (m: any): string => m.awayTeamId || m.awayTeamBoardId || m.AwayTeamId || m.AwayTeamBoardId || '';
   const getGroundId = (m: any): string => m.groundId || m.GroundId || '';
@@ -6012,20 +6140,20 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         setDuplicateScheduleError(dupMsg);
         return;
       }
-      // Check umpire conflict: same umpire at same date & time
-      const newUmpireKey = toLocalMinuteKey(newScheduledAt);
+      // Check umpire conflict: same umpire on the same date
+      const newUmpireKey = toLocalDateKey(newScheduledAt);
       console.log('[UmpireConflict] newUmpireKey:', newUmpireKey, 'newUmpireId:', newUmpireId, 'list count:', effectiveList.length);
       effectiveList.forEach((m: any, i: number) => {
-        const mKey = toLocalMinuteKey(getSchedDate(m));
+        const mKey = toLocalDateKey(getSchedDate(m));
         const mUmpire = getMatchUmpire(m);
         if (mUmpire === newUmpireId) console.log(`[UmpireConflict] Match ${i}: mKey=${mKey} mUmpire=${mUmpire} umpireId=${m.umpireId} UmpireId=${m.UmpireId} startAtUtc=${m.startAtUtc} scheduledAt=${m.scheduledAt}`);
       });
       const umpireConflict = effectiveList.find((m: any) => {
-        const mKey = toLocalMinuteKey(getSchedDate(m));
+        const mKey = toLocalDateKey(getSchedDate(m));
         return mKey === newUmpireKey && getMatchUmpire(m) === newUmpireId;
       });
       if (umpireConflict) {
-        setDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.');
+        setDuplicateScheduleError('The selected Umpire already has a match scheduled on the same Date. Please choose a different Umpire or Date.');
         return;
       }
     } catch {
@@ -6036,14 +6164,14 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         return;
       }
       // Fallback umpire conflict check
-      const newUmpireKeyFallback = toLocalMinuteKey(newScheduledAt);
+      const newUmpireKeyFallback = toLocalDateKey(newScheduledAt);
       if (newUmpireKeyFallback && newUmpireId) {
         const umpireConflict = allMatchList.find((m: any) => {
-          const mKey = toLocalMinuteKey(getSchedDate(m));
+          const mKey = toLocalDateKey(getSchedDate(m));
           return mKey === newUmpireKeyFallback && getMatchUmpire(m) === newUmpireId;
         });
         if (umpireConflict) {
-          setDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.');
+          setDuplicateScheduleError('The selected Umpire already has a match scheduled on the same Date. Please choose a different Umpire or Date.');
           return;
         }
       }
@@ -6065,20 +6193,21 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     <div className="relative">
       {showDd && <div className="fixed inset-0 z-[5]" onClick={() => setShowDd(false)} />}
       <input
-        type="number"
-        min={0}
-        max={options.length === 24 ? 23 : 59}
-        value={parseInt(value, 10)}
+        type="text"
+        inputMode="numeric"
+        maxLength={2}
+        value={value}
         onFocus={e => e.target.select()}
         onClick={() => setShowDd(!showDd)}
         onChange={e => {
           const max = options.length === 24 ? 23 : 59;
-          let num = parseInt(e.target.value, 10);
+          const raw = e.target.value.replace(/\D/g, '');
+          let num = parseInt(raw, 10);
           if (isNaN(num) || num < 0) num = 0;
           if (num > max) num = max;
           onChange(String(num).padStart(2, '0'));
         }}
-        className={`input-field w-20 text-center cursor-pointer [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${error ? 'border-red-500' : ''}`}
+        className={`input-field w-20 text-center cursor-pointer ${error ? 'border-red-500' : ''}`}
       />
       {showDd && (
         <div className="absolute z-20 mt-1 w-20 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -6188,11 +6317,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
             type="text"
             placeholder={`Search ${label.replace(' *', '').toLowerCase()}`}
             value={search}
-            onChange={e => { setSearch(e.target.value); setShowDropdown(e.target.value.trim().length > 0); }}
-            onFocus={() => { if (search.trim().length > 0) setShowDropdown(true); }}
+            onChange={e => { setSearch(e.target.value); setShowDropdown(true); }}
+            onFocus={() => setShowDropdown(true)}
             className="input-field"
           />
-          {showDropdown && search.trim().length > 0 && (
+          {showDropdown && (
             <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {filteredList.length > 0 ? filteredList.slice(0, 20).map((u: any) => (
                 <button
@@ -6555,29 +6684,29 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                   setEditDuplicateScheduleError(dupMsg);
                   return;
                 }
-                // Check umpire conflict: same umpire at same date & time
-                const editUmpireKey = toLocalMinuteKey(editScheduledAt);
+                // Check umpire conflict: same umpire on the same date
+                const editUmpireKey = toLocalDateKey(editScheduledAt);
                 const umpireConflict = freshList.find((m: any) => {
                   if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
-                  const mKey = toLocalMinuteKey(getSchedDate(m));
+                  const mKey = toLocalDateKey(getSchedDate(m));
                   return mKey === editUmpireKey && getMatchUmpire(m) === editUmpire;
                 });
                 if (umpireConflict) {
-                  setEditDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.');
+                  setEditDuplicateScheduleError('The selected Umpire already has a match scheduled on the same Date. Please choose a different Umpire or Date.');
                   return;
                 }
               } catch {
                 const dupMsg = checkDuplicateSchedule(editScheduledAt, editGround, editHomeTeamId, editAwayTeamId, editMatchId);
                 if (dupMsg) { setEditDuplicateScheduleError(dupMsg); return; }
                 // Fallback umpire conflict check
-                const editUmpireKeyFb = toLocalMinuteKey(editScheduledAt);
+                const editUmpireKeyFb = toLocalDateKey(editScheduledAt);
                 if (editUmpireKeyFb && editUmpire) {
                   const umpireConflict = allMatchList.find((m: any) => {
                     if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
-                    const mKey = toLocalMinuteKey(getSchedDate(m));
+                    const mKey = toLocalDateKey(getSchedDate(m));
                     return mKey === editUmpireKeyFb && getMatchUmpire(m) === editUmpire;
                   });
-                  if (umpireConflict) { setEditDuplicateScheduleError('The selected Umpire already has a match scheduled at the same Date & Time. Please choose a different Umpire or Date & Time.'); return; }
+                  if (umpireConflict) { setEditDuplicateScheduleError('The selected Umpire already has a match scheduled on the same Date. Please choose a different Umpire or Date.'); return; }
                 }
               }
               updateMatchMutation.mutate();

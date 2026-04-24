@@ -330,7 +330,7 @@ export const tournamentService = {
 // ── Scoring (EPIC E) ──
 export const scoringService = {
   // E1: Scorecard & Innings
-  getScorecard: (matchId: string) => api.get<Scorecard>(`/scoring/${matchId}`),
+  getScorecard: (matchId: string) => scoringApi.get(`/matches/${matchId}/scorecard`),
   getScorecardSummary: (matchId: string) => api.get<ScoreboardSummary>(`/scoring/${matchId}/summary`),
   createScorecard: (matchId: string, tossWonBy: string, tossDecision: string) =>
     api.post<Scorecard>(`/scoring/${matchId}`, { tossWonBy, tossDecision }),
@@ -352,6 +352,8 @@ export const scoringService = {
   completeOver: (inningsId: string, overNumber: number) =>
     api.post<OverCompletion>(`/scoring/innings/${inningsId}/over-complete`, overNumber),
   getBallByBall: (inningsId: string) => api.get<BallByBallDetail[]>(`/scoring/innings/${inningsId}/ball-by-ball`),
+  getDeliveries: (scheduleId: string, inningsNo: number, afterSeq = 0, limit = 50) =>
+    scoringApi.get(`/matches/${scheduleId}/innings/${inningsNo}/deliveries`, { params: { afterSeq, limit } }),
 
   // E4: Lock/Unlock with Verification
   lockScorecard: (scorecardId: string) => api.put(`/scoring/${scorecardId}/lock`),
