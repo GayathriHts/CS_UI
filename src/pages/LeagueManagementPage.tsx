@@ -837,7 +837,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
 }
 
 // -- MATCH SCORECARD VIEW (shown when View Score is clicked) --
-type ScorecardTab = 'live' | 'scorecard' | 'ball-by-ball' | 'wagon-wheel' | 'pitch-map' | 'squad';
+type ScorecardTab = 'live' | 'scorecard' | 'ball-by-ball';
 function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match: any; onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<ScorecardTab>('scorecard');
 
@@ -851,9 +851,6 @@ function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match
     { id: 'live', label: 'Live', icon: '▶' },
     { id: 'scorecard', label: 'Scorecard', icon: '📋' },
     { id: 'ball-by-ball', label: 'Ball by Ball', icon: '⊙' },
-    { id: 'wagon-wheel', label: 'Wagon Wheel', icon: '🎯' },
-    { id: 'pitch-map', label: 'Pitch Map', icon: '🏟' },
-    { id: 'squad', label: 'Squad', icon: '👥' },
   ];
 
   return (
@@ -899,9 +896,6 @@ function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match
         )}
         {activeTab === 'scorecard' && <ScorecardTabContent scorecard={scorecard as any} loading={scorecardLoading} />}
         {activeTab === 'ball-by-ball' && <BallByBallTabContent scorecard={scorecard as any} matchId={matchId} />}
-        {activeTab === 'wagon-wheel' && <WagonWheelTabContent />}
-        {activeTab === 'pitch-map' && <PitchMapTabContent />}
-        {activeTab === 'squad' && <SquadTabContent scorecard={scorecard as any} />}
       </div>
     </div>
   );
@@ -1501,8 +1495,6 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
                   {m.homeTeamLogo && <img src={m.homeTeamLogo} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />}
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{m.homeTeamName} vs {m.awayTeamName}</p>
-                    <p className="text-xs text-gray-500 truncate">{m.tournamentName} &bull; {formatDateTime(ensureUtc(m.scheduledAt))}</p>
-                    {m.result && <p className="text-xs text-gray-600 mt-1">{m.result}</p>}
                   </div>
                 </div>
                 <button onClick={() => setSelectedMatch(m)} className="ml-4 px-4 py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition-colors whitespace-nowrap flex-shrink-0">View Score</button>
@@ -1525,8 +1517,6 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div>
                   <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
-                  <p className="text-xs text-gray-500">{m.tournamentName} ? {formatDateTime(ensureUtc(m.scheduledAt))}</p>
-                  {m.groundName && <p className="text-xs text-gray-400">?? {m.groundName}</p>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
