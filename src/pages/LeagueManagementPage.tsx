@@ -1497,7 +1497,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
                     <p className="text-sm font-medium truncate">{m.homeTeamName} vs {m.awayTeamName}</p>
                   </div>
                 </div>
-                <button onClick={() => setSelectedMatch(m)} className="ml-4 px-4 py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition-colors whitespace-nowrap flex-shrink-0">View Score</button>
+                <button onClick={() => setSelectedMatch(m)} className="ml-4 px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap flex-shrink-0">View Score</button>
               </div>
             ))}
           </div>
@@ -1522,7 +1522,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
                   <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                     {m.status}
                   </span>
-                  <button onClick={() => setSelectedMatch(m)} className="px-4 py-1.5 bg-red-600 text-white rounded text-xs font-semibold hover:bg-red-700 transition-colors whitespace-nowrap">View Score</button>
+                  <button onClick={() => setSelectedMatch(m)} className="px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap">View Score</button>
                 </div>
               </div>
             ))}
@@ -5766,9 +5766,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   // Filter users based on search text
   const filterUsers = (search: string) => {
-    const q = search.toLowerCase();
+    const q = search.trim().toLowerCase();
+    if (!q) return [];
     return normalizedUsers.filter((u: any) =>
-      !q || `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+      `${u.firstName} ${u.lastName}`.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
     );
   };
 
