@@ -6499,8 +6499,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'App Scorer *', appScorerSearch, setAppScorerSearch,
               showAppScorerDropdown, setShowAppScorerDropdown,
               selectedAppScorer,
-              (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); },
-              () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); },
+              (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); setPortalScorerSearch(''); },
+              () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); setSelectedPortalScorer(null); setNewPortalScorerId(''); ssSet('portalScorerId', ''); setPortalScorerSearch(''); },
             )}
             {renderUserSearchDropdown(
               'Portal Scorer *', portalScorerSearch, setPortalScorerSearch,
@@ -6624,8 +6624,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               'App Scorer *', editAppScorerSearch, setEditAppScorerSearch,
               showEditAppScorerDropdown, setShowEditAppScorerDropdown,
               selectedEditAppScorer,
-              (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); },
-              () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); },
+              (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); setEditPortalScorerSearch(''); },
+              () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); setSelectedEditPortalScorer(null); setEditPortalScorer(''); setEditPortalScorerSearch(''); },
             )}
             {renderUserSearchDropdown(
               'Portal Scorer *', editPortalScorerSearch, setEditPortalScorerSearch,
