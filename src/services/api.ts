@@ -5,13 +5,13 @@ import type { AxiosRequestConfig } from 'axios';
 // In production (deployed build), use the actual backend URLs directly.
 const isDev = import.meta.env.DEV;
 
-const API_BASE_URL = isDev ? '/api/v1' : 'http://10.10.20.24:9000/api/v1';
+const API_BASE_URL = isDev ? '/api/v1' : 'http://10.10.20.24:9002/api/v1';
 
-const BOARD_API_BASE_URL = isDev ? '/board-api/v1' : 'http://10.10.20.24:9000/api/v1';
+const BOARD_API_BASE_URL = isDev ? '/board-api/v1' : 'http://10.10.20.24:9003/api/v1';
 
-const UMPIRE_API_BASE_URL = isDev ? '/umpire-api/v1' : 'http://10.10.20.24:9000/api/v1';
+const UMPIRE_API_BASE_URL = isDev ? '/umpire-api/v1' : 'http://10.10.20.24:9004/api/v1';
 
-const SCORING_API_BASE_URL = isDev ? '/scoring-api/v1' : 'http://10.10.20.24:9000/api/v1';
+const SCORING_API_BASE_URL = isDev ? '/scoring-api/v1' : 'http://10.10.20.24:9005/api/v1';
 
 const getBoardToken = () => {
   return sessionStorage.getItem('token') || localStorage.getItem('token');
@@ -173,10 +173,12 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach JWT token to every request
+// Attach JWT token to every request (skip auth endpoints like login/register)
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (!isAuthRequest(config.url)) {
+    const token = localStorage.getItem('token');
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
   return config;
 });
 

@@ -83,9 +83,16 @@ export default function LoginPage() {
         return;
       }
       navigate((location.state as any)?.from?.pathname || '/dashboard');
-    } catch (err) {
-      setError('Invalid email or password.');
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const serverMsg = err?.response?.data?.message || err?.response?.data?.title || err?.response?.data?.detail || '';
       console.error('Login error:', err);
+      console.error('Server response:', err?.response?.data);
+      if (status === 500) {
+        setError(serverMsg || 'Server error. Please try again later.');
+      } else {
+        setError(serverMsg || 'Invalid email or password.');
+      }
     } finally {
       setLoading(false);
     }
