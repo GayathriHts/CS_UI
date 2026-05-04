@@ -360,7 +360,7 @@ export const scoringService = {
   unlockScorecard: (scorecardId: string, verificationCode: string) =>
     api.put(`/scoring/${scorecardId}/unlock`, { verificationCode }),
 
-  // E5: Live Matches (ScoringService API - port 9005)
+  // E5: Live Matches (ScoringService API - port 9000)
   getLiveMatches: () => scoringApi.get('/matches', { params: { status: 'Live' } }),
 };
 
@@ -477,7 +477,7 @@ export const boardDetailService = {
 
 // ── League Management ──
 export const leagueService = {
-  // Umpires (all via umpireApi → port 9004)
+  // Umpires (all via umpireApi → port 9000)
   createUmpire: (boardId: string, data: {
     umpireName: string; address1?: string; address2?: string;
     city?: string; state?: string; country?: string; zipcode?: string;
