@@ -843,7 +843,10 @@ function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match
 
   const { data: scorecard, isLoading: scorecardLoading } = useQuery({
     queryKey: ['scorecard', matchId],
-    queryFn: () => scoringService.getScorecard(matchId).then(r => r.data),
+    queryFn: () => scoringService.getScorecard(matchId).then(r => {
+      const d = r.data;
+      return d?.data ?? d;
+    }),
     enabled: !!matchId,
   });
 
