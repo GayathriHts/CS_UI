@@ -643,7 +643,11 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
 function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: string; scorecard: any; scorecardLoading: boolean }) {
   const { data: liveMatches, isLoading: liveLoading } = useQuery({
     queryKey: ['liveMatches'],
-    queryFn: () => scoringService.getLiveMatches().then(r => r.data),
+    queryFn: () => scoringService.getLiveMatches().then(r => {
+      const d = r.data;
+      const items = d?.data ?? d;
+      return Array.isArray(items) ? items : items?.$values ?? [];
+    }),
     refetchInterval: 15000,
   });
 
@@ -838,14 +842,29 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
 
 // -- MATCH SCORECARD VIEW (shown when View Score is clicked) --
 type ScorecardTab = 'live' | 'scorecard' | 'ball-by-ball';
-function MatchScorecardView({ matchId, match, onBack }: { matchId: string; match: any; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<ScorecardTab>('scorecard');
+const SCORECARD_TABS: ScorecardTab[] = ['live', 'scorecard', 'ball-by-ball'];
+function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onScorecardTabChange }: { matchId: string; match: any; onBack: () => void; initialScorecardTab?: ScorecardTab; onScorecardTabChange?: (tab: ScorecardTab) => void }) {
+  const [activeTab, setActiveTabState] = useState<ScorecardTab>(initialScorecardTab || 'scorecard');
+  const setActiveTab = (tab: ScorecardTab) => {
+    setActiveTabState(tab);
+    onScorecardTabChange?.(tab);
+  };
 
   const { data: scorecard, isLoading: scorecardLoading } = useQuery({
     queryKey: ['scorecard', matchId],
     queryFn: () => scoringService.getScorecard(matchId).then(r => {
       const d = r.data;
-      return d?.data ?? d;
+      const sc = d?.data ?? d;
+      // Enrich innings with team names from match/schedule data if scorecard only has IDs
+      if (sc?.innings && match) {
+        sc.innings.forEach((inn: any) => {
+          if (!inn.battingTeamName && inn.battingTeamId) {
+            if (inn.battingTeamId === match.homeTeamId) inn.battingTeamName = match.homeTeamName || match.homeTeam;
+            else if (inn.battingTeamId === match.awayTeamId) inn.battingTeamName = match.awayTeamName || match.awayTeam;
+          }
+        });
+      }
+      return sc;
     }),
     enabled: !!matchId,
   });
@@ -912,7 +931,7 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
     const batsmen = inn.batsmen ?? inn.batting ?? [];
     const bowlers = inn.bowlers ?? inn.bowling ?? [];
     const inningsNo = inn.inningsNo ?? inn.inningsNumber ?? (idx + 1);
-    const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? `Team ${idx + 1}`;
+    const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? inn.teamName ?? `Innings ${inningsNo}`;
     const status = inn.status ?? inn.inningsStatus ?? scorecard?.status ?? '-';
 
     // Map batsmen
@@ -1148,9 +1167,12 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
         inningsNumbers.map(async (inningsNo: number) => {
           try {
             const res = await scoringService.getDeliveries(matchId, inningsNo, 0, 200);
-            const data = res.data;
-            results[inningsNo] = Array.isArray(data) ? data : (data as any)?.$values ?? (data as any)?.items ?? [];
-          } catch {
+            const raw = res.data;
+            const data = raw?.data ?? raw;
+            console.log('[BallByBall] deliveries response for innings', inningsNo, ':', JSON.stringify(data)?.slice(0, 500));
+            results[inningsNo] = Array.isArray(data) ? data : (data as any)?.deliveries ?? (data as any)?.$values ?? (data as any)?.items ?? [];
+          } catch (err) {
+            console.error('[BallByBall] deliveries error for innings', inningsNo, ':', err);
             results[inningsNo] = [];
           }
         })
@@ -1163,7 +1185,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
   // Map innings with their fetched deliveries
   const mappedInnings = apiInnings.map((inn: any, idx: number) => {
     const inningsNo = inn.inningsNo ?? inn.inningsNumber ?? (idx + 1);
-    const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? `Team ${idx + 1}`;
+    const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? inn.teamName ?? `Innings ${inningsNo}`;
 
     // Get deliveries for this innings
     const deliveries: any[] = (deliveriesData?.[inningsNo] ?? [])
@@ -1449,7 +1471,31 @@ function SquadTabContent({ scorecard }: { scorecard: any }) {
 
 // -- LEAGUE LANDING TAB (default when Manage League is opened) --
 function LeagueLandingTab({ boardId }: { boardId: string }) {
-  const [selectedMatch, setSelectedMatch] = useState<any>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [selectedMatch, setSelectedMatchState] = useState<any>(null);
+  const [scorecardTab, setScorecardTab] = useState<ScorecardTab>((searchParams.get('scorecardTab') as ScorecardTab) || 'scorecard');
+
+  const setSelectedMatch = (m: any) => {
+    setSelectedMatchState(m);
+    if (m) {
+      const params = new URLSearchParams(searchParams);
+      params.set('matchId', m.id);
+      params.set('scorecardTab', scorecardTab);
+      setSearchParams(params, { replace: true });
+    } else {
+      const params = new URLSearchParams(searchParams);
+      params.delete('matchId');
+      params.delete('scorecardTab');
+      setSearchParams(params, { replace: true });
+    }
+  };
+
+  const handleScorecardTabChange = (tab: ScorecardTab) => {
+    setScorecardTab(tab);
+    const params = new URLSearchParams(searchParams);
+    params.set('scorecardTab', tab);
+    setSearchParams(params, { replace: true });
+  };
 
   const { data: tournaments } = useQuery({
     queryKey: ['tournaments', boardId],
@@ -1469,12 +1515,21 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
   });
 
   const allMatches = (schedule ?? []) as any[];
-  const recentResults = allMatches.filter((m: any) => m.status === 'Completed').slice(0, 5);
-  const upcomingMatches = allMatches.filter((m: any) => m.status === 'Scheduled' || m.status === 'Live').slice(0, 5);
+  const recentResults = allMatches.filter((m: any) => m.status === 'Completed');
+  const upcomingMatches = allMatches.filter((m: any) => m.status === 'Scheduled' || m.status === 'Live');
+
+  // Auto-select match from URL on initial load
+  const urlMatchId = searchParams.get('matchId');
+  useEffect(() => {
+    if (urlMatchId && !selectedMatch && allMatches.length > 0) {
+      const found = allMatches.find((m: any) => m.id === urlMatchId);
+      if (found) setSelectedMatchState(found);
+    }
+  }, [urlMatchId, allMatches]);
 
   // If a match is selected, show the scorecard view
   if (selectedMatch) {
-    return <MatchScorecardView matchId={selectedMatch.id} match={selectedMatch} onBack={() => setSelectedMatch(null)} />;
+    return <MatchScorecardView matchId={selectedMatch.id} match={selectedMatch} onBack={() => setSelectedMatch(null)} initialScorecardTab={scorecardTab} onScorecardTabChange={handleScorecardTabChange} />;
   }
 
   return (
@@ -1490,9 +1545,9 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         <h3 className="text-sm font-bold text-gray-800 uppercase border-b-2 border-yellow-400 pb-2 mb-3">
           Recent Match Results
         </h3>
-        {allMatches.length > 0 ? (
+        {recentResults.length > 0 ? (
           <div className="space-y-3">
-            {allMatches.map((m: any) => (
+            {recentResults.map((m: any) => (
               <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                 <div className="flex items-center gap-3 min-w-0">
                   {m.homeTeamLogo && <img src={m.homeTeamLogo} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />}
