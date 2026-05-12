@@ -6056,6 +6056,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     setEditScheduledAt(schedAt);
     setEditOriginal({ tournamentId: m.tournamentId || '', gameType: m.gameType || '', homeTeamId: m.homeTeamId || m.homeTeamBoardId || '', awayTeamId: m.awayTeamId || m.awayTeamBoardId || '', ground: m.groundId || '', umpire: m.umpireId || '', appScorer: m.appScorerId || '', portalScorer: m.portalScorerId || '', scheduledAt: schedAt });
     setEditError('');
+    setEditDuplicateScheduleError('');
     // Pre-populate searchable dropdown selections
     const homeId = m.homeTeamId || m.homeTeamBoardId;
     const awayId = m.awayTeamId || m.awayTeamBoardId;
@@ -6147,7 +6148,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   };
 
   // Check if all required fields for creating a match are filled
-  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newGroundId && newUmpireId && newScheduledAt && newAppScorerId && newPortalScorerId);
+  const isCreateFormValid = !!(newTournamentId && newGameType && newHomeTeamId && newAwayTeamId && newGroundId && newUmpireId && newScheduledAt && newAppScorerId);
 
   const validateAndCreate = async () => {
     const errors: Record<string, string> = {};
@@ -6161,7 +6162,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     if (!newScheduledAt) errors.scheduledAt = 'Date & Time is required';
     else if (new Date(newScheduledAt) < new Date(new Date().toDateString())) errors.scheduledAt = 'Cannot schedule a match in the past';
     if (!newAppScorerId) errors.appScorer = 'App Scorer is required';
-    if (!newPortalScorerId) errors.portalScorer = 'Portal Scorer is required';
     setFormErrors(errors);
     setCreateError('');
     setCreateSuccess('');
@@ -6560,13 +6560,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               (u) => { setSelectedAppScorer(u); setNewAppScorerId(u.id); ssSet('appScorerId', u.id); setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); setPortalScorerSearch(''); },
               () => { setSelectedAppScorer(null); setNewAppScorerId(''); ssSet('appScorerId', ''); setAppScorerSearch(''); setSelectedPortalScorer(null); setNewPortalScorerId(''); ssSet('portalScorerId', ''); setPortalScorerSearch(''); },
             )}
-            {renderUserSearchDropdown(
-              'Portal Scorer *', portalScorerSearch, setPortalScorerSearch,
-              showPortalScorerDropdown, setShowPortalScorerDropdown,
-              selectedPortalScorer,
-              (u) => { setSelectedPortalScorer(u); setNewPortalScorerId(u.id); ssSet('portalScorerId', u.id); },
-              () => { setSelectedPortalScorer(null); setNewPortalScorerId(''); ssSet('portalScorerId', ''); setPortalScorerSearch(''); },
-            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
@@ -6675,8 +6668,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               editUmpireSearchText, setEditUmpireSearchText,
               showEditUmpireDropdown, setShowEditUmpireDropdown,
               selectedEditUmpire,
-              (u) => { setSelectedEditUmpire(u); setEditUmpire(u.id); },
-              () => { setSelectedEditUmpire(null); setEditUmpire(''); setEditUmpireSearchText(''); },
+              (u) => { setSelectedEditUmpire(u); setEditUmpire(u.id); setEditDuplicateScheduleError(''); },
+              () => { setSelectedEditUmpire(null); setEditUmpire(''); setEditUmpireSearchText(''); setEditDuplicateScheduleError(''); },
             )}
             {renderUserSearchDropdown(
               'App Scorer *', editAppScorerSearch, setEditAppScorerSearch,
@@ -6685,17 +6678,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
               (u) => { setSelectedEditAppScorer(u); setEditAppScorer(u.id); setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); setEditPortalScorerSearch(''); },
               () => { setSelectedEditAppScorer(null); setEditAppScorer(''); setEditAppScorerSearch(''); setSelectedEditPortalScorer(null); setEditPortalScorer(''); setEditPortalScorerSearch(''); },
             )}
-            {renderUserSearchDropdown(
-              'Portal Scorer *', editPortalScorerSearch, setEditPortalScorerSearch,
-              showEditPortalScorerDropdown, setShowEditPortalScorerDropdown,
-              selectedEditPortalScorer,
-              (u) => { setSelectedEditPortalScorer(u); setEditPortalScorer(u.id); },
-              () => { setSelectedEditPortalScorer(null); setEditPortalScorer(''); setEditPortalScorerSearch(''); },
-            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time <span className="text-red-500">*</span></label>
               <div className="flex gap-2 items-center">
-                <input type="date" min={new Date().toISOString().slice(0, 10)} max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); }} className="input-field flex-1" />
+                <input type="date" min={new Date().toISOString().slice(0, 10)} max="9999-12-31" value={editScheduledAt ? editScheduledAt.slice(0, 10) : ''} onChange={e => { const d = e.target.value; if (d && d.length > 10) return; const t = editScheduledAt ? editScheduledAt.slice(11) : '00:00'; setEditScheduledAt(d ? `${d}T${t}` : ''); setEditDuplicateScheduleError(''); }} className="input-field flex-1" />
                 {renderTimeDropdown(
                   editScheduledAt ? editScheduledAt.slice(11, 13) : '00',
                   hourOptions,
@@ -6723,8 +6709,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 const freshListRaw = unwrapValues(freshData);
                 const freshList = freshListRaw.length > 0 ? freshListRaw : (Array.isArray(freshData) ? freshData : (freshData as any)?.items ?? (freshData as any)?.data ?? []);
                 const editKey = toMinuteKey(editScheduledAt);
+                const getScheduleId = (m: any): string => m.id || m.scheduleId || m.Id || m.ScheduleId || '';
+                const isSelf = (m: any) => { const sid = getScheduleId(m); return sid === editMatchId || m.id === editMatchId || m.scheduleId === editMatchId || m.Id === editMatchId || m.ScheduleId === editMatchId; };
                 const dup = freshList.find((m: any) => {
-                  if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
+                  if (isSelf(m)) return false;
                   const mKey = toMinuteKey(getSchedDate(m));
                   return mKey === editKey && getGroundId(m) === editGround && getHomeId(m) === editHomeTeamId && getAwayId(m) === editAwayTeamId;
                 });
@@ -6736,7 +6724,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 // Check umpire conflict: same umpire on the same date
                 const editUmpireKey = toLocalDateKey(editScheduledAt);
                 const umpireConflict = freshList.find((m: any) => {
-                  if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
+                  if (isSelf(m)) return false;
                   const mKey = toLocalDateKey(getSchedDate(m));
                   return mKey === editUmpireKey && getMatchUmpire(m) === editUmpire;
                 });
@@ -6750,8 +6738,9 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 // Fallback umpire conflict check
                 const editUmpireKeyFb = toLocalDateKey(editScheduledAt);
                 if (editUmpireKeyFb && editUmpire) {
+                  const isSelfFb = (m: any) => m.id === editMatchId || m.scheduleId === editMatchId || m.Id === editMatchId || m.ScheduleId === editMatchId;
                   const umpireConflict = allMatchList.find((m: any) => {
-                    if ((m.id || m.scheduleId || m.Id || m.ScheduleId) === editMatchId) return false;
+                    if (isSelfFb(m)) return false;
                     const mKey = toLocalDateKey(getSchedDate(m));
                     return mKey === editUmpireKeyFb && getMatchUmpire(m) === editUmpire;
                   });
@@ -6802,10 +6791,6 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">App Scorer</label>
                   <input value={m.scorerName || lookupUserName(m.appScorerId) || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Portal Scorer</label>
-                  <input value={lookupUserName(m.portalScorerId) || '-'} readOnly className="input-field bg-gray-100 cursor-default" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
