@@ -7,6 +7,7 @@ import { fetchCountries, fetchStates, fetchCities, fetchCountryPhoneCodes } from
 import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } from '../types';
 import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
+import { scoringHub } from '../services/scoringHub';
 
 type LeagueTab = 'dashboard' | 'umpire-list' | 'ground-list' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game' | 'edit';
 
@@ -651,7 +652,12 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
     refetchInterval: 15000,
   });
 
-  const isLive = Array.isArray(liveMatches) && liveMatches.some((m: any) => m.id === matchId);
+  const matchLiveId = (m: any) => m.id || m.Id || m.scheduleId || m.ScheduleId || m.matchId || m.MatchId || '';
+  const isMatchIdMatch = (m: any) => {
+    const mid = matchId;
+    return m.id === mid || m.Id === mid || m.scheduleId === mid || m.ScheduleId === mid || m.matchId === mid || m.MatchId === mid;
+  };
+  const isLive = Array.isArray(liveMatches) && liveMatches.some(isMatchIdMatch);
 
   if (liveLoading || scorecardLoading) {
     return (
@@ -674,7 +680,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
   }
 
   // Get the live match data from the scoring API response
-  const liveMatch = liveMatches.find((m: any) => m.id === matchId);
+  const liveMatch = liveMatches.find(isMatchIdMatch);
 
   // Use scorecard innings data if available, otherwise fall back to live match data
   const innings = scorecard?.innings ?? liveMatch?.innings ?? [];
@@ -844,12 +850,121 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
 type ScorecardTab = 'live' | 'scorecard' | 'ball-by-ball';
 const SCORECARD_TABS: ScorecardTab[] = ['live', 'scorecard', 'ball-by-ball'];
 function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onScorecardTabChange }: { matchId: string; match: any; onBack: () => void; initialScorecardTab?: ScorecardTab; onScorecardTabChange?: (tab: ScorecardTab) => void }) {
+  const { boardId: routeBoardId } = useParams<{ boardId: string }>();
   const [activeTab, setActiveTabState] = useState<ScorecardTab>(initialScorecardTab || 'scorecard');
+  const queryClient = useQueryClient();
   const setActiveTab = (tab: ScorecardTab) => {
     setActiveTabState(tab);
     onScorecardTabChange?.(tab);
   };
 
+  // Connect to SignalR hub for real-time scorecard updates
+  const [signalRConnected, setSignalRConnected] = useState(false);
+  useEffect(() => {
+    if (!matchId) return;
+    let cancelled = false;
+
+    const connectSignalR = async () => {
+      try {
+        await scoringHub.connect();
+        if (cancelled) { scoringHub.disconnect(); return; }
+        setSignalRConnected(true);
+        await scoringHub.joinMatch(matchId);
+
+        // On any scoring event, invalidate queries so they refetch immediately
+        const invalidate = () => {
+          queryClient.invalidateQueries({ queryKey: ['scorecard', matchId] });
+          queryClient.invalidateQueries({ queryKey: ['deliveries', matchId] });
+          queryClient.invalidateQueries({ queryKey: ['liveMatches'] });
+        };
+
+        scoringHub.onScorecardLoaded(invalidate);
+        scoringHub.onScoreUpdate(invalidate);
+        scoringHub.onBallUpdate(invalidate);
+        scoringHub.onWicketFallen(invalidate);
+        scoringHub.onInningsBreak(invalidate);
+      } catch (err) {
+        console.error('[MatchScorecardView] SignalR connect failed:', err);
+        setSignalRConnected(false);
+      }
+    };
+
+    connectSignalR();
+
+    return () => {
+      cancelled = true;
+      scoringHub.removeAllListeners();
+      scoringHub.leaveMatch(matchId).catch(() => {});
+      scoringHub.disconnect().catch(() => {});
+      setSignalRConnected(false);
+    };
+  }, [matchId, queryClient]);
+
+  // Fetch team boards to resolve board names (show board name instead of roster/playing XI name)
+  // Uses the tournament teams dropdown API to map rosterId → boardName
+  const scorecardBoardId = routeBoardId || match?.boardId || match?.leagueBoardId || '';
+  const scorecardTournamentId = match?.tournamentId || '';
+  const { data: scorecardBoardNameMap } = useQuery({
+    queryKey: ['rosterBoardNameMap', scorecardBoardId, scorecardTournamentId],
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      try {
+        const r = await leagueService.getTeamsByTournament(scorecardBoardId, scorecardTournamentId);
+        const d = r.data as any;
+        const inner = d?.data || d;
+        const rosters = Array.isArray(inner?.rosters) ? inner.rosters
+          : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
+          : Array.isArray(inner?.Rosters) ? inner.Rosters
+          : [];
+        const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard
+          : Array.isArray(inner?.teamsBoard) ? inner.teamsBoard
+          : Array.isArray(inner?.teams) ? inner.teams
+          : [];
+        const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : [];
+        list.forEach((t: any) => {
+          const id = t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.teamBoardId || t.boardId || '';
+          const boardName = t.boardName || t.BoardName || t.teamBoardName || t.TeamBoardName || '';
+          console.log('[ScorecardBoardName] team item:', { id, boardName, rosterName: t.rosterName, raw: JSON.stringify(t).slice(0, 200) });
+          if (id && boardName) map[id] = boardName;
+        });
+      } catch { /* skip */ }
+      console.log('[ScorecardBoardName] final map:', map);
+      return map;
+    },
+    enabled: !!scorecardBoardId && !!scorecardTournamentId,
+    staleTime: 60000,
+  });
+  // Also fetch team boards directly as fallback
+  const { data: teamBoardsList } = useQuery({
+    queryKey: ['teamBoardsForScorecard'],
+    queryFn: async () => {
+      const res = await boardService.getByType(1, 1, 50);
+      const raw = res.data as any;
+      const items = raw?.items || (Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.$values) ? raw.$values : []);
+      return items.map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+      }));
+    },
+    staleTime: 60000,
+  });
+  const boardNameMap = scorecardBoardNameMap || {};
+  const boardsArr = Array.isArray(teamBoardsList) ? teamBoardsList : [];
+  const resolveBoardName = (m: any, side: 'home' | 'away') => {
+    const teamId = side === 'home' ? (m?.homeTeamId || m?.homeTeamBoardId || m?.HomeTeamId || m?.HomeTeamBoardId) : (m?.awayTeamId || m?.awayTeamBoardId || m?.AwayTeamId || m?.AwayTeamBoardId);
+    console.log(`[ResolveBoardName] side=${side}, teamId=${teamId}, boardNameMap keys=`, Object.keys(boardNameMap), 'boardsArr ids=', boardsArr.map((b: any) => b.id), 'match fields:', { homeTeamId: m?.homeTeamId, homeTeamBoardId: m?.homeTeamBoardId, homeTeamName: m?.homeTeamName, awayTeamId: m?.awayTeamId, awayTeamBoardId: m?.awayTeamBoardId, awayTeamName: m?.awayTeamName });
+    // First try: rosterId → boardName from tournament teams data
+    if (teamId && boardNameMap[teamId]) return boardNameMap[teamId];
+    // Second try: check if teamId matches a team board directly
+    if (teamId) {
+      const board = boardsArr.find((b: any) => b.id === teamId);
+      if (board?.name) return board.name;
+    }
+    // Fallback: use the roster/team name from the match
+    return side === 'home' ? (m?.homeTeamName || '') : (m?.awayTeamName || '');
+  };
+
+  const isMatchLive = match?.status?.toLowerCase() === 'live' || match?.status?.toLowerCase() === 'inprogress' || match?.status?.toLowerCase() === 'in progress' || match?.status?.toLowerCase() === 'in_progress' || signalRConnected;
   const { data: scorecard, isLoading: scorecardLoading } = useQuery({
     queryKey: ['scorecard', matchId],
     queryFn: () => scoringService.getScorecard(matchId).then(r => {
@@ -867,6 +982,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
       return sc;
     }),
     enabled: !!matchId,
+    refetchInterval: isMatchLive ? 15000 : false,
   });
 
   const tabs: { id: ScorecardTab; label: string; icon: string }[] = [
@@ -884,7 +1000,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
           Back to Dashboard
         </button>
         <div className="bg-white rounded-lg p-4 border">
-          <p className="text-base font-bold text-gray-800">{match?.homeTeamName} vs {match?.awayTeamName}</p>
+          <p className="text-base font-bold text-gray-800">{resolveBoardName(match, 'home')} vs {resolveBoardName(match, 'away')}</p>
           <p className="text-xs text-gray-500 mt-1">{match?.tournamentName} &bull; {formatDateTime(ensureUtc(match?.scheduledAt))}</p>
           {match?.groundName && <p className="text-xs text-gray-400 mt-0.5">📍 {match.groundName}</p>}
           {match?.result && <p className="text-xs text-green-700 font-medium mt-1">{match.result}</p>}
@@ -970,10 +1086,44 @@ function ScorecardTabContent({ scorecard, loading }: { scorecard: any; loading: 
     const runRate = totalOvers > 0 ? +(totalRuns / totalOvers).toFixed(2) : 0;
 
     // Fall of wickets
-    const fallOfWickets = inn.fallOfWickets ?? ((inn.fow ?? []).map((f: any) => `${f.score}-${f.wicketNo} (${f.batsmanName ?? f.playerName ?? ''}, ${f.over ?? ''} Ov)`).join(', ') || '-');
+    // Build a player ID → name map from batting entries to resolve IDs in fallOfWickets string
+    // Build player ID → name map from batting AND bowling entries across all innings
+    const playerIdToName: Record<string, string> = {};
+    apiInnings.forEach((allInn: any) => {
+      (allInn.batsmen ?? allInn.batting ?? []).forEach((b: any) => {
+        const id = b.batsmanId ?? b.playerId ?? b.id ?? '';
+        const name = b.batsmanName ?? b.name ?? b.playerName ?? '';
+        if (id && name) playerIdToName[id] = name;
+      });
+      (allInn.bowlers ?? allInn.bowling ?? []).forEach((b: any) => {
+        const id = b.bowlerId ?? b.playerId ?? b.id ?? '';
+        const name = b.bowlerName ?? b.name ?? b.playerName ?? '';
+        if (id && name) playerIdToName[id] = name;
+      });
+    });
+    const resolvePlayerIds = (text: string): string => {
+      if (!text) return text;
+      // Replace UUIDs with player names
+      return text.replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, (uuid) => playerIdToName[uuid] || uuid);
+    };
+    let rawFow = inn.fallOfWickets ?? ((inn.fow ?? []).map((f: any) => `${f.score}-${f.wicketNo} (${f.batsmanName ?? f.playerName ?? ''}, ${f.over ?? ''} Ov)`).join(', ') || '-');
+    const fallOfWickets = typeof rawFow === 'string' ? resolvePlayerIds(rawFow) : rawFow;
 
-    // Did not bat
-    const didNotBat = inn.didNotBat ?? (inn.yetToBat ?? []).map((p: any) => p.name ?? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()) ?? [];
+    // Did not bat — resolve player IDs to names
+    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    const rawDidNotBat = inn.didNotBat ?? (inn.yetToBat ?? []).map((p: any) => p.name ?? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()) ?? [];
+    const didNotBat = (Array.isArray(rawDidNotBat) ? rawDidNotBat : []).map((entry: any) => {
+      if (typeof entry === 'string' && uuidPattern.test(entry.trim())) {
+        return playerIdToName[entry.trim()] || entry;
+      }
+      if (typeof entry === 'string') return resolvePlayerIds(entry);
+      // If entry is an object with id/name
+      const name = entry?.name ?? entry?.playerName ?? entry?.batsmanName ?? '';
+      const id = entry?.id ?? entry?.playerId ?? entry?.batsmanId ?? '';
+      if (name && !uuidPattern.test(name)) return name;
+      if (id && playerIdToName[id]) return playerIdToName[id];
+      return name || id || '';
+    }).filter(Boolean);
 
     return {
       id: inn.id ?? `inn-${idx}`,
@@ -1261,7 +1411,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
             }
 
             const time = d.createdAt
-              ? new Date(d.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
+              ? new Date(ensureUtc(d.createdAt)).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true })
               : '';
 
             return { ball: ballId, runs, isWicket, label, commentary, time };
@@ -1512,11 +1662,95 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Match[];
       });
     },
+    refetchInterval: 30000,
   });
 
   const allMatches = (schedule ?? []) as any[];
-  const recentResults = allMatches.filter((m: any) => m.status === 'Completed');
-  const upcomingMatches = allMatches.filter((m: any) => m.status === 'Scheduled' || m.status === 'Live');
+  
+  // Fetch live matches from Scoring Service to cross-reference status
+  const { data: landingLiveMatches } = useQuery({
+    queryKey: ['landingLiveMatches'],
+    queryFn: () => scoringService.getLiveMatches().then(r => {
+      const d = r.data;
+      const items = d?.data ?? d;
+      return Array.isArray(items) ? items : items?.$values ?? [];
+    }),
+    refetchInterval: 15000,
+  });
+  const liveMatchIds = new Set(
+    (Array.isArray(landingLiveMatches) ? landingLiveMatches : []).flatMap((m: any) => [m.id, m.Id, m.scheduleId, m.ScheduleId, m.matchId, m.MatchId].filter(Boolean))
+  );
+  // Determine effective status: if Scoring Service says it's live, override schedule status
+  const getEffectiveStatus = (m: any) => {
+    const mid = m.id || m.Id || m.scheduleId || m.ScheduleId || '';
+    if (liveMatchIds.has(mid)) return 'Live';
+    return m.status || 'Scheduled';
+  };
+
+  const recentResults = allMatches.filter((m: any) => getEffectiveStatus(m) === 'Completed');
+  const isInProgress = (s: string) => ['Live', 'InProgress', 'In Progress', 'Started'].includes(s);
+  const upcomingMatches = allMatches.filter((m: any) => getEffectiveStatus(m) === 'Scheduled' || isInProgress(getEffectiveStatus(m)));
+
+  // Fetch roster → boardName mapping from tournament teams data
+  const landingTournamentIds = Array.from(new Set(allMatches.map((m: any) => m.tournamentId).filter(Boolean))) as string[];
+  const { data: landingBoardNameMap } = useQuery({
+    queryKey: ['landingBoardNameMap', boardId, landingTournamentIds.join(',')],
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      await Promise.all(landingTournamentIds.map(async (tid) => {
+        try {
+          const r = await leagueService.getTeamsByTournament(boardId, tid);
+          const d = r.data as any;
+          const inner = d?.data || d;
+          const rosters = Array.isArray(inner?.rosters) ? inner.rosters
+            : Array.isArray(inner?.rosters?.$values) ? inner.rosters.$values
+            : Array.isArray(inner?.Rosters) ? inner.Rosters
+            : [];
+          const teamsboard = Array.isArray(inner?.teamsboard) ? inner.teamsboard
+            : Array.isArray(inner?.teamsBoard) ? inner.teamsBoard
+            : Array.isArray(inner?.teams) ? inner.teams
+            : [];
+          const list = rosters.length > 0 ? rosters : teamsboard.length > 0 ? teamsboard : [];
+          list.forEach((t: any) => {
+            const id = t.rosterId || t.RosterId || t.id || t.Id || t.teamId || t.teamBoardId || t.boardId || '';
+            const bName = t.boardName || t.BoardName || t.teamBoardName || t.TeamBoardName || '';
+            if (id && bName) map[id] = bName;
+          });
+        } catch { /* skip */ }
+      }));
+      return map;
+    },
+    enabled: landingTournamentIds.length > 0,
+    staleTime: 60000,
+  });
+  // Also fetch team boards directly as fallback
+  const { data: landingBoardsList } = useQuery({
+    queryKey: ['teamBoardsForLanding'],
+    queryFn: async () => {
+      const res = await boardService.getByType(1, 1, 50);
+      const raw = res.data as any;
+      const items = raw?.items || (Array.isArray(raw) ? raw : Array.isArray(raw?.data) ? raw.data : Array.isArray(raw?.$values) ? raw.$values : []);
+      return items.map((b: any) => ({
+        id: b.id || b.Id || b.boardId || '',
+        name: b.name || b.boardName || b.Name || '',
+      }));
+    },
+    staleTime: 60000,
+  });
+  const landingBoardMap = landingBoardNameMap || {};
+  const landingBoards = Array.isArray(landingBoardsList) ? landingBoardsList : [];
+  const resolveBoardName = (m: any, side: 'home' | 'away') => {
+    const teamId = side === 'home' ? (m?.homeTeamId || m?.homeTeamBoardId || m?.HomeTeamId || m?.HomeTeamBoardId) : (m?.awayTeamId || m?.awayTeamBoardId || m?.AwayTeamId || m?.AwayTeamBoardId);
+    // First try: rosterId → boardName from tournament teams data
+    if (teamId && landingBoardMap[teamId]) return landingBoardMap[teamId];
+    // Second try: check if teamId matches a team board directly
+    if (teamId) {
+      const board = landingBoards.find((b: any) => b.id === teamId);
+      if (board?.name) return board.name;
+    }
+    // Fallback: use the roster/team name from the match
+    return side === 'home' ? (m?.homeTeamName || '') : (m?.awayTeamName || '');
+  };
 
   // Auto-select match from URL on initial load
   const urlMatchId = searchParams.get('matchId');
@@ -1552,7 +1786,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
                 <div className="flex items-center gap-3 min-w-0">
                   {m.homeTeamLogo && <img src={m.homeTeamLogo} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />}
                   <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{m.homeTeamName} vs {m.awayTeamName}</p>
+                    <p className="text-sm font-medium truncate">{resolveBoardName(m, 'home')} vs {resolveBoardName(m, 'away')}</p>
                   </div>
                 </div>
                 <button onClick={() => setSelectedMatch(m)} className="ml-4 px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap flex-shrink-0">View Score</button>
@@ -1571,19 +1805,29 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         </h3>
         {upcomingMatches.length > 0 ? (
           <div className="space-y-3">
-            {upcomingMatches.map((m: any) => (
-              <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
-                <div>
-                  <p className="text-sm font-medium">{m.homeTeamName} vs {m.awayTeamName}</p>
+            {upcomingMatches.map((m: any) => {
+              const live = isInProgress(getEffectiveStatus(m));
+              return (
+                <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium">{resolveBoardName(m, 'home')} vs {resolveBoardName(m, 'away')}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {live && (
+                      <span className="px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1 bg-green-100 text-green-700">
+                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        In Progress
+                      </span>
+                    )}
+                    {live ? (
+                      <button onClick={() => setSelectedMatch(m)} className="px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap">View Score</button>
+                    ) : (
+                      <button disabled className="px-4 py-1.5 bg-gray-300 text-gray-500 rounded text-xs font-semibold cursor-not-allowed whitespace-nowrap">View Score</button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${m.status === 'Live' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                    {m.status}
-                  </span>
-                  <button onClick={() => setSelectedMatch(m)} className="px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap">View Score</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <p className="text-red-500 text-sm italic">No upcoming matches</p>
@@ -6812,7 +7056,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
       {!editMatchId && !viewMatchId && (
       <div className="card">
         <table className="w-full text-sm table-fixed">
-          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[14%]">Tournament</th><th className="py-3 px-4 w-[12%]">Home</th><th className="py-3 px-4 w-[12%]">Away</th><th className="py-3 px-4 w-[12%]">Ground</th><th className="py-3 px-4 w-[10%]">Umpire</th><th className="py-3 px-4 w-[12%]">App Scorer</th><th className="py-3 px-4 w-[16%]">Date</th><th className="py-3 px-4 rounded-tr-lg w-[12%]">Actions</th></tr></thead>
+          <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[13%]">Tournament</th><th className="py-3 px-4 w-[11%]">Home</th><th className="py-3 px-4 w-[11%]">Away</th><th className="py-3 px-4 w-[11%]">Ground</th><th className="py-3 px-4 w-[9%]">Umpire</th><th className="py-3 px-4 w-[11%]">App Scorer</th><th className="py-3 px-4 w-[14%]">Date</th><th className="py-3 px-4 w-[10%]">Status</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
           <tbody>
             {matchList.map((m: any) => (
               <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
@@ -6823,6 +7067,12 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                 <td className="py-3 px-4 truncate">{m.umpireName || lookupUmpireName(m.umpireId)}</td>
                 <td className="py-3 px-4 truncate">{m.scorerName || lookupUserName(m.appScorerId) || '-'}</td>
                 <td className="py-3 px-4 truncate">{formatDateTime(ensureUtc(m.startAtUtc || m.scheduledAt))}</td>
+                <td className="py-3 px-4">{(() => {
+                  const s = m.status || 'Scheduled';
+                  const inProg = ['Live', 'InProgress', 'In Progress', 'In_Progress', 'Started'].includes(s);
+                  const completed = s === 'Completed';
+                  return <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${inProg ? 'bg-green-100 text-green-700' : completed ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'}`}>{inProg && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />}{inProg ? 'In Progress' : s}</span>;
+                })()}</td>
                 <td className="py-3 px-4"><div className="flex items-center gap-4">
                   <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
