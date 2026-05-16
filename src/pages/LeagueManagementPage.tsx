@@ -1007,10 +1007,24 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
       (inn.bowlers ?? inn.bowling ?? []).forEach((b: any) => { const id = b.bowlerId ?? b.playerId ?? b.id ?? ''; if (id) knownIds.add(id); });
     });
     (scorecard.innings as any[]).forEach((inn: any) => {
+      // Collect from didNotBat
       const dnb = inn.didNotBat ?? inn.yetToBat ?? [];
       if (Array.isArray(dnb)) {
         dnb.forEach((entry: any) => {
           const id = typeof entry === 'string' ? entry.trim() : (entry?.id ?? entry?.playerId ?? entry?.batsmanId ?? '');
+          if (id && uuidRe.test(id) && !knownIds.has(id) && !unresolvedIds.includes(id)) unresolvedIds.push(id);
+        });
+      }
+      // Collect from fallOfWickets (string with UUIDs or array of objects with player IDs)
+      const fow = inn.fallOfWickets ?? inn.fow ?? [];
+      if (typeof fow === 'string') {
+        const fowUuids = fow.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g) || [];
+        fowUuids.forEach((id: string) => {
+          if (!knownIds.has(id) && !unresolvedIds.includes(id)) unresolvedIds.push(id);
+        });
+      } else if (Array.isArray(fow)) {
+        fow.forEach((f: any) => {
+          const id = f.batsmanId ?? f.playerId ?? f.id ?? '';
           if (id && uuidRe.test(id) && !knownIds.has(id) && !unresolvedIds.includes(id)) unresolvedIds.push(id);
         });
       }
@@ -1157,8 +1171,24 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap }: { scorecard:
       // Replace UUIDs with player names
       return text.replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, (uuid) => playerIdToName[uuid] || uuid);
     };
-    let rawFow = inn.fallOfWickets ?? ((inn.fow ?? []).map((f: any) => `${f.score}-${f.wicketNo} (${f.batsmanName ?? f.playerName ?? ''}, ${f.over ?? ''} Ov)`).join(', ') || '-');
-    const fallOfWickets = typeof rawFow === 'string' ? resolvePlayerIds(rawFow) : rawFow;
+    let rawFow = inn.fallOfWickets ?? inn.fow ?? '-';
+    let fallOfWickets: string;
+    if (Array.isArray(rawFow)) {
+      // FoW is an array of objects — resolve player IDs to names
+      fallOfWickets = rawFow.map((f: any) => {
+        const playerId = f.batsmanId ?? f.playerId ?? f.id ?? '';
+        const playerName = f.batsmanName ?? f.playerName ?? f.name ?? (playerId ? (playerIdToName[playerId] || playerId) : '');
+        const resolvedName = (uuidPattern.test(playerName) && playerIdToName[playerName]) ? playerIdToName[playerName] : playerName;
+        const score = f.score ?? f.teamScore ?? f.runs ?? '';
+        const wicketNo = f.wicketNo ?? f.wicketNumber ?? '';
+        const over = f.over ?? f.overs ?? f.overNumber ?? '';
+        return `${score}-${wicketNo} (${resolvedName}, ${over} Ov)`;
+      }).join(', ') || '-';
+    } else if (typeof rawFow === 'string') {
+      fallOfWickets = resolvePlayerIds(rawFow);
+    } else {
+      fallOfWickets = '-';
+    }
 
     // Did not bat — resolve player IDs to names
     const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
