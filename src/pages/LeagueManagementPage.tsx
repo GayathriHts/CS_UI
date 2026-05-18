@@ -805,14 +805,14 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
         </thead>
         <tbody>
           {bowlingEntries.map((bw: any, idx: number) => {
-            const overs = bw.overs ?? 0;
-            const maidens = bw.maidens ?? 0;
-            const runs = bw.runsConceded ?? bw.runs ?? 0;
-            const wickets = bw.wickets ?? 0;
+            const overs = bw.overs ?? bw.Overs ?? 0;
+            const maidens = bw.maidens ?? bw.Maidens ?? 0;
+            const runs = bw.runsConceded ?? bw.RunsConceded ?? bw.runs ?? bw.Runs ?? 0;
+            const wickets = bw.wickets ?? bw.Wickets ?? 0;
             const econ = overs > 0 ? (runs / overs).toFixed(1) : '0.0';
             return (
               <tr key={idx} className="border-b border-gray-200">
-                <td className="py-2.5 px-3 font-medium text-gray-800">{bw.bowlerName ?? bw.name}</td>
+                <td className="py-2.5 px-3 font-medium text-gray-800">{bw.bowlerName ?? bw.BowlerName ?? bw.name ?? (`${bw.firstName ?? bw.FirstName ?? ''} ${bw.lastName ?? bw.LastName ?? ''}`.trim() || '-')}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{overs}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{maidens}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{runs}</td>
@@ -864,6 +864,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
     if (!matchId) return;
     let cancelled = false;
     let retryTimeout: ReturnType<typeof setTimeout>;
+    let debounceTimer: ReturnType<typeof setTimeout>;
 
     const connectSignalR = async (attempt = 0) => {
       if (cancelled) return;
@@ -873,11 +874,17 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
         setSignalRConnected(true);
         await scoringHub.joinMatch(matchId);
 
-        // On any scoring event, invalidate queries so they refetch immediately
+        // Debounced invalidation: batch rapid SignalR events into a single refetch
+        // Cancels any in-flight queries first to prevent stale responses overwriting newer data
         const invalidate = () => {
-          queryClient.invalidateQueries({ queryKey: ['scorecard', matchId] });
-          queryClient.invalidateQueries({ queryKey: ['deliveries', matchId] });
-          queryClient.invalidateQueries({ queryKey: ['liveMatches'] });
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            queryClient.cancelQueries({ queryKey: ['scorecard', matchId] });
+            queryClient.cancelQueries({ queryKey: ['deliveries', matchId] });
+            queryClient.invalidateQueries({ queryKey: ['scorecard', matchId] });
+            queryClient.invalidateQueries({ queryKey: ['deliveries', matchId] });
+            queryClient.invalidateQueries({ queryKey: ['liveMatches'] });
+          }, 400);
         };
 
         scoringHub.onScorecardLoaded(invalidate);
@@ -901,6 +908,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
     return () => {
       cancelled = true;
       clearTimeout(retryTimeout);
+      clearTimeout(debounceTimer);
       scoringHub.removeAllListeners();
       scoringHub.leaveMatch(matchId).catch(() => {});
       scoringHub.disconnect().catch(() => {});
@@ -1127,17 +1135,17 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap }: { scorecard:
 
     // Map bowlers
     const bowling = bowlers.map((bw: any) => {
-      const name = bw.bowlerName ?? (`${bw.firstName ?? ''} ${bw.lastName ?? ''}`.trim() || '-');
-      const overs = bw.overs ?? 0;
-      const maidens = bw.maidens ?? 0;
-      const runs = bw.runsConceded ?? bw.runs ?? 0;
-      const wickets = bw.wickets ?? 0;
-      const econ = bw.econ ?? bw.economy ?? (overs > 0 ? +(runs / overs).toFixed(2) : 0);
-      const dots = bw.dots ?? bw.dotBalls ?? 0;
-      const fours = bw.fours ?? bw.foursConceded ?? 0;
-      const sixes = bw.sixes ?? bw.sixesConceded ?? 0;
-      const wides = bw.wides ?? 0;
-      const noBalls = bw.noBalls ?? 0;
+      const name = bw.bowlerName ?? bw.BowlerName ?? (`${bw.firstName ?? bw.FirstName ?? ''} ${bw.lastName ?? bw.LastName ?? ''}`.trim() || '-');
+      const overs = bw.overs ?? bw.Overs ?? 0;
+      const maidens = bw.maidens ?? bw.Maidens ?? 0;
+      const runs = bw.runsConceded ?? bw.RunsConceded ?? bw.runs ?? bw.Runs ?? 0;
+      const wickets = bw.wickets ?? bw.Wickets ?? 0;
+      const econ = bw.econ ?? bw.Econ ?? bw.economy ?? bw.Economy ?? (overs > 0 ? +(runs / overs).toFixed(2) : 0);
+      const dots = bw.dots ?? bw.Dots ?? bw.dotBalls ?? bw.DotBalls ?? bw.dotballCount ?? bw.DotBallCount ?? 0;
+      const fours = bw.fours ?? bw.Fours ?? bw.foursConceded ?? bw.FoursConceded ?? 0;
+      const sixes = bw.sixes ?? bw.Sixes ?? bw.sixesConceded ?? bw.SixesConceded ?? 0;
+      const wides = bw.wides ?? bw.Wides ?? 0;
+      const noBalls = bw.noBalls ?? bw.NoBalls ?? 0;
       return { bowlerName: name, overs, maidens, runs, wickets, econ, dots, fours, sixes, wides, noBalls };
     });
 
@@ -1223,7 +1231,7 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap }: { scorecard:
     };
   });
 
-  const [expandedInnings, setExpandedInnings] = useState<string[]>(mappedInnings.length > 0 ? [mappedInnings[0].id] : []);
+  const [expandedInnings, setExpandedInnings] = useState<string[]>(mappedInnings.length > 0 ? [mappedInnings[mappedInnings.length - 1].id] : []);
 
   const toggleInnings = (id: string) => {
     setExpandedInnings(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -1504,7 +1512,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
     return { id: inn.id ?? `bbb-inn-${idx}`, battingTeamName, inningsNumber: inningsNo, totalRuns: finalTotalRuns, totalWickets: finalTotalWickets, totalOvers: finalTotalOvers, overs };
   });
 
-  const [expandedInnings, setExpandedInnings] = useState<string[]>(mappedInnings.length > 0 ? [mappedInnings[0].id] : []);
+  const [expandedInnings, setExpandedInnings] = useState<string[]>(mappedInnings.length > 0 ? [mappedInnings[mappedInnings.length - 1].id] : []);
 
   const toggleInnings = (id: string) => {
     setExpandedInnings(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);

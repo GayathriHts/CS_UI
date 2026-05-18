@@ -7,6 +7,28 @@ class ScoringHubService {
   private connection: signalR.HubConnection | null = null;
 
   async connect(): Promise<void> {
+    // Reuse existing connection if already connected or connecting
+    if (this.connection) {
+      const state = this.connection.state;
+      if (state === signalR.HubConnectionState.Connected) return;
+      if (state === signalR.HubConnectionState.Connecting || state === signalR.HubConnectionState.Reconnecting) {
+        // Wait for existing connection attempt
+        await new Promise<void>((resolve) => {
+          const check = setInterval(() => {
+            if (this.connection?.state === signalR.HubConnectionState.Connected ||
+                this.connection?.state === signalR.HubConnectionState.Disconnected) {
+              clearInterval(check);
+              resolve();
+            }
+          }, 200);
+        });
+        if (this.connection.state === signalR.HubConnectionState.Connected) return;
+      }
+      // Disconnected — clean up and create fresh
+      try { await this.connection.stop(); } catch { /* ignore */ }
+      this.connection = null;
+    }
+
     const token = localStorage.getItem('token');
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(SCORING_HUB_URL, { accessTokenFactory: () => token || '' })
