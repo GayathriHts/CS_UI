@@ -105,7 +105,7 @@ export default function LeagueManagementPage() {
   const [pendingNav, setPendingNav] = useState<{ tab: LeagueTab; section: SidebarSection } | null>(null);
   const dirtyRef = useRef(false);
   const qc = useQueryClient();
-  const { data: board } = useQuery({ queryKey: ['board', boardId], queryFn: () => boardService.getById(boardId!).then(r => r.data), enabled: !!boardId });
+  const { data: board, isLoading: boardLoading, isError: boardError, refetch: refetchBoard } = useQuery({ queryKey: ['board', boardId], queryFn: () => boardService.getById(boardId!).then(r => r.data), enabled: !!boardId, retry: 2, retryDelay: 1000 });
 
   // Block browser refresh/close when there are unsaved changes
   useEffect(() => {
@@ -157,7 +157,21 @@ export default function LeagueManagementPage() {
     }
   };
 
-  if (!board) return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin" /></div>;
+  if (!board) {
+    if (boardError) {
+      return (
+        <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-gray-600 mb-3">Failed to load league data</p>
+            <button onClick={() => refetchBoard()} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+              Retry
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return <div className="min-h-screen bg-gray-100 flex items-center justify-center"><div className="w-12 h-12 border-4 border-brand-green border-t-transparent rounded-full animate-spin" /></div>;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -641,7 +655,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
 }
 
 // -- LIVE TAB CONTENT (fetches from ScoringService API) --
-function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: string; scorecard: any; scorecardLoading: boolean }) {
+function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { matchId: string; scorecard: any; scorecardLoading: boolean; match?: any }) {
   const { data: liveMatches, isLoading: liveLoading } = useQuery({
     queryKey: ['liveMatches'],
     queryFn: () => scoringService.getLiveMatches().then(r => {
@@ -650,6 +664,8 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
       return Array.isArray(items) ? items : items?.$values ?? [];
     }),
     refetchInterval: 15000,
+    retry: 1,
+    staleTime: 10000,
   });
 
   const matchLiveId = (m: any) => m.id || m.Id || m.scheduleId || m.ScheduleId || m.matchId || m.MatchId || '';
@@ -658,8 +674,69 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
     return m.id === mid || m.Id === mid || m.scheduleId === mid || m.ScheduleId === mid || m.matchId === mid || m.MatchId === mid;
   };
   const isLive = Array.isArray(liveMatches) && liveMatches.some(isMatchIdMatch);
+  // Also consider match live if scorecard status is "Live"
+  const scorecardStatus = (scorecard?.status ?? scorecard?.data?.status ?? '').toLowerCase();
+  const hasLiveScorecard = scorecardStatus === 'live' || scorecardStatus === 'inprogress' || scorecardStatus === 'started';
+  const effectivelyLive = isLive || hasLiveScorecard;
 
-  if (liveLoading || scorecardLoading) {
+  // Get the live match data from the scoring API response
+  const liveMatch = isLive ? liveMatches!.find(isMatchIdMatch) : undefined;
+
+  // Use scorecard innings data if available, otherwise fall back to live match data
+  const innings = scorecard?.innings ?? liveMatch?.innings ?? [];
+  const currentInnings = innings.length > 0 ? innings[innings.length - 1] : null;
+
+  // Extract batting, bowling from current innings
+  // The scorecard API returns batsmen/bowlers; fallback to batting/bowling/battingEntries/bowlingEntries
+  const battingEntries = currentInnings?.batsmen ?? currentInnings?.batting ?? currentInnings?.battingEntries ?? [];
+  const bowlingEntriesRaw = currentInnings?.bowlers ?? currentInnings?.bowling ?? currentInnings?.bowlingEntries ?? [];
+  const battingTeamName = currentInnings?.battingTeamName ?? '';
+  const inningsNumber = currentInnings?.inningsNo ?? currentInnings?.inningsNumber ?? 1;
+
+  // Fetch deliveries for current innings to calculate maiden/dot counts and last six balls
+  // Hook must be called unconditionally (React rules of hooks)
+  const { data: liveDeliveriesData } = useQuery({
+    queryKey: ['deliveriesForLive', matchId, inningsNumber],
+    queryFn: async () => {
+      try {
+        const r = await scoringService.getDeliveries(matchId, inningsNumber, 0, 500);
+        const raw = r.data?.data ?? r.data;
+        return Array.isArray(raw) ? raw : raw?.$values ?? [];
+      } catch { return []; }
+    },
+    enabled: !!matchId && inningsNumber >= 1,
+    staleTime: 10000,
+    refetchInterval: effectivelyLive ? 15000 : false,
+    retry: 1,
+  });
+
+  // Keep a stable reference to deliveries so they don't flicker during refetch
+  const deliveriesRef = useRef<any[]>([]);
+  if (Array.isArray(liveDeliveriesData) && liveDeliveriesData.length > 0) {
+    deliveriesRef.current = liveDeliveriesData;
+  }
+  const stableDeliveries = deliveriesRef.current;
+
+  // Fetch scorer name from user profile if we only have an ID or email
+  const scorerUserId = match?.appScorerId ?? match?.scorerId ?? '';
+  const { data: scorerUserData } = useQuery({
+    queryKey: ['scorerUser', scorerUserId],
+    queryFn: async () => {
+      try {
+        const res = await userService.getById(scorerUserId);
+        const u = (res.data as any)?.data ?? res.data;
+        const fullName = (`${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim());
+        return fullName || u?.displayName || u?.name || u?.userName || '';
+      } catch { return ''; }
+    },
+    enabled: !!scorerUserId,
+    staleTime: 300000,
+    retry: 1,
+  });
+
+  // --- Early returns AFTER all hooks ---
+  // Only show spinner if scorecard is still loading; don't wait for liveMatches
+  if (scorecardLoading && !scorecard) {
     return (
       <div className="bg-white border-t p-8 flex justify-center">
         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -667,7 +744,8 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
     );
   }
 
-  if (!isLive) {
+  // If scorecard has innings data, show it regardless of live status
+  if (!effectivelyLive && innings.length === 0) {
     return (
       <div className="bg-white border-t p-8 text-center text-gray-500 text-sm">
         <div className="flex flex-col items-center justify-center">
@@ -679,36 +757,11 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
     );
   }
 
-  // Get the live match data from the scoring API response
-  const liveMatch = liveMatches.find(isMatchIdMatch);
-
-  // Use scorecard innings data if available, otherwise fall back to live match data
-  const innings = scorecard?.innings ?? liveMatch?.innings ?? [];
-  const currentInnings = innings.length > 0 ? innings[innings.length - 1] : null;
-
-  // Extract batting, bowling from current innings
-  const battingEntries = currentInnings?.batting ?? currentInnings?.battingEntries ?? [];
-  const bowlingEntriesRaw = currentInnings?.bowling ?? currentInnings?.bowlingEntries ?? [];
-  const battingTeamName = currentInnings?.battingTeamName ?? '';
-  const inningsNumber = currentInnings?.inningsNumber ?? 1;
-
-  // Fetch deliveries for current innings to calculate maiden/dot counts
-  const { data: liveDeliveriesData } = useQuery({
-    queryKey: ['deliveriesForLive', matchId, inningsNumber],
-    queryFn: async () => {
-      try {
-        const r = await scoringService.getDeliveries(matchId, inningsNumber, 0, 500);
-        return r.data?.data ?? r.data ?? [];
-      } catch { return []; }
-    },
-    enabled: !!matchId && isLive && !!currentInnings,
-    staleTime: 10000,
-    refetchInterval: 15000,
-  });
-
   // Calculate maiden and dot counts from deliveries for each bowler
+  // Helper: a delivery is legal only if not a no-ball and not a wide
+  const isLegalDel = (d: any) => d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0;
   const liveBowlerStats: Record<string, { dots: number; maidens: number }> = {};
-  const liveDeliveries: any[] = (liveDeliveriesData ?? []).filter((d: any) => !d.isVoided);
+  const liveDeliveries: any[] = (stableDeliveries ?? []).filter((d: any) => !d.isVoided);
   if (liveDeliveries.length > 0) {
     const bowlerDelsMap: Record<string, any[]> = {};
     liveDeliveries.forEach((d: any) => {
@@ -720,7 +773,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
     Object.entries(bowlerDelsMap).forEach(([bowlerId, dels]) => {
       let dots = 0;
       dels.forEach((d: any) => {
-        if (d.isLegalDelivery !== false && (d.totalRuns ?? 0) === 0) dots++;
+        if (isLegalDel(d) && (d.totalRuns ?? 0) === 0) dots++;
       });
       const overBuckets: Record<number, any[]> = {};
       dels.forEach((d: any) => {
@@ -730,11 +783,11 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
       });
       let maidens = 0;
       Object.values(overBuckets).forEach((overBalls) => {
-        const legalBalls = overBalls.filter((b: any) => b.isLegalDelivery !== false);
+        const legalBalls = overBalls.filter(isLegalDel);
         if (legalBalls.length >= 6) {
           const bowlerRuns = legalBalls.reduce((sum: number, b: any) =>
             sum + ((b.totalRuns ?? 0) - (b.byeRuns ?? 0) - (b.legByeRuns ?? 0)), 0);
-          const hasIllegal = overBalls.some((b: any) => b.isLegalDelivery === false);
+          const hasIllegal = overBalls.some((b: any) => !isLegalDel(b));
           if (bowlerRuns === 0 && !hasIllegal) maidens++;
         }
       });
@@ -744,26 +797,48 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
   const bowlingEntries = bowlingEntriesRaw;
   const ordinal = inningsNumber === 1 ? '1st' : inningsNumber === 2 ? '2nd' : `${inningsNumber}th`;
 
-  // Current batsmen (not out)
+  // Helper to get batsman display name from various field formats
+  const getBatsmanName = (b: any) => b.batsmanName ?? b.name ?? ((`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()) || '-');
+  // Helper to get bowler display name
+  const getBowlerName = (bw: any) => bw.bowlerName ?? bw.BowlerName ?? bw.name ?? ((`${bw.firstName ?? bw.FirstName ?? ''} ${bw.lastName ?? bw.LastName ?? ''}`.trim()) || '-');
+
+  // Current batsmen (not out) — handle both isOut boolean and dismissalType/dismissal string
   const currentBatsmen = battingEntries.filter((b: any) =>
-    !b.dismissalType && b.dismissal !== 'out' && (b.dismissal === 'not out' || b.dismissal === undefined || b.dismissal === '' || b.status === 'Batting')
+    b.isOut === false || (!b.isOut && !b.dismissalType && b.dismissal !== 'out' && (b.dismissal === 'not out' || b.dismissal === undefined || b.dismissal === null || b.dismissal === '' || b.status === 'Batting'))
   );
 
   // Current partnership
   const partnershipRuns = currentBatsmen.reduce((sum: number, b: any) => sum + (b.runsScored ?? b.runs ?? 0), 0);
   const partnershipBalls = currentBatsmen.reduce((sum: number, b: any) => sum + (b.ballsFaced ?? b.balls ?? 0), 0);
 
-  // Last six balls from live match or scorecard
-  const lastSixBalls: string[] = liveMatch?.lastSixBalls
-    ? (typeof liveMatch.lastSixBalls === 'string' ? liveMatch.lastSixBalls.split(',') : liveMatch.lastSixBalls)
-    : [];
+  // Last six balls — derive from deliveries API (most recent 6 non-voided deliveries)
+  const lastSixBalls: string[] = (() => {
+    // Try from live match data first
+    if (liveMatch?.lastSixBalls) {
+      return typeof liveMatch.lastSixBalls === 'string' ? liveMatch.lastSixBalls.split(',') : liveMatch.lastSixBalls;
+    }
+    // Derive from deliveries: take last 6 non-voided deliveries and convert to ball labels
+    if (liveDeliveries.length > 0) {
+      const sorted = [...liveDeliveries].sort((a, b) => (a.seq ?? a.overNo ?? 0) - (b.seq ?? b.overNo ?? 0));
+      const recent = sorted.slice(-6);
+      return recent.map((d: any) => {
+        if (d.isWicket || d.dismissalKind) return 'W';
+        if ((d.wideRuns ?? 0) > 0) return 'Wd';
+        if ((d.noBallRuns ?? 0) > 0) return 'Nb';
+        if ((d.byeRuns ?? 0) > 0) return `${d.totalRuns ?? 0}b`;
+        if ((d.legByeRuns ?? 0) > 0) return `${d.totalRuns ?? 0}lb`;
+        return String(d.totalRuns ?? d.runsOffBat ?? 0);
+      });
+    }
+    return [];
+  })();
 
-  // Match info
+  // Match info — pull from scorecard, live match data, or schedule match object
   const tossInfo = scorecard?.tossWonBy
     ? `${scorecard.tossWonBy} won the toss and Elected to ${scorecard.tossDecision ?? 'bat'}`
-    : liveMatch?.tossInfo ?? '-';
-  const scorerName = liveMatch?.scorerName ?? scorecard?.scorerName ?? '-';
-  const playerOfMatch = liveMatch?.playerOfTheMatch ?? scorecard?.playerOfTheMatch ?? 'none';
+    : liveMatch?.tossInfo ?? match?.tossInfo ?? match?.toss ?? '-';
+  const scorerName = scorerUserData || (liveMatch?.scorerName ?? scorecard?.scorerName ?? match?.appScorerName ?? match?.scorerName ?? '-');
+  const playerOfMatch = liveMatch?.playerOfTheMatch ?? scorecard?.playerOfTheMatch ?? match?.playerOfTheMatch ?? 'none';
 
   return (
     <div className="bg-white border-t">
@@ -795,7 +870,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
             return (
               <tr key={idx} className="border-b border-gray-200">
                 <td className="py-2.5 px-3 font-medium text-gray-800">
-                  {b.batsmanName ?? b.name}{isStriker ? ' *' : ''}
+                  {getBatsmanName(b)}{isStriker ? ' *' : ''}
                 </td>
                 <td className="py-2.5 px-2 text-center font-bold">{runs}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{balls}</td>
@@ -815,29 +890,36 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
       </div>
 
       {/* Last Six Balls */}
-      {lastSixBalls.length > 0 && (
-        <div className="px-4 py-2 border-b text-sm flex items-center gap-2">
-          <span className="font-bold text-gray-700">Last Six Balls:</span>
-          <div className="flex gap-1.5">
-            {lastSixBalls.map((ball: string, idx: number) => {
-              const val = ball.trim();
-              const isWicket = val.toUpperCase() === 'W';
-              return (
-                <span
-                  key={idx}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border ${
-                    isWicket
-                      ? 'bg-red-500 text-white border-red-600'
-                      : 'bg-gray-100 text-gray-800 border-gray-300'
-                  }`}
-                >
-                  {val}
-                </span>
-              );
-            })}
-          </div>
+      <div className="px-4 py-2 border-b text-sm flex items-center gap-2">
+        <span className="font-bold text-gray-700">Last Six Balls:</span>
+        <div className="flex gap-1.5">
+          {lastSixBalls.length > 0 ? lastSixBalls.map((ball: string, idx: number) => {
+            const val = ball.trim();
+            const isWicket = val.toUpperCase() === 'W';
+            const isWide = val.toUpperCase() === 'WD';
+            const isNoBall = val.toUpperCase() === 'NB';
+            const isBoundary = val === '4' || val === '6';
+            return (
+              <span
+                key={idx}
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border shadow-sm ${
+                  isWicket
+                    ? 'bg-red-500 text-white border-red-600'
+                    : isWide || isNoBall
+                    ? 'bg-yellow-100 text-yellow-800 border-yellow-400'
+                    : isBoundary
+                    ? 'bg-green-100 text-green-800 border-green-400'
+                    : 'bg-gray-100 text-gray-800 border-gray-300'
+                }`}
+              >
+                {val}
+              </span>
+            );
+          }) : (
+            <span className="text-gray-400 text-xs">-</span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* BOWLER Section */}
       <div className="px-4 py-3 border-b bg-gray-50 mt-2">
@@ -860,12 +942,12 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
             const overs = bw.overs ?? bw.Overs ?? 0;
             const runs = bw.runsConceded ?? bw.RunsConceded ?? bw.runs ?? bw.Runs ?? 0;
             const wickets = bw.wickets ?? bw.Wickets ?? 0;
-            const econ = overs > 0 ? (runs / overs).toFixed(1) : '0.0';
+            const econ = bw.econ != null ? bw.econ : (overs > 0 ? (runs / overs).toFixed(1) : '0.0');
             const dStats = bowlerId ? liveBowlerStats[bowlerId] : undefined;
             const maidens = dStats ? dStats.maidens : (bw.maidens ?? bw.Maidens ?? 0);
             return (
               <tr key={idx} className="border-b border-gray-200">
-                <td className="py-2.5 px-3 font-medium text-gray-800">{bw.bowlerName ?? bw.BowlerName ?? bw.name ?? (`${bw.firstName ?? bw.FirstName ?? ''} ${bw.lastName ?? bw.LastName ?? ''}`.trim() || '-')}</td>
+                <td className="py-2.5 px-3 font-medium text-gray-800">{getBowlerName(bw)}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{overs}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{maidens}</td>
                 <td className="py-2.5 px-2 text-center text-gray-600">{runs}</td>
@@ -902,13 +984,18 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading }: { matchId: str
 // -- MATCH SCORECARD VIEW (shown when View Score is clicked) --
 type ScorecardTab = 'live' | 'scorecard' | 'ball-by-ball';
 const SCORECARD_TABS: ScorecardTab[] = ['live', 'scorecard', 'ball-by-ball'];
-function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onScorecardTabChange }: { matchId: string; match: any; onBack: () => void; initialScorecardTab?: ScorecardTab; onScorecardTabChange?: (tab: ScorecardTab) => void }) {
+function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { matchId: string; match: any; onBack: () => void; initialScorecardTab?: ScorecardTab }) {
   const { boardId: routeBoardId } = useParams<{ boardId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTabState] = useState<ScorecardTab>(initialScorecardTab || 'scorecard');
   const queryClient = useQueryClient();
   const setActiveTab = (tab: ScorecardTab) => {
     setActiveTabState(tab);
-    onScorecardTabChange?.(tab);
+    // Update URL directly so refresh preserves the tab
+    const params = new URLSearchParams(searchParams);
+    params.set('scorecardTab', tab);
+    // Use setTimeout to defer the navigation so it doesn't interfere with the React state update
+    setTimeout(() => setSearchParams(params, { replace: true }), 0);
   };
 
   // Connect to SignalR hub for real-time scorecard updates
@@ -1099,7 +1186,8 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
         try {
           const res = await userService.getById(id);
           const u = (res.data as any)?.data ?? res.data;
-          const name = u?.userName ?? u?.name ?? u?.displayName ?? (`${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim()) ?? '';
+          const fullName = (`${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim());
+          const name = fullName || u?.displayName || u?.name || u?.userName || '';
           if (name) map[id] = name;
         } catch { /* skip unresolvable */ }
       }));
@@ -1154,7 +1242,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab, onSco
       {/* Tab content */}
       <div className="mt-0">
         {activeTab === 'live' && (
-          <LiveTabContent matchId={matchId} scorecard={scorecard as any} scorecardLoading={scorecardLoading} />
+          <LiveTabContent matchId={matchId} scorecard={scorecard as any} scorecardLoading={scorecardLoading} match={match} />
         )}
         {activeTab === 'scorecard' && <ScorecardTabContent scorecard={scorecard as any} loading={scorecardLoading} playerNameMap={resolvedPlayerMap} matchId={matchId} />}
         {activeTab === 'ball-by-ball' && <BallByBallTabContent scorecard={scorecard as any} matchId={matchId} />}
@@ -1294,11 +1382,21 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
       return { batsmanId, batsmanName: name, dismissal, runs, balls, fours, sixes, sr, isStriker, isNonStriker, status: b.status };
     });
 
-    // Calculate maiden and dot ball counts from delivery data (same logic as mobile app)
+    // Calculate maiden, dot ball, and over counts from delivery data (same logic as mobile app)
     const inningsDeliveries: any[] = (deliveriesData?.[inningsNo] ?? [])
       .filter((d: any) => !d.isVoided);
-    const bowlerDeliveryStats: Record<string, { dots: number; maidens: number }> = {};
+    const bowlerDeliveryStats: Record<string, { dots: number; maidens: number; overs: number }> = {};
+    let deliveryBasedTotalOvers: number | null = null;
     if (inningsDeliveries.length > 0) {
+      // Helper: a delivery is legal only if not a no-ball and not a wide
+      const isLegal = (d: any) => d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0;
+
+      // Calculate total innings overs from legal deliveries
+      const totalLegalBalls = inningsDeliveries.filter(isLegal).length;
+      const compOvers = Math.floor(totalLegalBalls / 6);
+      const remBalls = totalLegalBalls % 6;
+      deliveryBasedTotalOvers = remBalls > 0 ? parseFloat(`${compOvers}.${remBalls}`) : compOvers;
+
       const bowlerDelsMap: Record<string, any[]> = {};
       inningsDeliveries.forEach((d: any) => {
         const bid = d.bowlerId;
@@ -1310,8 +1408,15 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
         // Dot balls: legal deliveries where totalRuns === 0
         let dots = 0;
         dels.forEach((d: any) => {
-          if (d.isLegalDelivery !== false && (d.totalRuns ?? 0) === 0) dots++;
+          if (isLegal(d) && (d.totalRuns ?? 0) === 0) dots++;
         });
+
+        // Per-bowler overs: count legal deliveries only
+        const bowlerLegalBalls = dels.filter(isLegal).length;
+        const bCompOvers = Math.floor(bowlerLegalBalls / 6);
+        const bRemBalls = bowlerLegalBalls % 6;
+        const bowlerOvers = bRemBalls > 0 ? parseFloat(`${bCompOvers}.${bRemBalls}`) : bCompOvers;
+
         // Maidens: completed overs (6 legal balls) with 0 bowler runs and no illegal deliveries
         const overBuckets: Record<number, any[]> = {};
         dels.forEach((d: any) => {
@@ -1321,16 +1426,16 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
         });
         let maidens = 0;
         Object.values(overBuckets).forEach((overBalls) => {
-          const legalBalls = overBalls.filter((b: any) => b.isLegalDelivery !== false);
+          const legalBalls = overBalls.filter(isLegal);
           if (legalBalls.length >= 6) {
             // Bowler runs exclude byes/leg byes (they don't count against the bowler)
             const bowlerRuns = legalBalls.reduce((sum: number, b: any) =>
               sum + ((b.totalRuns ?? 0) - (b.byeRuns ?? 0) - (b.legByeRuns ?? 0)), 0);
-            const hasIllegal = overBalls.some((b: any) => b.isLegalDelivery === false);
+            const hasIllegal = overBalls.some((b: any) => !isLegal(b));
             if (bowlerRuns === 0 && !hasIllegal) maidens++;
           }
         });
-        bowlerDeliveryStats[bowlerId] = { dots, maidens };
+        bowlerDeliveryStats[bowlerId] = { dots, maidens, overs: bowlerOvers };
       });
     }
 
@@ -1338,25 +1443,27 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
     const bowling = bowlers.map((bw: any) => {
       const name = bw.bowlerName ?? bw.BowlerName ?? (`${bw.firstName ?? bw.FirstName ?? ''} ${bw.lastName ?? bw.LastName ?? ''}`.trim() || '-');
       const bowlerId = bw.bowlerId ?? bw.playerId ?? bw.id ?? '';
-      const overs = bw.overs ?? bw.Overs ?? 0;
+      const apiOvers = bw.overs ?? bw.Overs ?? 0;
       const runs = bw.runsConceded ?? bw.RunsConceded ?? bw.runs ?? bw.Runs ?? 0;
       const wickets = bw.wickets ?? bw.Wickets ?? 0;
-      const econ = bw.econ ?? bw.Econ ?? bw.economy ?? bw.Economy ?? (overs > 0 ? +(runs / overs).toFixed(2) : 0);
       const fours = bw.fours ?? bw.Fours ?? bw.foursConceded ?? bw.FoursConceded ?? 0;
       const sixes = bw.sixes ?? bw.Sixes ?? bw.sixesConceded ?? bw.SixesConceded ?? 0;
       const wides = bw.wides ?? bw.Wides ?? 0;
       const noBalls = bw.noBalls ?? bw.NoBalls ?? 0;
-      // Prefer delivery-calculated values for maidens and dots when available
+      // Prefer delivery-calculated values for overs, maidens, and dots when available
       const dStats = bowlerId ? bowlerDeliveryStats[bowlerId] : undefined;
+      const overs = dStats ? dStats.overs : apiOvers;
       const maidens = dStats ? dStats.maidens : (bw.maidens ?? bw.Maidens ?? 0);
       const dots = dStats ? dStats.dots : (bw.dots ?? bw.Dots ?? bw.dotBalls ?? bw.DotBalls ?? bw.dotballCount ?? bw.DotBallCount ?? 0);
+      const econ = overs > 0 ? +(runs / overs).toFixed(2) : 0;
       return { bowlerName: name, overs, maidens, runs, wickets, econ, dots, fours, sixes, wides, noBalls };
     });
 
     // Calculate totals from batting data
     const totalRuns = inn.totalRuns ?? inn.total ?? batting.reduce((s: number, b: any) => s + b.runs, 0) + (inn.extras?.total ?? inn.extras ?? 0);
     const totalWickets = inn.totalWickets ?? inn.wickets ?? batting.filter((b: any) => b.dismissal !== 'not out' && b.dismissal !== 'batting' && b.dismissal !== '').length;
-    const totalOvers = inn.totalOvers ?? inn.overs ?? (bowlers.length > 0 ? Math.max(...bowlers.map((bw: any) => bw.overs ?? 0)) : 0);
+    // Prefer delivery-calculated overs over API value (legal balls only = correct per cricket rules)
+    const totalOvers = deliveryBasedTotalOvers ?? inn.totalOvers ?? inn.overs ?? (bowlers.length > 0 ? Math.max(...bowlers.map((bw: any) => bw.overs ?? 0)) : 0);
     const extras = typeof inn.extras === 'object' ? inn.extras : { total: inn.extras ?? 0, noBall: inn.noBalls ?? 0, wide: inn.wides ?? 0, legByes: inn.legByes ?? 0, byes: inn.byes ?? 0 };
     const runRate = totalOvers > 0 ? +(totalRuns / totalOvers).toFixed(2) : 0;
 
@@ -1369,12 +1476,12 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
     apiInnings.forEach((allInn: any) => {
       (allInn.batsmen ?? allInn.batting ?? []).forEach((b: any) => {
         const id = b.batsmanId ?? b.playerId ?? b.id ?? '';
-        const name = b.batsmanName ?? b.name ?? b.playerName ?? '';
+        const name = b.batsmanName ?? b.name ?? b.playerName ?? ((`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()) || '');
         if (id && name) playerIdToName[id] = name;
       });
       (allInn.bowlers ?? allInn.bowling ?? []).forEach((b: any) => {
         const id = b.bowlerId ?? b.playerId ?? b.id ?? '';
-        const name = b.bowlerName ?? b.name ?? b.playerName ?? '';
+        const name = b.bowlerName ?? b.name ?? b.playerName ?? ((`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()) || '');
         if (id && name) playerIdToName[id] = name;
       });
     });
@@ -1645,11 +1752,28 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
       .filter((d: any) => !d.isVoided)
       .sort((a: any, b: any) => (a.seq ?? 0) - (b.seq ?? 0));
 
+    // Per cricket rules: total runs for a delivery = bat runs + all extras
+    // For no-balls, API totalRuns may only contain the penalty (1 run), excluding bat runs
+    const calcDeliveryRuns = (d: any): number => {
+      const bat = d.runsOfBat ?? 0;
+      const nb = d.noBallRuns ?? 0;
+      const wd = d.wideRuns ?? 0;
+      const bye = d.byeRuns ?? 0;
+      const lb = d.legByeRuns ?? 0;
+      const fromComponents = bat + nb + wd + bye + lb;
+      const fromApi = d.totalRuns ?? 0;
+      // For extras (no-ball/wide): API totalRuns can be incomplete, use max of both
+      if (nb > 0 || wd > 0) return Math.max(fromApi, fromComponents);
+      return fromApi > 0 ? fromApi : fromComponents;
+    };
+
     // Calculate totals from deliveries
-    const totalRuns = deliveries.reduce((s: number, d: any) => s + (d.totalRuns ?? 0), 0);
+    const totalRuns = deliveries.reduce((s: number, d: any) => s + calcDeliveryRuns(d), 0);
     const totalWickets = deliveries.filter((d: any) => d.isWicket).length;
-    // Calculate overs: count legal deliveries
-    const legalBalls = deliveries.filter((d: any) => d.isLegalDelivery !== false).length;
+    // Calculate overs: count only legal deliveries (no-balls and wides don't count)
+    const legalBalls = deliveries.filter((d: any) =>
+      d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0
+    ).length;
     const completedOvers = Math.floor(legalBalls / 6);
     const remainingBalls = legalBalls % 6;
     const totalOvers = remainingBalls > 0 ? parseFloat(`${completedOvers}.${remainingBalls}`) : completedOvers;
@@ -1671,7 +1795,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
     const overs = Object.entries(overMap)
       .sort(([a], [b]) => Number(b) - Number(a))
       .map(([overNum, balls]) => {
-        const overRuns = balls.reduce((s: number, d: any) => s + (d.totalRuns ?? 0), 0);
+        const overRuns = balls.reduce((s: number, d: any) => s + calcDeliveryRuns(d), 0);
         const overWickets = balls.filter((d: any) => d.isWicket).length;
 
         // Running total: all deliveries up to and including this over
@@ -1680,35 +1804,35 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
         deliveries.forEach((d: any) => {
           const dOver = d.overNo ?? 0;
           if (dOver <= Number(overNum)) {
-            runningRuns += d.totalRuns ?? 0;
+            runningRuns += calcDeliveryRuns(d);
             if (d.isWicket) runningWickets++;
           }
         });
 
         // Map individual balls sorted by sequence (ascending first to compute legal ball index, then reverse for display)
         const sortedBallsAsc = [...balls].sort((a: any, b: any) => (a.seq ?? 0) - (b.seq ?? 0));
-        // Compute legal ball number for each delivery
+        // Compute legal ball number for each delivery (no-balls and wides are illegal)
         let legalBallCount = 0;
         const ballsWithLegalIndex = sortedBallsAsc.map((d: any) => {
-          const isLegal = d.isLegalDelivery !== false;
+          const isLegal = d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0;
           if (isLegal) legalBallCount++;
-          return { ...d, _legalBallNum: isLegal ? legalBallCount : legalBallCount + 1 };
+          return { ...d, _legalBallNum: isLegal ? legalBallCount : legalBallCount, _isLegal: isLegal };
         });
 
         const mappedBalls = [...ballsWithLegalIndex]
           .sort((a: any, b: any) => (b.seq ?? 0) - (a.seq ?? 0))
           .map((d: any) => {
             const overDisplay = Number(overNum);
-            const isLegal = d.isLegalDelivery !== false;
-            const isNoBall = (d.noBallRuns ?? 0) > 0 || d.isLegalDelivery === false && !(d.wideRuns > 0);
+            const isNoBall = (d.noBallRuns ?? 0) > 0 || (d.isLegalDelivery === false && (d.wideRuns ?? 0) === 0);
             const isWide = (d.wideRuns ?? 0) > 0;
-            // For legal balls: show over.ballNum; for illegal: show over.nextLegalBallNum with extra marker
+            const isLegal = d._isLegal;
+            // For legal balls: show over.ballNum; for illegal: show over.ballNum (same position, will be re-bowled)
             const ballId = isLegal
               ? `${overDisplay}.${d._legalBallNum}`
               : `${overDisplay}.${d._legalBallNum}`;
             const batRuns = d.runsOfBat ?? 0;
             const extras = (d.wideRuns ?? 0) + (d.noBallRuns ?? 0) + (d.byeRuns ?? 0) + (d.legByeRuns ?? 0);
-            const runs = d.totalRuns ?? (batRuns + extras);
+            const runs = calcDeliveryRuns(d);
             const isWicket = !!d.isWicket;
             const label = isWicket ? 'W' : isNoBall ? `NB+${batRuns}` : isWide ? `WD+${runs - 1}` : String(runs);
 
@@ -1722,7 +1846,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
             } else if (isWide) {
               commentary = `${bowlerName} to ${batsmanName}, wide, ${runs} run${runs !== 1 ? 's' : ''}`;
             } else if (isNoBall) {
-              commentary = `${bowlerName} to ${batsmanName}, no ball, ${batRuns} run${batRuns !== 1 ? 's' : ''} off bat + 1 penalty`;
+              commentary = `${bowlerName} to ${batsmanName}, no ball, ${runs} run${runs !== 1 ? 's' : ''} (${batRuns} off bat + ${d.noBallRuns ?? 1} penalty)`;
             } else {
               commentary = `${bowlerName} to ${batsmanName}, ${runs} run${runs !== 1 ? 's' : ''}`;
             }
@@ -1941,14 +2065,14 @@ function SquadTabContent({ scorecard }: { scorecard: any }) {
 function LeagueLandingTab({ boardId }: { boardId: string }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedMatch, setSelectedMatchState] = useState<any>(null);
-  const [scorecardTab, setScorecardTab] = useState<ScorecardTab>((searchParams.get('scorecardTab') as ScorecardTab) || 'scorecard');
+  const initialScorecardTab = (searchParams.get('scorecardTab') as ScorecardTab) || 'scorecard';
 
-  const setSelectedMatch = (m: any) => {
+  const setSelectedMatch = (m: any, tab?: ScorecardTab) => {
     setSelectedMatchState(m);
     if (m) {
       const params = new URLSearchParams(searchParams);
       params.set('matchId', m.id);
-      params.set('scorecardTab', scorecardTab);
+      params.set('scorecardTab', tab || 'scorecard');
       setSearchParams(params, { replace: true });
     } else {
       const params = new URLSearchParams(searchParams);
@@ -1956,13 +2080,6 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
       params.delete('scorecardTab');
       setSearchParams(params, { replace: true });
     }
-  };
-
-  const handleScorecardTabChange = (tab: ScorecardTab) => {
-    setScorecardTab(tab);
-    const params = new URLSearchParams(searchParams);
-    params.set('scorecardTab', tab);
-    setSearchParams(params, { replace: true });
   };
 
   const { data: tournaments } = useQuery({
@@ -2088,7 +2205,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
 
   // If a match is selected, show the scorecard view
   if (selectedMatch) {
-    return <MatchScorecardView matchId={selectedMatch.id} match={selectedMatch} onBack={() => setSelectedMatch(null)} initialScorecardTab={scorecardTab} onScorecardTabChange={handleScorecardTabChange} />;
+    return <MatchScorecardView matchId={selectedMatch.id} match={selectedMatch} onBack={() => setSelectedMatch(null)} initialScorecardTab={initialScorecardTab} />;
   }
 
   return (
@@ -2141,7 +2258,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {live ? (
-                      <button onClick={() => setSelectedMatch(m)} className="px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap">Live Score</button>
+                      <button onClick={() => setSelectedMatch(m, 'live')} className="px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap">Live Score</button>
                     ) : (
                       <button disabled className="px-4 py-1.5 bg-gray-300 text-gray-500 rounded text-xs font-semibold cursor-not-allowed whitespace-nowrap">View Score</button>
                     )}
