@@ -110,10 +110,12 @@ export default function LiveScoringPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {inn.batting.map((b) => (
+                      {inn.batting.map((b) => {
+                        const isStriker = liveUpdate?.strikerId ? b.batsmanId === liveUpdate.strikerId : false;
+                        return (
                         <tr key={b.batsmanId} className="border-t border-gray-700/50">
                           <td className="py-2">
-                            {b.batsmanName}
+                            {b.batsmanName}{isStriker ? ' *' : ''}
                             <span className="text-gray-500 text-xs ml-2">{b.dismissalType || 'not out'}</span>
                           </td>
                           <td className="text-center font-bold">{b.runsScored}</td>
@@ -122,7 +124,8 @@ export default function LiveScoringPage() {
                           <td className="text-center text-gray-400">{b.sixes}</td>
                           <td className="text-center text-gray-400">{b.ballsFaced > 0 ? ((b.runsScored / b.ballsFaced) * 100).toFixed(1) : '-'}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -795,6 +795,15 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
   const bowlingEntries = bowlingEntriesRaw;
   const ordinal = inningsNumber === 1 ? '1st' : inningsNumber === 2 ? '2nd' : `${inningsNumber}th`;
 
+  // Determine current striker from last delivery
+  const liveStrikerId = (() => {
+    if (liveDeliveries.length > 0) {
+      const sorted = [...liveDeliveries].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+      return sorted[sorted.length - 1]?.strikerId ?? null;
+    }
+    return null;
+  })();
+
   // Helper to get batsman display name from various field formats
   const getBatsmanName = (b: any) => b.batsmanName ?? b.name ?? ((`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()) || '-');
   // Helper to get bowler display name
@@ -864,7 +873,8 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
             const fours = b.fours ?? 0;
             const sixes = b.sixes ?? 0;
             const sr = balls > 0 ? ((runs / balls) * 100).toFixed(2) : '0.00';
-            const isStriker = b.isStriker || idx === 0;
+            const batsmanId = b.batsmanId ?? b.playerId ?? b.id ?? '';
+            const isStriker = (liveStrikerId && batsmanId) ? batsmanId === liveStrikerId : (b.isStriker || idx === 0);
             return (
               <tr key={idx} className="border-b border-gray-200">
                 <td className="py-2.5 px-3 font-medium text-gray-800">
