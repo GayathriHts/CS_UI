@@ -743,7 +743,8 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
   }
 
   // If scorecard has innings data, show it regardless of live status
-  if (!effectivelyLive && innings.length === 0) {
+  // If scorecard exists (match initialized), show match info even with no innings/deliveries
+  if (!effectivelyLive && innings.length === 0 && !scorecard) {
     return (
       <div className="bg-white border-t p-8 text-center text-gray-500 text-sm">
         <div className="flex flex-col items-center justify-center">
@@ -757,7 +758,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
 
   // Calculate maiden and dot counts from deliveries for each bowler
   // Helper: a delivery is legal only if not a no-ball and not a wide
-  const isLegalDel = (d: any) => d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0;
+  const isLegalDel = (d: any) => d.isLegalDelivery !== false && (d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0) === 0 && (d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0) === 0;
   const liveBowlerStats: Record<string, { dots: number; maidens: number }> = {};
   const liveDeliveries: any[] = (stableDeliveries ?? []).filter((d: any) => !d.isVoided);
   if (liveDeliveries.length > 0) {
@@ -830,11 +831,11 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
       const recent = sorted.slice(-6);
       return recent.map((d: any) => {
         if (d.isWicket || d.dismissalKind) return 'W';
-        if ((d.wideRuns ?? 0) > 0) return 'Wd';
-        if ((d.noBallRuns ?? 0) > 0) return 'Nb';
-        if ((d.byeRuns ?? 0) > 0) return `${d.totalRuns ?? 0}b`;
-        if ((d.legByeRuns ?? 0) > 0) return `${d.totalRuns ?? 0}lb`;
-        return String(d.totalRuns ?? d.runsOffBat ?? 0);
+        if ((d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0) > 0) return 'Wd';
+        if ((d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0) > 0) return 'Nb';
+        if ((d.byeRuns ?? d.ByeRuns ?? d.bye ?? d.Bye ?? 0) > 0) return `${d.totalRuns ?? d.TotalRuns ?? 0}b`;
+        if ((d.legByeRuns ?? d.LegByeRuns ?? d.legBye ?? d.LegBye ?? 0) > 0) return `${d.totalRuns ?? d.TotalRuns ?? 0}lb`;
+        return String(d.totalRuns ?? d.TotalRuns ?? d.runsOffBat ?? d.RunsOffBat ?? 0);
       });
     }
     return [];
@@ -852,9 +853,10 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
       {/* BATSMEN Section */}
       <div className="px-4 py-3 border-b bg-gray-50">
         <h4 className="text-sm font-bold text-gray-800">
-          BATSMEN - {battingTeamName} ({ordinal} Innings)
+          BATSMEN{battingTeamName ? ` - ${battingTeamName}` : ''} ({ordinal} Innings)
         </h4>
       </div>
+      {battingEntries.length > 0 ? (
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-gray-50">
@@ -890,6 +892,9 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
           })}
         </tbody>
       </table>
+      ) : (
+        <div className="px-4 py-3 text-sm text-gray-500 border-b">Awaiting first ball...</div>
+      )}
 
       {/* Current Partnership */}
       <div className="px-4 py-2 border-b text-sm">
@@ -933,6 +938,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
       <div className="px-4 py-3 border-b bg-gray-50 mt-2">
         <h4 className="text-sm font-bold text-gray-800">BOWLER</h4>
       </div>
+      {bowlingEntriesRaw.length > 0 ? (
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-gray-50">
@@ -966,6 +972,9 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
           })}
         </tbody>
       </table>
+      ) : (
+        <div className="px-4 py-3 text-sm text-gray-500 border-b">Awaiting first ball...</div>
+      )}
 
       {/* MATCH INFO */}
       <div className="px-4 py-3 border-t border-b bg-gray-50 mt-2">
@@ -1025,7 +1034,6 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
             queryClient.cancelQueries({ queryKey: ['scorecard', matchId] });
-            queryClient.cancelQueries({ queryKey: ['deliveries', matchId] });
             queryClient.cancelQueries({ queryKey: ['deliveriesForLive', matchId] });
             queryClient.cancelQueries({ queryKey: ['deliveriesForScorecard', matchId] });
             queryClient.invalidateQueries({ queryKey: ['scorecard', matchId] });
@@ -1352,21 +1360,27 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
       if (id && name) playerIdNameMap[id] = name;
     });
   });
-  // Also add player names from deliveries (strikerId, nonStrikerId, bowlerId)
+  // Also add player names from deliveries (strikerId, nonStrikerId, bowlerId, fielderId)
   if (deliveriesData) {
     Object.values(deliveriesData).forEach((deliveries: any[]) => {
       deliveries.forEach((d: any) => {
-        // Bowler might not be in batting list - collect unique IDs
-        if (d.bowlerId && !playerIdNameMap[d.bowlerId]) playerIdNameMap[d.bowlerId] = '';
+        if (d.strikerId && d.strikerName && !playerIdNameMap[d.strikerId]) playerIdNameMap[d.strikerId] = d.strikerName;
+        if (d.nonStrikerId && d.nonStrikerName && !playerIdNameMap[d.nonStrikerId]) playerIdNameMap[d.nonStrikerId] = d.nonStrikerName;
+        if (d.bowlerId && d.bowlerName && !playerIdNameMap[d.bowlerId]) playerIdNameMap[d.bowlerId] = d.bowlerName;
+        if (d.fielderId && d.fielderName && !playerIdNameMap[d.fielderId]) playerIdNameMap[d.fielderId] = d.fielderName;
+        if (d.playerOutId && d.playerOutName && !playerIdNameMap[d.playerOutId]) playerIdNameMap[d.playerOutId] = d.playerOutName;
       });
     });
   }
 
   // Build wicket dismissal map: playerOutId → detailed dismissal text
   const buildDismissalText = (d: any): string => {
-    const kind = (d.dismissalKind ?? d.wicketType ?? '').toLowerCase();
-    const bowlerName = playerIdNameMap[d.bowlerId] || '';
-    const fielderName = d.fielderId ? (playerIdNameMap[d.fielderId] || '') : '';
+    const kind = (d.dismissalKind ?? d.wicketType ?? d.DismissalKind ?? d.WicketType ?? '').toLowerCase();
+    // Resolve names: prefer map lookup, fall back to delivery-level name fields, then firstName/lastName
+    const bowlerName = playerIdNameMap[d.bowlerId] || d.bowlerName || d.BowlerName
+      || (`${d.bowlerFirstName ?? d.BowlerFirstName ?? ''} ${d.bowlerLastName ?? d.BowlerLastName ?? ''}`.trim()) || '';
+    const fielderName = d.fielderId ? (playerIdNameMap[d.fielderId] || d.fielderName || d.FielderName
+      || (`${d.fielderFirstName ?? d.FielderFirstName ?? ''} ${d.fielderLastName ?? d.FielderLastName ?? ''}`.trim()) || '') : '';
     
     switch (kind) {
       case 'bowled':
@@ -1440,7 +1454,7 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
     let deliveryBasedTotalOvers: number | null = null;
     if (inningsDeliveries.length > 0) {
       // Helper: a delivery is legal only if not a no-ball and not a wide
-      const isLegal = (d: any) => d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0;
+      const isLegal = (d: any) => d.isLegalDelivery !== false && (d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0) === 0 && (d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0) === 0;
 
       // Calculate total innings overs from legal deliveries
       const totalLegalBalls = inningsDeliveries.filter(isLegal).length;
@@ -1513,11 +1527,42 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
     // Calculate totals from batting data
     const totalRuns = inn.totalRuns ?? inn.total ?? batting.reduce((s: number, b: any) => s + b.runs, 0) + (inn.extras?.total ?? inn.extras ?? 0);
     const totalWickets = inn.totalWickets ?? inn.wickets ?? batting.filter((b: any) => b.dismissal !== 'not out' && b.dismissal !== 'batting' && b.dismissal !== '').length;
-    // Prefer delivery-calculated overs over API value (legal balls only = correct per cricket rules)
+    // Prefer delivery-based overs (accurate partial overs e.g. 1.3) over API value (may be rounded integer)
     const totalOvers = deliveryBasedTotalOvers ?? inn.totalOvers ?? inn.overs ?? (bowlers.length > 0 ? Math.max(...bowlers.map((bw: any) => bw.overs ?? 0)) : 0);
-    const extrasRaw = typeof inn.extras === 'object' ? inn.extras : { total: inn.extras ?? 0, noBall: inn.noBalls ?? 0, wide: inn.wides ?? 0, legByes: inn.legByes ?? 0, byes: inn.byes ?? 0 };
-    const extras = { ...extrasRaw, penalty: extrasRaw.penalty ?? extrasRaw.penalties ?? extrasRaw.penaltyRuns ?? inn.penaltyRuns ?? inn.penalty ?? inn.penalties ?? 0 };
+
+    // Compute extras breakdown from delivery data (API only returns total as a number)
+    // Mobile app sends noBall=1 per no-ball delivery; API stores noBallRuns per delivery
+    let extras: { total: number; noBall: number; wide: number; legByes: number; byes: number; penalty: number };
+    if (inningsDeliveries.length > 0) {
+      let nbRuns = 0, wdRuns = 0, byeRuns = 0, lbRuns = 0, penRuns = 0;
+      inningsDeliveries.forEach((d: any) => {
+        nbRuns += d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0;
+        wdRuns += d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0;
+        byeRuns += d.byeRuns ?? d.ByeRuns ?? d.bye ?? d.Bye ?? 0;
+        lbRuns += d.legByeRuns ?? d.LegByeRuns ?? d.legBye ?? d.LegBye ?? 0;
+        penRuns += d.penaltyRuns ?? d.PenaltyRuns ?? d.penalty ?? d.Penalty ?? 0;
+      });
+      const computedTotal = nbRuns + wdRuns + byeRuns + lbRuns + penRuns;
+      const apiTotal = typeof inn.extras === 'number' ? inn.extras : (inn.extras?.total ?? 0);
+      extras = { total: Math.max(computedTotal, apiTotal), noBall: nbRuns, wide: wdRuns, legByes: lbRuns, byes: byeRuns, penalty: penRuns };
+    } else if (typeof inn.extras === 'object' && inn.extras !== null) {
+      const extrasRaw = inn.extras;
+      extras = {
+        total: extrasRaw.total ?? 0,
+        noBall: extrasRaw.noBall ?? extrasRaw.noBalls ?? extrasRaw.noBallRuns ?? 0,
+        wide: extrasRaw.wide ?? extrasRaw.wides ?? extrasRaw.wideRuns ?? 0,
+        legByes: extrasRaw.legByes ?? extrasRaw.legByeRuns ?? 0,
+        byes: extrasRaw.byes ?? extrasRaw.byeRuns ?? 0,
+        penalty: extrasRaw.penalty ?? extrasRaw.penalties ?? extrasRaw.penaltyRuns ?? inn.penaltyRuns ?? inn.penalty ?? 0,
+      };
+    } else {
+      extras = { total: inn.extras ?? 0, noBall: 0, wide: 0, legByes: 0, byes: 0, penalty: 0 };
+    }
+
     const runRate = totalOvers > 0 ? +(totalRuns / totalOvers).toFixed(2) : 0;
+
+    // UUID pattern used by both FoW and Did Not Bat resolution
+    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
     // Fall of wickets
     // Build a player ID → name map from batting entries to resolve IDs in fallOfWickets string
@@ -1537,10 +1582,25 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
         if (id && name) playerIdToName[id] = name;
       });
     });
+    // Also enrich from delivery data (strikerId/nonStrikerId/bowlerId may have names not in batting/bowling lists)
+    if (deliveriesData) {
+      Object.values(deliveriesData).forEach((dels: any[]) => {
+        dels.forEach((d: any) => {
+          if (d.strikerId && d.strikerName && !playerIdToName[d.strikerId]) playerIdToName[d.strikerId] = d.strikerName;
+          if (d.nonStrikerId && d.nonStrikerName && !playerIdToName[d.nonStrikerId]) playerIdToName[d.nonStrikerId] = d.nonStrikerName;
+          if (d.bowlerId && d.bowlerName && !playerIdToName[d.bowlerId]) playerIdToName[d.bowlerId] = d.bowlerName;
+          if (d.playerOutId && d.playerOutName && !playerIdToName[d.playerOutId]) playerIdToName[d.playerOutId] = d.playerOutName;
+        });
+      });
+    }
     const resolvePlayerIds = (text: string): string => {
       if (!text) return text;
       // Replace UUIDs with player names
       return text.replace(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/g, (uuid) => playerIdToName[uuid] || uuid);
+    };
+    const calcDeliveryRunsForFow = (d: any): number => {
+      const fromComponents = (d.runsOffBat ?? d.runsOfBat ?? 0) + (d.noBallRuns ?? 0) + (d.wideRuns ?? 0) + (d.byeRuns ?? 0) + (d.legByeRuns ?? 0) + (d.penaltyRuns ?? 0);
+      return fromComponents > 0 ? fromComponents : (d.totalRuns ?? 0);
     };
     let rawFow = inn.fallOfWickets ?? inn.fow ?? '-';
     let fallOfWickets: string;
@@ -1549,20 +1609,41 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
       fallOfWickets = rawFow.map((f: any) => {
         const playerId = f.batsmanId ?? f.playerId ?? f.id ?? '';
         const playerName = f.batsmanName ?? f.playerName ?? f.name ?? (playerId ? (playerIdToName[playerId] || playerId) : '');
-        const resolvedName = (uuidPattern.test(playerName) && playerIdToName[playerName]) ? playerIdToName[playerName] : playerName;
+        const resolvedName = (uuidPattern.test(playerName)) ? (playerIdToName[playerName] || playerName) : playerName;
         const score = f.score ?? f.teamScore ?? f.runs ?? '';
         const wicketNo = f.wicketNo ?? f.wicketNumber ?? '';
         const over = f.over ?? f.overs ?? f.overNumber ?? '';
         return `${score}-${wicketNo} (${resolvedName}, ${over} Ov)`;
       }).join(', ') || '-';
-    } else if (typeof rawFow === 'string') {
+    } else if (typeof rawFow === 'string' && rawFow !== '-') {
       fallOfWickets = resolvePlayerIds(rawFow);
+    } else if (inningsDeliveries.length > 0) {
+      // Build FoW from delivery data when API doesn't provide it
+      const wicketDels = inningsDeliveries.filter((d: any) => d.isWicket && d.playerOutId);
+      if (wicketDels.length > 0) {
+        let runningTotal = 0;
+        let wicketCount = 0;
+        const fowParts: string[] = [];
+        inningsDeliveries.forEach((d: any) => {
+          runningTotal += calcDeliveryRunsForFow(d);
+          if (d.isWicket && d.playerOutId) {
+            wicketCount++;
+            const pName = playerIdToName[d.playerOutId] || d.playerOutName || d.playerOutId;
+            const overNo = d.overNo ?? d.over ?? '';
+            const ballNo = d.ballNo ?? d.ball ?? '';
+            const overStr = ballNo ? `${overNo}.${ballNo}` : `${overNo}`;
+            fowParts.push(`${runningTotal}-${wicketCount} (${pName}, ${overStr} Ov)`);
+          }
+        });
+        fallOfWickets = fowParts.join(', ') || '-';
+      } else {
+        fallOfWickets = '-';
+      }
     } else {
       fallOfWickets = '-';
     }
 
     // Did not bat — resolve player IDs to names
-    const uuidPattern = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
     const rawDidNotBat = inn.didNotBat ?? (inn.yetToBat ?? []).map((p: any) => p.name ?? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()) ?? [];
     const didNotBat = (Array.isArray(rawDidNotBat) ? rawDidNotBat : []).map((entry: any) => {
       if (typeof entry === 'string' && uuidPattern.test(entry.trim())) {
@@ -1602,8 +1683,39 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
 
   if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
 
-  if (!scorecard || mappedInnings.length === 0) {
+  if (!scorecard && mappedInnings.length === 0) {
     return <div className="bg-white border-t p-6 text-center text-gray-500 text-sm">No scorecard data available for this match.</div>;
+  }
+
+  // Match initialized but no innings/deliveries yet — show scorecard with status
+  if (scorecard && mappedInnings.length === 0) {
+    const tossText = scorecard.tossWonBy
+      ? `${scorecard.tossWonBy} won the toss and elected to ${scorecard.tossDecision ?? 'bat'}`
+      : '-';
+    return (
+      <div className="bg-white border-t">
+        <div className="px-4 py-3 border-b">
+          <h4 className="text-sm font-bold text-gray-800 uppercase">Scorecard</h4>
+        </div>
+        <div className="px-4 py-6 text-center text-gray-500 text-sm">
+          <p className="font-medium text-gray-700 mb-2">Match Initialized — {scorecard.status ?? 'Pending'}</p>
+          <p className="text-xs text-gray-400">Scorecard will update when the first ball is bowled.</p>
+        </div>
+        <div className="px-4 py-3 border-t border-b bg-gray-50">
+          <h4 className="text-sm font-bold text-gray-800">MATCH INFO</h4>
+        </div>
+        <div className="px-4 py-2 text-sm space-y-2">
+          <div className="flex">
+            <span className="font-bold text-gray-700 w-40">Status</span>
+            <span className="text-gray-600">{scorecard.status ?? '-'}</span>
+          </div>
+          <div className="flex">
+            <span className="font-bold text-gray-700 w-40">Toss</span>
+            <span className="text-gray-600">{tossText}</span>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -1808,17 +1920,17 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
 
     // Per cricket rules: total runs for a delivery = bat runs + all extras
     // For no-balls, API totalRuns may only contain the penalty (1 run), excluding bat runs
+    // Handle both camelCase and PascalCase API responses (.NET may return either)
     const calcDeliveryRuns = (d: any): number => {
-      const bat = d.runsOfBat ?? 0;
-      const nb = d.noBallRuns ?? 0;
-      const wd = d.wideRuns ?? 0;
-      const bye = d.byeRuns ?? 0;
-      const lb = d.legByeRuns ?? 0;
-      const fromComponents = bat + nb + wd + bye + lb;
-      const fromApi = d.totalRuns ?? 0;
-      // For extras (no-ball/wide): API totalRuns can be incomplete, use max of both
-      if (nb > 0 || wd > 0) return Math.max(fromApi, fromComponents);
-      return fromApi > 0 ? fromApi : fromComponents;
+      const bat = d.runsOffBat ?? d.RunsOffBat ?? d.runsOfBat ?? 0;
+      const nb = d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0;
+      const wd = d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0;
+      const bye = d.byeRuns ?? d.ByeRuns ?? d.bye ?? d.Bye ?? 0;
+      const lb = d.legByeRuns ?? d.LegByeRuns ?? d.legBye ?? d.LegBye ?? 0;
+      const pen = d.penaltyRuns ?? d.PenaltyRuns ?? d.penalty ?? d.Penalty ?? 0;
+      const fromComponents = bat + nb + wd + bye + lb + pen;
+      // Use component-based total (reliable); fall back to API totalRuns only if components are all zero
+      return fromComponents > 0 ? fromComponents : (d.totalRuns ?? d.TotalRuns ?? 0);
     };
 
     // Calculate totals from deliveries
@@ -1826,13 +1938,13 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
     const totalWickets = deliveries.filter((d: any) => d.isWicket).length;
     // Calculate overs: count only legal deliveries (no-balls and wides don't count)
     const legalBalls = deliveries.filter((d: any) =>
-      d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0
+      d.isLegalDelivery !== false && (d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0) === 0 && (d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0) === 0
     ).length;
     const completedOvers = Math.floor(legalBalls / 6);
     const remainingBalls = legalBalls % 6;
     const totalOvers = remainingBalls > 0 ? parseFloat(`${completedOvers}.${remainingBalls}`) : completedOvers;
 
-    // Use scorecard totals if deliveries are empty but scorecard has data
+    // Prefer delivery-based overs (accurate partial overs e.g. 1.3) over API value (may be rounded integer)
     const finalTotalRuns = deliveries.length > 0 ? totalRuns : (inn.totalRuns ?? inn.total ?? 0);
     const finalTotalWickets = deliveries.length > 0 ? totalWickets : (inn.totalWickets ?? inn.wickets ?? 0);
     const finalTotalOvers = deliveries.length > 0 ? totalOvers : (inn.totalOvers ?? inn.overs ?? 0);
@@ -1868,24 +1980,29 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
         // Compute legal ball number for each delivery (no-balls and wides are illegal)
         let legalBallCount = 0;
         const ballsWithLegalIndex = sortedBallsAsc.map((d: any) => {
-          const isLegal = d.isLegalDelivery !== false && (d.noBallRuns ?? 0) === 0 && (d.wideRuns ?? 0) === 0;
+          const nbVal = d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0;
+          const wdVal = d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0;
+          const isLegal = d.isLegalDelivery !== false && nbVal === 0 && wdVal === 0;
           if (isLegal) legalBallCount++;
-          return { ...d, _legalBallNum: isLegal ? legalBallCount : legalBallCount, _isLegal: isLegal };
+          // Legal balls: show current count (1,2,3..); illegal: show next ball position (will be re-bowled)
+          return { ...d, _legalBallNum: isLegal ? legalBallCount : legalBallCount + 1, _isLegal: isLegal };
         });
 
         const mappedBalls = [...ballsWithLegalIndex]
           .sort((a: any, b: any) => (b.seq ?? 0) - (a.seq ?? 0))
           .map((d: any) => {
             const overDisplay = Number(overNum);
-            const isNoBall = (d.noBallRuns ?? 0) > 0 || (d.isLegalDelivery === false && (d.wideRuns ?? 0) === 0);
-            const isWide = (d.wideRuns ?? 0) > 0;
+            const nbVal = d.noBallRuns ?? d.NoBallRuns ?? d.noBall ?? d.NoBall ?? 0;
+            const wdVal = d.wideRuns ?? d.WideRuns ?? d.wide ?? d.Wide ?? 0;
+            const isNoBall = nbVal > 0 || (d.isLegalDelivery === false && wdVal === 0);
+            const isWide = wdVal > 0;
             const isLegal = d._isLegal;
             // For legal balls: show over.ballNum; for illegal: show over.ballNum (same position, will be re-bowled)
             const ballId = isLegal
               ? `${overDisplay}.${d._legalBallNum}`
               : `${overDisplay}.${d._legalBallNum}`;
-            const batRuns = d.runsOfBat ?? 0;
-            const extras = (d.wideRuns ?? 0) + (d.noBallRuns ?? 0) + (d.byeRuns ?? 0) + (d.legByeRuns ?? 0);
+            const batRuns = d.runsOffBat ?? d.RunsOffBat ?? d.runsOfBat ?? 0;
+            const extras = wdVal + nbVal + (d.byeRuns ?? d.ByeRuns ?? d.bye ?? d.Bye ?? 0) + (d.legByeRuns ?? d.LegByeRuns ?? d.legBye ?? d.LegBye ?? 0);
             const runs = calcDeliveryRuns(d);
             const isWicket = !!d.isWicket;
             const label = isWicket ? 'W' : isNoBall ? `NB+${batRuns}` : isWide ? `WD+${runs - 1}` : String(runs);
@@ -1900,7 +2017,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
             } else if (isWide) {
               commentary = `${bowlerName} to ${batsmanName}, wide, ${runs} run${runs !== 1 ? 's' : ''}`;
             } else if (isNoBall) {
-              commentary = `${bowlerName} to ${batsmanName}, no ball, ${runs} run${runs !== 1 ? 's' : ''} (${batRuns} off bat + ${d.noBallRuns ?? 1} penalty)`;
+              commentary = `${bowlerName} to ${batsmanName}, no ball, ${runs} run${runs !== 1 ? 's' : ''} (${batRuns} off bat + ${nbVal} penalty)`;
             } else {
               commentary = `${bowlerName} to ${batsmanName}, ${runs} run${runs !== 1 ? 's' : ''}`;
             }
@@ -1983,6 +2100,11 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
             {/* Over-by-over breakdown */}
             {isExpanded && (
               <div className="px-4 py-2">
+                {inn.overs.length === 0 && (
+                  <div className="py-6 text-center text-gray-400 text-sm">
+                    {deliveriesLoading ? 'Loading deliveries...' : 'No delivery data recorded for this innings yet.'}
+                  </div>
+                )}
                 {inn.overs.map((over, overIdx) => (
                   <div key={overIdx} className="mb-4 border rounded-lg overflow-hidden">
                     {/* Over header */}
