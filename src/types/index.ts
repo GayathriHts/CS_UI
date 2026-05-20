@@ -438,6 +438,58 @@ export interface WaiverReport {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ── SignalR Event Payloads (hub: /hubs/score) ──
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface LiveUpdatedEvent {
+  matchId: string;
+  inningsNo: number;
+  totalRuns: number;
+  totalWickets: number;
+  overNo: number;
+  ballInOver: number;
+  strikerId: string;
+  nonStrikerId: string;
+  currentBowlerId: string;
+  strikerFirstName: string;
+  strikerLastName: string;
+  nonStrikerFirstName: string;
+  nonStrikerLastName: string;
+  bowlerFirstName: string;
+  bowlerLastName: string;
+}
+
+export interface DeliveryAddedEvent {
+  id: string;
+  seq: number;
+  overNo: number;
+  ballIndexLegal: number;
+  strikerId: string;
+  nonStrikerId: string;
+  bowlerId: string;
+  runsOffBat: number;
+  wideRuns: number;
+  noBallRuns: number;
+  byeRuns: number;
+  legByeRuns: number;
+  penaltyRuns: number;
+  totalRuns: number;
+  isLegalDelivery: boolean;
+  isWicket: boolean;
+  dismissalKind: string | null;
+  playerOutId: string | null;
+  isVoided: boolean;
+  clientEventId: string;
+  createdAt: string;
+}
+
+export interface DeliveryVoidedEvent extends DeliveryAddedEvent {
+  voidedBy: string;
+  voidReason: string;
+  voidedAt: string;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ── EPIC E: SCORING & LIVE SCORING ──
 // ═══════════════════════════════════════════════════════════════════════════════
 

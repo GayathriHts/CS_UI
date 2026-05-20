@@ -8,6 +8,7 @@ import type { Umpire, Ground, Tournament, Match, LeagueApplication, Invoice } fr
 import { useAuthStore } from '../store/slices/authStore';
 import Navbar from '../components/Navbar';
 import { scoringHub } from '../services/scoringHub';
+import * as signalR from '@microsoft/signalr';
 
 type LeagueTab = 'dashboard' | 'umpire-list' | 'ground-list' | 'schedule' | 'tournaments' | 'applications' | 'invoices' | 'cancel-game' | 'edit';
 
@@ -1008,11 +1009,6 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     const connectSignalR = async (attempt = 0) => {
       if (cancelled) return;
       try {
-        await scoringHub.connect();
-        if (cancelled) { scoringHub.disconnect(); return; }
-        setSignalRConnected(true);
-        await scoringHub.joinMatch(matchId);
-
         // Debounced invalidation: batch rapid SignalR events into a single refetch
         // Cancels any in-flight queries first to prevent stale responses overwriting newer data
         const invalidate = () => {
@@ -1030,11 +1026,19 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
           }, 400);
         };
 
-        scoringHub.onScorecardLoaded(invalidate);
-        scoringHub.onScoreUpdate(invalidate);
-        scoringHub.onBallUpdate(invalidate);
-        scoringHub.onWicketFallen(invalidate);
-        scoringHub.onInningsBreak(invalidate);
+        scoringHub.onLiveUpdated = () => invalidate();
+        scoringHub.onDeliveryAdded = () => invalidate();
+        scoringHub.onDeliveryVoided = () => invalidate();
+        scoringHub.onConnectionStateChange = (state) => {
+          if (!cancelled) {
+            setSignalRConnected(state === signalR.HubConnectionState.Connected);
+          }
+        };
+
+        await scoringHub.connect();
+        if (cancelled) { scoringHub.disconnect(); return; }
+        setSignalRConnected(true);
+        await scoringHub.joinMatch(matchId);
       } catch (err) {
         console.error('[MatchScorecardView] SignalR connect failed (attempt ' + attempt + '):', err);
         setSignalRConnected(false);
@@ -1052,7 +1056,10 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
       cancelled = true;
       clearTimeout(retryTimeout);
       clearTimeout(debounceTimer);
-      scoringHub.removeAllListeners();
+      scoringHub.onLiveUpdated = null;
+      scoringHub.onDeliveryAdded = null;
+      scoringHub.onDeliveryVoided = null;
+      scoringHub.onConnectionStateChange = null;
       scoringHub.leaveMatch(matchId).catch(() => {});
       scoringHub.disconnect().catch(() => {});
       setSignalRConnected(false);
