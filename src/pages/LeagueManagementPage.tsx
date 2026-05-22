@@ -664,9 +664,9 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
       const items = d?.data ?? d;
       return Array.isArray(items) ? items : items?.$values ?? [];
     }),
-    refetchInterval: 15000,
+    refetchInterval: 10000,
     retry: 1,
-    staleTime: 10000,
+    staleTime: 0,
   });
 
   const matchLiveId = (m: any) => m.id || m.Id || m.scheduleId || m.ScheduleId || m.matchId || m.MatchId || '';
@@ -706,8 +706,8 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
       } catch { return []; }
     },
     enabled: !!matchId && inningsNumber >= 1,
-    staleTime: 10000,
-    refetchInterval: effectivelyLive ? 15000 : false,
+    staleTime: 0,
+    refetchInterval: effectivelyLive ? 10000 : false,
     retry: 1,
     placeholderData: (prev: any) => prev, // keep previous data visible during refetch
   });
@@ -796,8 +796,13 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
   const bowlingEntries = bowlingEntriesRaw;
   const ordinal = inningsNumber === 1 ? '1st' : inningsNumber === 2 ? '2nd' : `${inningsNumber}th`;
 
-  // Determine current striker from last delivery
-  const liveStrikerId = (() => {
+  // Determine current striker: prefer liveMatch API (authoritative server state),
+  // then scorecard batsman status, then last delivery as final fallback
+  const liveStrikerId = liveMatch?.strikerId ?? liveMatch?.StrikerId ?? (() => {
+    // Fallback: check scorecard batsman entries for isStriker/isOnStrike/status
+    const strikerEntry = battingEntries.find((b: any) => b.isStriker === true || b.isOnStrike === true || b.status === 'Striker');
+    if (strikerEntry) return strikerEntry.batsmanId ?? strikerEntry.playerId ?? strikerEntry.id ?? null;
+    // Last resort: last delivery's strikerId (may be stale after rotation)
     if (liveDeliveries.length > 0) {
       const sorted = [...liveDeliveries].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
       return sorted[sorted.length - 1]?.strikerId ?? null;
@@ -1029,19 +1034,16 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
       if (cancelled) return;
       try {
         // Debounced invalidation: batch rapid SignalR events into a single refetch
-        // Cancels any in-flight queries first to prevent stale responses overwriting newer data
+        // Use short debounce (150ms) so rapid scoring still syncs quickly
         const invalidate = () => {
           clearTimeout(debounceTimer);
           debounceTimer = setTimeout(() => {
-            queryClient.cancelQueries({ queryKey: ['scorecard', matchId] });
-            queryClient.cancelQueries({ queryKey: ['deliveriesForLive', matchId] });
-            queryClient.cancelQueries({ queryKey: ['deliveriesForScorecard', matchId] });
             queryClient.invalidateQueries({ queryKey: ['scorecard', matchId] });
             queryClient.invalidateQueries({ queryKey: ['deliveries', matchId] });
             queryClient.invalidateQueries({ queryKey: ['deliveriesForLive', matchId] });
             queryClient.invalidateQueries({ queryKey: ['deliveriesForScorecard', matchId] });
             queryClient.invalidateQueries({ queryKey: ['liveMatches'] });
-          }, 400);
+          }, 150);
         };
 
         scoringHub.onLiveUpdated = () => invalidate();
@@ -1148,22 +1150,23 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     return side === 'home' ? (m?.homeTeamName || '') : (m?.awayTeamName || '');
   };
 
-  // Fetch grounds list to resolve ground city for the match header
-  const matchGroundId = match?.groundId || '';
-  const { data: scorecardGroundCity } = useQuery({
-    queryKey: ['groundCityLookup', scorecardBoardId, matchGroundId],
-    queryFn: async () => {
-      try {
-        const r = await leagueService.getGrounds(scorecardBoardId);
-        const d = r.data as any;
-        const list = Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.$values ?? [];
-        const g = list.find((g: any) => (g.groundId || g.id) === matchGroundId);
-        return g?.city || '';
-      } catch { return ''; }
-    },
-    enabled: !!scorecardBoardId && !!matchGroundId,
+  // Fetch grounds list to resolve ground city & name for the match header
+  // Reuse the same query key as the schedule tab so the cache is shared
+  const matchGroundId = match?.groundId || match?.GroundId || '';
+  const { data: scorecardGroundsList } = useQuery({
+    queryKey: ['grounds', scorecardBoardId],
+    queryFn: () => leagueService.getGrounds(scorecardBoardId).then(r => {
+      const d = r.data as any;
+      return Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.$values ?? [];
+    }),
+    enabled: !!scorecardBoardId,
     staleTime: 60000,
   });
+  const matchGround = matchGroundId && Array.isArray(scorecardGroundsList)
+    ? scorecardGroundsList.find((g: any) => (g.groundId || g.id) === matchGroundId)
+    : null;
+  const scorecardGroundCity = matchGround?.city || matchGround?.City || match?.groundCity || match?.GroundCity || '';
+  const scorecardGroundName = matchGround?.groundName || matchGround?.GroundName || matchGround?.name || match?.groundName || match?.GroundName || match?.ground || '';
 
   const isMatchLive = (() => {
     const s = (match?.status ?? '').toLowerCase().replace(/[_\s]/g, '');
@@ -1186,6 +1189,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
       return sc;
     }),
     enabled: !!matchId,
+    staleTime: 0,
     refetchInterval: isMatchLive ? 10000 : 30000,
   });
 
@@ -1260,9 +1264,10 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
           <p className="text-base font-bold text-gray-800">{resolveBoardName(match, 'home')} vs {resolveBoardName(match, 'away')}</p>
           <p className="text-xs text-gray-500 mt-1">
             {match?.tournamentName}
-            {(scorecardGroundCity) && <> &bull; {scorecardGroundCity}</>}
+            {(match?.name) && <> &bull; {match.name}</>}
             {(match?.gameType) && <> &bull; {match.gameType}</>}
-            {(match?.groundName) && <> &bull; 📍 {match.groundName}</>}
+            {scorecardGroundName && <> &bull; 📍 {scorecardGroundName}</>}
+            {scorecardGroundCity && <> &bull; {scorecardGroundCity}</>}
           </p>
           {match?.result && <p className="text-xs text-green-700 font-medium mt-1">{match.result}</p>}
         </div>
@@ -1297,7 +1302,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
         )}
         {visitedTabs.has('scorecard') && (
           <div className={activeTab !== 'scorecard' ? 'hidden' : ''}>
-            <ScorecardTabContent scorecard={scorecard as any} loading={scorecardLoading} playerNameMap={resolvedPlayerMap} matchId={matchId} />
+            <ScorecardTabContent scorecard={scorecard as any} loading={scorecardLoading} playerNameMap={resolvedPlayerMap} matchId={matchId} isLive={isMatchLive} />
           </div>
         )}
         {visitedTabs.has('ball-by-ball') && (
@@ -1311,7 +1316,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
 }
 
 // -- SCORECARD TAB CONTENT --
-function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { scorecard: any; loading: boolean; playerNameMap?: Record<string, string>; matchId?: string }) {
+function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLive }: { scorecard: any; loading: boolean; playerNameMap?: Record<string, string>; matchId?: string; isLive?: boolean }) {
   // Map API innings data to display format
   const apiInnings: any[] = scorecard?.innings ?? [];
 
@@ -1331,19 +1336,9 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
       return allDeliveries;
     },
     enabled: !!matchId && apiInnings.length > 0,
-    staleTime: 10000,
+    staleTime: 0,
+    refetchInterval: isLive ? 10000 : false,
   });
-
-  // Extract last delivery for striker info
-  const lastDeliveryData = (() => {
-    if (!deliveriesData?.[currentInningsNo]) return null;
-    const deliveries = deliveriesData[currentInningsNo];
-    if (deliveries.length > 0) {
-      const last = deliveries[deliveries.length - 1];
-      return { strikerId: last.strikerId, nonStrikerId: last.nonStrikerId, inningsNo: currentInningsNo };
-    }
-    return null;
-  })();
 
   // Build player ID → name map from scorecard data (batsmen + bowlers across all innings)
   const playerIdNameMap: Record<string, string> = {};
@@ -1767,12 +1762,9 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId }: { s
                     </thead>
                     <tbody>
                       {inn.batting.map((b: any, idx: number) => {
-                        // Determine striker using last delivery's strikerId/nonStrikerId
-                        const isCurrentInnings = inn.inningsNumber === currentInningsNo;
-                        const strikerFromDelivery = isCurrentInnings && lastDeliveryData?.strikerId && b.batsmanId === lastDeliveryData.strikerId;
-                        const nonStrikerFromDelivery = isCurrentInnings && lastDeliveryData?.nonStrikerId && b.batsmanId === lastDeliveryData.nonStrikerId;
-                        const isStriker = strikerFromDelivery || b.isStriker;
-                        const isNonStriker = nonStrikerFromDelivery || b.isNonStriker;
+                        // Determine striker: use scorecard API's isStriker (authoritative)
+                        const isStriker = b.isStriker;
+                        const isNonStriker = b.isNonStriker;
                         return (
                         <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50/30">
                           <td className="py-2.5 px-3 text-blue-700 font-medium">
@@ -2252,13 +2244,24 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
   const initialScorecardTab = (searchParams.get('scorecardTab') as ScorecardTab) || 'scorecard';
 
   const setSelectedMatch = (m: any, tab?: ScorecardTab) => {
-    setSelectedMatchState(m);
     if (m) {
+      // Enrich match with ground info from cached grounds list so location shows instantly
+      const groundsList = Array.isArray(landingGrounds) ? landingGrounds : [];
+      const gId = m.groundId || m.GroundId || '';
+      const ground = gId ? groundsList.find((g: any) => (g.groundId || g.id) === gId) : null;
+      const enriched = { ...m };
+      if (ground) {
+        if (!enriched.groundName) enriched.groundName = ground.groundName || ground.GroundName || ground.name || '';
+        if (!enriched.groundCity) enriched.groundCity = ground.city || ground.City || '';
+        if (!enriched.groundAddress) enriched.groundAddress = ground.address1 || ground.Address1 || ground.address || '';
+      }
+      setSelectedMatchState(enriched);
       const params = new URLSearchParams(searchParams);
       params.set('matchId', m.id);
       params.set('scorecardTab', tab || 'scorecard');
       setSearchParams(params, { replace: true });
     } else {
+      setSelectedMatchState(null);
       const params = new URLSearchParams(searchParams);
       params.delete('matchId');
       params.delete('scorecardTab');
@@ -2282,6 +2285,17 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
       });
     },
     refetchInterval: 30000,
+  });
+
+  // Pre-fetch grounds so location data is cached before user opens a match
+  const { data: landingGrounds } = useQuery({
+    queryKey: ['grounds', boardId],
+    queryFn: () => leagueService.getGrounds(boardId).then(r => {
+      const d = r.data as any;
+      return Array.isArray(d) ? d : d?.items ?? d?.data ?? d?.$values ?? [];
+    }),
+    enabled: !!boardId,
+    staleTime: 60000,
   });
 
   const allMatches = (schedule ?? []) as any[];
@@ -2383,9 +2397,20 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
   useEffect(() => {
     if (urlMatchId && !selectedMatch && allMatches.length > 0) {
       const found = allMatches.find((m: any) => m.id === urlMatchId);
-      if (found) setSelectedMatchState(found);
+      if (found) {
+        // Enrich with ground info from cached grounds
+        const groundsList = Array.isArray(landingGrounds) ? landingGrounds : [];
+        const gId = found.groundId || found.GroundId || '';
+        const ground = gId ? groundsList.find((g: any) => (g.groundId || g.id) === gId) : null;
+        const enriched = { ...found };
+        if (ground) {
+          if (!enriched.groundName) enriched.groundName = ground.groundName || ground.GroundName || ground.name || '';
+          if (!enriched.groundCity) enriched.groundCity = ground.city || ground.City || '';
+        }
+        setSelectedMatchState(enriched);
+      }
     }
-  }, [urlMatchId, allMatches]);
+  }, [urlMatchId, allMatches, landingGrounds]);
 
   // If a match is selected, show the scorecard view
   if (selectedMatch) {
