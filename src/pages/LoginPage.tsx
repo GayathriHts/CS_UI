@@ -102,6 +102,23 @@ export default function LoginPage() {
     setError('');
     setForgotFieldErrors({});
 
+    const getForgotPasswordError = (err: any) => {
+      if (!err?.response) {
+        return 'Unable to reach the auth service. Verify the API proxy target or backend connection and try again.';
+      }
+
+      const resp = err?.response?.data;
+      const msg = resp?.error?.message || resp?.message || (typeof resp?.error === 'string' ? resp.error : '');
+      if (typeof msg === 'string' && msg.length > 0) {
+        if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no user') || msg.toLowerCase().includes('does not exist')) {
+          return 'Account has not been registered. Please sign up.';
+        }
+        return msg;
+      }
+
+      return 'Something went wrong. Please try again';
+    };
+
     if (forgotStep === 'email') {
       // Email validation (same as Register page)
       let email = forgotEmail ? forgotEmail.trim() : '';
@@ -129,17 +146,7 @@ export default function LoginPage() {
         }
         setForgotStep('otp');
       } catch (err: any) {
-        const resp = err?.response?.data;
-        const msg = resp?.error?.message || resp?.message || (typeof resp?.error === 'string' ? resp.error : '');
-        if (typeof msg === 'string' && msg.length > 0) {
-          if (msg.toLowerCase().includes('not registered') || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('no user') || msg.toLowerCase().includes('does not exist')) {
-            setError('Account has not been registered. Please sign up.');
-          } else {
-            setError(msg);
-          }
-        } else {
-          setError('Something went wrong. Please try again');
-        }
+        setError(getForgotPasswordError(err));
       } finally {
         setLoading(false);
       }

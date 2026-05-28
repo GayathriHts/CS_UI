@@ -2,7 +2,7 @@ import * as signalR from '@microsoft/signalr';
 import type { LiveUpdatedEvent, DeliveryAddedEvent, DeliveryVoidedEvent } from '../types';
 
 // Hub path must match the backend: /hubs/score (not /hubs/scoring)
-const SCORING_HUB_URL = import.meta.env.VITE_SIGNALR_URL || (import.meta.env.DEV ? '/hubs/score' : 'http://124.123.3.225:9000/hubs/score');
+const SCORING_HUB_URL = import.meta.env.VITE_SIGNALR_URL || (import.meta.env.DEV ? '/hubs/score' : 'http://40.81.244.40:9000/hubs/score');
 
 class ScoringHubService {
   private connection: signalR.HubConnection | null = null;
