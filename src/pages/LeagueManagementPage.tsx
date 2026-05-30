@@ -58,6 +58,25 @@ const formatDateOnly = (d: string | Date): string => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
+/** Normalize mixed datetime formats to YYYY-MM-DD for consistent date-range filtering */
+const toDateKey = (raw: string): string => {
+  if (!raw) return '';
+  const s = String(raw).trim();
+
+  const isoStart = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoStart) return `${isoStart[1]}-${isoStart[2]}-${isoStart[3]}`;
+
+  const slashStart = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (slashStart) return `${slashStart[3]}-${slashStart[2]}-${slashStart[1]}`;
+
+  const dt = new Date(ensureUtc(s));
+  if (isNaN(dt.getTime())) return '';
+  const yyyy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 const sidebarSections: { id: SidebarSection; label: string; items: { id: LeagueTab; label: string }[] }[] = [
   {
     id: 'umpires', label: 'UMPIRES',
@@ -1028,27 +1047,24 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     if (!matchId) return;
     let cancelled = false;
     let retryTimeout: ReturnType<typeof setTimeout>;
-    let debounceTimer: ReturnType<typeof setTimeout>;
 
     const connectSignalR = async (attempt = 0) => {
       if (cancelled) return;
       try {
-        // Debounced invalidation: batch rapid SignalR events into a single refetch
-        // Use short debounce (150ms) so rapid scoring still syncs quickly
-        const invalidate = () => {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            queryClient.invalidateQueries({ queryKey: ['scorecard', matchId] });
-            queryClient.invalidateQueries({ queryKey: ['deliveries', matchId] });
-            queryClient.invalidateQueries({ queryKey: ['deliveriesForLive', matchId] });
-            queryClient.invalidateQueries({ queryKey: ['deliveriesForScorecard', matchId] });
-            queryClient.invalidateQueries({ queryKey: ['liveMatches'] });
-          }, 150);
+        // Refetch immediately when a scoring event arrives.
+        // This keeps scorecards in sync without waiting for manual refresh.
+        const refetchNow = () => {
+          queryClient.refetchQueries({ queryKey: ['scorecard', matchId], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['deliveries', matchId], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['deliveriesForLive', matchId], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['deliveriesForScorecard', matchId], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['liveMatches'], type: 'active' });
+          queryClient.refetchQueries({ queryKey: ['landingLiveMatches'], type: 'active' });
         };
 
-        scoringHub.onLiveUpdated = () => invalidate();
-        scoringHub.onDeliveryAdded = () => invalidate();
-        scoringHub.onDeliveryVoided = () => invalidate();
+        scoringHub.onLiveUpdated = () => refetchNow();
+        scoringHub.onDeliveryAdded = () => refetchNow();
+        scoringHub.onDeliveryVoided = () => refetchNow();
         scoringHub.onConnectionStateChange = (state) => {
           if (!cancelled) {
             setSignalRConnected(state === signalR.HubConnectionState.Connected);
@@ -1059,6 +1075,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
         if (cancelled) { scoringHub.disconnect(); return; }
         setSignalRConnected(true);
         await scoringHub.joinMatch(matchId);
+        refetchNow();
       } catch (err) {
         console.error('[MatchScorecardView] SignalR connect failed (attempt ' + attempt + '):', err);
         setSignalRConnected(false);
@@ -1075,7 +1092,6 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     return () => {
       cancelled = true;
       clearTimeout(retryTimeout);
-      clearTimeout(debounceTimer);
       scoringHub.onLiveUpdated = null;
       scoringHub.onDeliveryAdded = null;
       scoringHub.onDeliveryVoided = null;
@@ -1190,7 +1206,9 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     }),
     enabled: !!matchId,
     staleTime: 0,
-    refetchInterval: isMatchLive ? 10000 : 30000,
+    refetchInterval: isMatchLive ? 2000 : 15000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   // Resolve player IDs from didNotBat to names by fetching user details
@@ -1337,7 +1355,9 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
     },
     enabled: !!matchId && apiInnings.length > 0,
     staleTime: 0,
-    refetchInterval: isLive ? 10000 : false,
+    refetchInterval: isLive ? 2000 : false,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   // Build player ID → name map from scorecard data (batsmen + bowlers across all innings)
@@ -1897,7 +1917,9 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
     },
     enabled: !!matchId && inningsNumbers.length > 0,
     staleTime: 10000,
-    refetchInterval: 15000,
+    refetchInterval: 2000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   // Map innings with their fetched deliveries
@@ -5729,11 +5751,15 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   // Fetch matches for the selected date range
   const { data: cancelMatches, isLoading: isLoadingMatches } = useQuery({
     queryKey: ['cancelGameSchedule', boardId, from, to],
-    queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
-      const d = r.data;
-      const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-      return list;
-    }),
+    queryFn: () => {
+      const fromStart = from ? `${from}T00:00:00` : from;
+      const toEnd = to ? `${to}T23:59:59` : to;
+      return leagueService.getSchedule(boardId, fromStart, toEnd).then(r => {
+        const d = r.data;
+        const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+        return list;
+      });
+    },
     enabled: !!from && !!to,
   });
 
@@ -5741,10 +5767,11 @@ function CancelGameTab({ boardId }: { boardId: string }) {
   if (rawMatchList.length > 0) console.log('[CancelGame] First match keys:', Object.keys(rawMatchList[0]), 'id:', rawMatchList[0].id, 'scheduleId:', rawMatchList[0].scheduleId, 'Id:', rawMatchList[0].Id, 'ScheduleId:', rawMatchList[0].ScheduleId);
   const getMatchId = (m: any): string => m.scheduleId || m.ScheduleId || m.id || m.Id || '';
   const matchList = rawMatchList.filter((m: any) => {
-    const d = ensureUtc(m.startAtUtc || m.scheduledAt);
-    if (!d || !from || !to) return true;
-    const dateStr = d.split('T')[0];
-    return dateStr >= from && dateStr <= to;
+    const dateKey = toDateKey(m.startAtUtc || m.scheduledAt || m.StartAtUtc || m.ScheduledAt || '');
+    if (!dateKey) return true;
+    if (from && dateKey < from) return false;
+    if (to && dateKey > to) return false;
+    return true;
   }).slice().sort((a: any, b: any) => {
     const dateA = new Date(ensureUtc(a.startAtUtc || a.scheduledAt) || 0).getTime();
     const dateB = new Date(ensureUtc(b.startAtUtc || b.scheduledAt) || 0).getTime();
@@ -6409,13 +6436,17 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   const { data: matches } = useQuery({
     queryKey: ['schedule', boardId, from, to],
-    queryFn: () => leagueService.getSchedule(boardId, from, to).then(r => {
-      const d = r.data;
-      const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
-      console.log('?? Schedule GET raw response:', d);
-      if (list.length > 0) console.log('?? First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
-      return list;
-    }),
+    queryFn: () => {
+      const fromStart = from ? `${from}T00:00:00` : from;
+      const toEnd = to ? `${to}T23:59:59` : to;
+      return leagueService.getSchedule(boardId, fromStart, toEnd).then(r => {
+        const d = r.data;
+        const list = Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? [];
+        console.log('?? Schedule GET raw response:', d);
+        if (list.length > 0) console.log('?? First schedule item keys:', Object.keys(list[0]), 'values:', list[0]);
+        return list;
+      });
+    },
     enabled: !!from && !!to,
   });
 
@@ -6471,6 +6502,7 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   const getHomeId = (m: any): string => m.homeTeamId || m.homeTeamBoardId || m.HomeTeamId || m.HomeTeamBoardId || '';
   const getAwayId = (m: any): string => m.awayTeamId || m.awayTeamBoardId || m.AwayTeamId || m.AwayTeamBoardId || '';
   const getGroundId = (m: any): string => m.groundId || m.GroundId || '';
+  const getScheduleId = (m: any): string => m.id || m.scheduleId || m.Id || m.ScheduleId || '';
   const getSchedDate = (m: any): string => ensureUtc(m.startAtUtc || m.StartAtUtc || m.startAtUTC || m.startatutc || m.scheduledAt || m.ScheduledAt || '');
   const getMatchUmpire = (m: any): string => m.umpireId || m.UmpireId || m.umpireid || m.Umpireid || '';
   const checkDuplicateSchedule = (scheduledAt: string, groundId: string, homeTeamId: string, awayTeamId: string, excludeMatchId?: string | null): string => {
@@ -6647,10 +6679,11 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
 
   // Client-side date range filter as safety net
   const matchList = rawMatchList.filter((m: any) => {
-    const d = ensureUtc(m.startAtUtc || m.scheduledAt);
-    if (!d || !from || !to) return true;
-    const dateStr = d.split('T')[0];
-    return dateStr >= from && dateStr <= to;
+    const dateKey = toDateKey(m.startAtUtc || m.scheduledAt || m.StartAtUtc || m.ScheduledAt || '');
+    if (!dateKey) return true;
+    if (from && dateKey < from) return false;
+    if (to && dateKey > to) return false;
+    return true;
   }).slice().sort((a: any, b: any) => {
     const dateA = new Date(ensureUtc(a.startAtUtc || a.scheduledAt) || 0).getTime();
     const dateB = new Date(ensureUtc(b.startAtUtc || b.scheduledAt) || 0).getTime();
@@ -6930,11 +6963,16 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
   });
 
   const handleEditMatch = (m: any) => {
+    const scheduleId = getScheduleId(m);
+    if (!scheduleId) {
+      setEditError('Schedule ID is missing for this row. Please refresh and try again.');
+      return;
+    }
     // Store the selected schedule ID in sessionStorage so it persists
     editSsClearAll();
     sessionStorage.setItem('schedule_mode', 'edit');
-    editSsSet('id', m.id);
-    setEditMatchId(m.id);
+    editSsSet('id', scheduleId);
+    setEditMatchId(scheduleId);
     setEditTournamentId(m.tournamentId || '');
     setEditGameType(m.gameType || '');
     setEditHomeTeamId(m.homeTeamId || m.homeTeamBoardId || '');
@@ -6973,7 +7011,8 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
     // If editOriginal is already set, this isn't a fresh mount restore
     if (editOriginal) return;
     // Try to find the match in loaded data
-    const m = rawMatchList.find((x: any) => x.id === editMatchId) || allMatchList.find((x: any) => x.id === editMatchId);
+    const m = rawMatchList.find((x: any) => getScheduleId(x) === editMatchId)
+      || allMatchList.find((x: any) => getScheduleId(x) === editMatchId);
     if (m) {
       editRestoredRef.current = true;
       handleEditMatch(m);
@@ -7705,8 +7744,10 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
         <table className="w-full text-sm table-fixed">
           <thead><tr className="text-white text-left font-bold text-sm" style={{backgroundColor: '#8091A5'}}><th className="py-3 px-4 rounded-tl-lg w-[13%]">Tournament</th><th className="py-3 px-4 w-[11%]">Home</th><th className="py-3 px-4 w-[11%]">Away</th><th className="py-3 px-4 w-[11%]">Ground</th><th className="py-3 px-4 w-[9%]">Umpire</th><th className="py-3 px-4 w-[11%]">App Scorer</th><th className="py-3 px-4 w-[14%]">Date</th><th className="py-3 px-4 w-[10%]">Status</th><th className="py-3 px-4 rounded-tr-lg w-[10%]">Actions</th></tr></thead>
           <tbody>
-            {matchList.map((m: any) => (
-              <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
+            {matchList.map((m: any) => {
+              const scheduleId = getScheduleId(m);
+              return (
+              <tr key={scheduleId || `${m.tournamentId || 't'}-${m.startAtUtc || m.scheduledAt || Math.random()}`} className="border-b last:border-b-0 hover:bg-gray-50">
                 <td className="py-3 px-4 truncate">{lookupTournamentName(m)}</td>
                 <td className="py-3 px-4 truncate">{m.homeTeamName || lookupTeamName(m.homeTeamId || m.homeTeamBoardId)}</td>
                 <td className="py-3 px-4 truncate">{m.awayTeamName || lookupTeamName(m.awayTeamId || m.awayTeamBoardId)}</td>
@@ -7721,18 +7762,18 @@ function ScheduleTab({ boardId, onDirtyChange }: { boardId: string; onDirtyChang
                   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium inline-flex items-center gap-1 ${inProg ? 'bg-green-100 text-green-700' : completed ? 'bg-gray-200 text-gray-700' : 'bg-blue-100 text-blue-700'}`}>{inProg && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />}{inProg ? 'In Progress' : s}</span>;
                 })()}</td>
                 <td className="py-3 px-4"><div className="flex items-center gap-4">
-                  <button onClick={() => { setViewMatchId(m.id); setEditMatchId(null); }} className="text-gray-500 hover:text-gray-700" title="View">
+                  <button onClick={() => { if (scheduleId) { setViewMatchId(scheduleId); setEditMatchId(null); } }} className="text-gray-500 hover:text-gray-700" title="View" disabled={!scheduleId}>
                     <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                   </button>
-                  <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700" title="Edit">
+                  <button onClick={() => handleEditMatch(m)} className="text-blue-500 hover:text-blue-700" title="Edit" disabled={!scheduleId}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                   </button>
-                  <button onClick={() => setDeleteConfirmId(m.id)} className="text-red-500 hover:text-red-700" title="Delete">
+                  <button onClick={() => { if (scheduleId) setDeleteConfirmId(scheduleId); }} className="text-red-500 hover:text-red-700" title="Delete" disabled={!scheduleId}>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                   </button>
                 </div></td>
               </tr>
-            ))}
+            ); })}
             {(!matchList.length) && <tr><td colSpan={8} className="py-8 text-center text-gray-400">No matches in selected date range.</td></tr>}
           </tbody>
         </table>
