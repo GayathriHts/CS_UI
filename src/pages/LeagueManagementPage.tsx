@@ -58,6 +58,9 @@ const formatDateOnly = (d: string | Date): string => {
   return `${dd}/${mm}/${yyyy}`;
 };
 
+const normalizeStatusKey = (status: any): string => String(status ?? '').toLowerCase().replace(/[_\s-]/g, '');
+const isLiveEligibleStatus = (status: any): boolean => ['live', 'inprogress', 'started', 'matchstarted'].includes(normalizeStatusKey(status));
+
 /** Normalize mixed datetime formats to YYYY-MM-DD for consistent date-range filtering */
 const toDateKey = (raw: string): string => {
   if (!raw) return '';
@@ -1051,10 +1054,14 @@ const SCORECARD_TABS: ScorecardTab[] = ['live', 'scorecard', 'ball-by-ball'];
 function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { matchId: string; match: any; onBack: () => void; initialScorecardTab?: ScorecardTab }) {
   const { boardId: routeBoardId } = useParams<{ boardId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTabState] = useState<ScorecardTab>(initialScorecardTab || 'scorecard');
-  const [visitedTabs, setVisitedTabs] = useState<Set<ScorecardTab>>(new Set<ScorecardTab>([initialScorecardTab || 'scorecard']));
+  const initialTab: ScorecardTab = initialScorecardTab === 'live' && !isLiveEligibleStatus(match?.status)
+    ? 'scorecard'
+    : (initialScorecardTab || 'scorecard');
+  const [activeTab, setActiveTabState] = useState<ScorecardTab>(initialTab);
+  const [visitedTabs, setVisitedTabs] = useState<Set<ScorecardTab>>(new Set<ScorecardTab>([initialTab]));
   const queryClient = useQueryClient();
   const setActiveTab = (tab: ScorecardTab) => {
+    if (tab === 'live' && !canOpenLiveTab) return;
     setActiveTabState(tab);
     setVisitedTabs(prev => { const next = new Set(prev); next.add(tab); return next; });
     // Update URL directly so refresh preserves the tab
@@ -1066,6 +1073,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
 
   // Connect to SignalR hub for real-time scorecard updates
   const [signalRConnected, setSignalRConnected] = useState(false);
+  const canOpenLiveTab = isLiveEligibleStatus(match?.status) || signalRConnected;
   useEffect(() => {
     if (!matchId) return;
     let cancelled = false;
@@ -1244,9 +1252,14 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
   const scorecardGroundName = matchGround?.groundName || matchGround?.GroundName || matchGround?.name || match?.groundName || match?.GroundName || match?.ground || '';
 
   const isMatchLive = (() => {
-    const s = (match?.status ?? '').toLowerCase().replace(/[_\s]/g, '');
-    return ['live', 'inprogress', 'started'].includes(s) || signalRConnected;
+    return isLiveEligibleStatus(match?.status) || signalRConnected;
   })();
+
+  useEffect(() => {
+    if (activeTab === 'live' && !canOpenLiveTab) {
+      setActiveTab('scorecard');
+    }
+  }, [activeTab, canOpenLiveTab]);
   const { data: scorecard, isLoading: scorecardLoading } = useQuery({
     queryKey: ['scorecard', matchId],
     queryFn: () => scoringService.getScorecard(matchId).then(r => {
@@ -1357,10 +1370,13 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              disabled={tab.id === 'live' && !canOpenLiveTab}
               className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === tab.id
                   ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : tab.id === 'live' && !canOpenLiveTab
+                    ? 'border-transparent text-gray-400 cursor-not-allowed'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
               <span>{tab.icon}</span>
@@ -2553,7 +2569,11 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
       setSelectedMatchState(enriched);
       const params = new URLSearchParams(searchParams);
       params.set('matchId', m.id);
-      params.set('scorecardTab', tab || 'scorecard');
+      const requestedTab = tab || 'scorecard';
+      const allowedTab: ScorecardTab = requestedTab === 'live' && !isLiveEligibleStatus(getEffectiveStatus(m))
+        ? 'scorecard'
+        : requestedTab;
+      params.set('scorecardTab', allowedTab);
       setSearchParams(params, { replace: true });
     } else {
       setSelectedMatchState(null);
@@ -2606,13 +2626,11 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
     refetchInterval: 1000,
   });
 
-  const normalizeStatus = (s: any) => String(s ?? '').toLowerCase().replace(/[_\s-]/g, '');
-  const isLiveLike = (s: any) => ['live', 'inprogress', 'started'].includes(normalizeStatus(s));
   const idKey = (id: any) => String(id ?? '').trim().toLowerCase();
 
   const liveMatchIds = new Set(
     (Array.isArray(landingLiveMatches) ? landingLiveMatches : [])
-      .filter((m: any) => isLiveLike(m.status ?? m.Status ?? m.matchStatus ?? m.MatchStatus ?? m.gameStatus ?? m.GameStatus))
+      .filter((m: any) => isLiveEligibleStatus(m.status ?? m.Status ?? m.matchStatus ?? m.MatchStatus ?? m.gameStatus ?? m.GameStatus))
       .flatMap((m: any) => [m.id, m.Id, m.scheduleId, m.ScheduleId, m.matchId, m.MatchId].filter(Boolean))
       .map((id: any) => idKey(id))
   );
@@ -2627,7 +2645,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
     const s = getEffectiveStatus(m).toLowerCase().replace(/[_\s]/g, '');
     return s === 'completed' || s === 'complete' || s === 'finished' || s === 'ended';
   });
-  const isInProgress = (s: string) => isLiveLike(s);
+  const isInProgress = (s: string) => isLiveEligibleStatus(s);
   const upcomingMatches = allMatches.filter((m: any) => {
     const s = getEffectiveStatus(m);
     const sNorm = s.toLowerCase().replace(/[_\s]/g, '');
@@ -2762,18 +2780,24 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         {upcomingMatches.length > 0 ? (
           <div className="space-y-3">
             {upcomingMatches.map((m: any) => {
-              const live = isInProgress(getEffectiveStatus(m));
+              const liveEnabled = isInProgress(getEffectiveStatus(m));
               return (
                 <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                   <div>
                     <p className="text-sm font-medium">{resolveBoardName(m, 'home')} vs {resolveBoardName(m, 'away')}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    {live ? (
-                      <button onClick={() => setSelectedMatch(m, 'live')} className="px-4 py-1.5 bg-brand-bg text-white rounded text-xs font-semibold hover:bg-brand-dark transition-colors whitespace-nowrap">Live Score</button>
-                    ) : (
-                      <button disabled className="px-4 py-1.5 bg-gray-300 text-gray-500 rounded text-xs font-semibold cursor-not-allowed whitespace-nowrap">View Score</button>
-                    )}
+                    <button
+                      onClick={() => liveEnabled && setSelectedMatch(m, 'live')}
+                      disabled={!liveEnabled}
+                      className={`px-4 py-1.5 rounded text-xs font-semibold whitespace-nowrap transition-colors ${
+                        liveEnabled
+                          ? 'bg-brand-bg text-white hover:bg-brand-dark'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                    >
+                      Live Score
+                    </button>
                   </div>
                 </div>
               );
