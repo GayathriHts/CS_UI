@@ -676,6 +676,7 @@ function EditLeagueForm({ board, boardId, onClose, onSaved, onDirtyChange }: { b
 
 // -- LIVE TAB CONTENT (fetches from ScoringService API) --
 function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { matchId: string; scorecard: any; scorecardLoading: boolean; match?: any }) {
+  const lastSixBallsCacheRef = useRef<string[]>([]);
   const { data: liveMatches, isLoading: liveLoading } = useQuery({
     queryKey: ['liveMatches'],
     queryFn: () => scoringService.getLiveMatches().then(r => {
@@ -683,7 +684,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
       const items = d?.data ?? d;
       return Array.isArray(items) ? items : items?.$values ?? [];
     }),
-    refetchInterval: 10000,
+    refetchInterval: 1000,
     retry: 1,
     staleTime: 0,
   });
@@ -719,14 +720,14 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
     queryKey: ['deliveriesForLive', matchId, inningsNumber],
     queryFn: async () => {
       try {
-        const r = await scoringService.getDeliveries(matchId, inningsNumber, 0, 500);
+          const r = await scoringService.getDeliveries(matchId, inningsNumber, 0, 5000);
         const raw = r.data?.data ?? r.data;
         return Array.isArray(raw) ? raw : raw?.$values ?? [];
       } catch { return []; }
     },
     enabled: !!matchId && inningsNumber >= 1,
     staleTime: 0,
-    refetchInterval: effectivelyLive ? 10000 : false,
+    refetchInterval: effectivelyLive ? 1000 : false,
     retry: 1,
     placeholderData: (prev: any) => prev, // keep previous data visible during refetch
   });
@@ -815,19 +816,33 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
   const bowlingEntries = bowlingEntriesRaw;
   const ordinal = inningsNumber === 1 ? '1st' : inningsNumber === 2 ? '2nd' : `${inningsNumber}th`;
 
-  // Determine current striker: prefer liveMatch API (authoritative server state),
-  // then scorecard batsman status, then last delivery as final fallback
-  const liveStrikerId = liveMatch?.strikerId ?? liveMatch?.StrikerId ?? (() => {
-    // Fallback: check scorecard batsman entries for isStriker/isOnStrike/status
-    const strikerEntry = battingEntries.find((b: any) => b.isStriker === true || b.isOnStrike === true || b.status === 'Striker');
-    if (strikerEntry) return strikerEntry.batsmanId ?? strikerEntry.playerId ?? strikerEntry.id ?? null;
-    // Last resort: last delivery's strikerId (may be stale after rotation)
-    if (liveDeliveries.length > 0) {
-      const sorted = [...liveDeliveries].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
-      return sorted[sorted.length - 1]?.strikerId ?? null;
+  // Determine current striker: prefer scorecard API isStriker flag (most authoritative),
+  // validate with liveMatch API, then use last delivery as fallback
+  const liveStrikerId = liveMatch?.strikerId ?? liveMatch?.StrikerId ?? null;
+  const liveStrikerName = liveMatch?.strikerName ?? liveMatch?.StrikerName ?? null;
+  
+  // Normalize ID for comparison (handle different formats/casings)
+  const normalizeId = (id: any): string => String(id ?? '').trim().toLowerCase();
+  
+  // Helper to match striker by ID or name
+  const isStrikerByIdOrName = (b: any): boolean => {
+    // First priority: scorecard API's isStriker flag (most authoritative)
+    if (b.isStriker === true || b.isOnStrike === true || b.status === 'Striker') return true;
+    
+    // Second priority: match by liveStrikerId from API
+    if (liveStrikerId) {
+      const batsmanId = b.batsmanId ?? b.playerId ?? b.id ?? '';
+      if (normalizeId(batsmanId) === normalizeId(liveStrikerId)) return true;
     }
-    return null;
-  })();
+    
+    // Third priority: match by striker name
+    if (liveStrikerName) {
+      const batsmanName = b.batsmanName ?? b.name ?? '';
+      if (normalizeId(batsmanName) === normalizeId(liveStrikerName)) return true;
+    }
+    
+    return false;
+  };
 
   // Helper to get batsman display name from various field formats
   const getBatsmanName = (b: any) => b.batsmanName ?? b.name ?? ((`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()) || '-');
@@ -844,10 +859,13 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
   const partnershipBalls = currentBatsmen.reduce((sum: number, b: any) => sum + (b.ballsFaced ?? b.balls ?? 0), 0);
 
   // Last six balls — derive from deliveries API (most recent 6 non-voided deliveries)
-  const lastSixBalls: string[] = (() => {
+  const computedLastSixBalls: string[] = (() => {
     // Try from live match data first
     if (liveMatch?.lastSixBalls) {
-      return typeof liveMatch.lastSixBalls === 'string' ? liveMatch.lastSixBalls.split(',') : liveMatch.lastSixBalls;
+      const balls = (typeof liveMatch.lastSixBalls === 'string' ? liveMatch.lastSixBalls.split(',') : liveMatch.lastSixBalls)
+        .map((b: any) => String(b ?? '').trim())
+        .filter((b: string) => b.length > 0);
+      return balls;
     }
     // Derive from deliveries: take last 6 non-voided deliveries and convert to ball labels
     if (liveDeliveries.length > 0) {
@@ -864,6 +882,12 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
     }
     return [];
   })();
+
+  // Keep the latest non-empty sequence so UI doesn't briefly clear during refetch jitter.
+  if (computedLastSixBalls.length > 0) {
+    lastSixBallsCacheRef.current = computedLastSixBalls;
+  }
+  const lastSixBalls = computedLastSixBalls.length > 0 ? computedLastSixBalls : lastSixBallsCacheRef.current;
 
   // Match info — pull from scorecard, live match data, or schedule match object
   const tossInfo = scorecard?.tossWonBy
@@ -899,8 +923,7 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
             const fours = b.fours ?? 0;
             const sixes = b.sixes ?? 0;
             const sr = balls > 0 ? ((runs / balls) * 100).toFixed(2) : '0.00';
-            const batsmanId = b.batsmanId ?? b.playerId ?? b.id ?? '';
-            const isStriker = (liveStrikerId && batsmanId) ? batsmanId === liveStrikerId : (b.isStriker || idx === 0);
+            const isStriker = isStrikerByIdOrName(b);
             return (
               <tr key={idx} className="border-b border-gray-200">
                 <td className="py-2.5 px-3 font-medium text-gray-800">
@@ -1047,12 +1070,13 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     if (!matchId) return;
     let cancelled = false;
     let retryTimeout: ReturnType<typeof setTimeout>;
+    let realtimeRefetchTimer: ReturnType<typeof setTimeout> | null = null;
+    let unsubscribeRealtime: (() => void) | null = null;
 
     const connectSignalR = async (attempt = 0) => {
       if (cancelled) return;
       try {
-        // Refetch immediately when a scoring event arrives.
-        // This keeps scorecards in sync without waiting for manual refresh.
+        // Refetch active match queries immediately (debounced to avoid bursts).
         const refetchNow = () => {
           queryClient.refetchQueries({ queryKey: ['scorecard', matchId], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['deliveries', matchId], type: 'active' });
@@ -1060,14 +1084,47 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
           queryClient.refetchQueries({ queryKey: ['deliveriesForScorecard', matchId], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['liveMatches'], type: 'active' });
           queryClient.refetchQueries({ queryKey: ['landingLiveMatches'], type: 'active' });
+          // Keep cache stale for any inactive observers so the next mount is always fresh.
+          queryClient.invalidateQueries({ queryKey: ['scorecard', matchId], refetchType: 'none' });
+          queryClient.invalidateQueries({ queryKey: ['deliveries', matchId], refetchType: 'none' });
+          queryClient.invalidateQueries({ queryKey: ['deliveriesForLive', matchId], refetchType: 'none' });
+          queryClient.invalidateQueries({ queryKey: ['deliveriesForScorecard', matchId], refetchType: 'none' });
         };
 
-        scoringHub.onLiveUpdated = () => refetchNow();
-        scoringHub.onDeliveryAdded = () => refetchNow();
-        scoringHub.onDeliveryVoided = () => refetchNow();
+        const scheduleRefetch = () => {
+          if (realtimeRefetchTimer) return;
+          realtimeRefetchTimer = setTimeout(() => {
+            realtimeRefetchTimer = null;
+            refetchNow();
+          }, 60);
+        };
+
+        const isSameMatchEvent = (payload: any): boolean => {
+          const evtMatchId = payload?.matchId ?? payload?.MatchId ?? payload?.scheduleId ?? payload?.ScheduleId;
+          if (!evtMatchId) return true;
+          return String(evtMatchId) === String(matchId);
+        };
+
+        unsubscribeRealtime = scoringHub.subscribeRealtime((_eventName, payload) => {
+          if (isSameMatchEvent(payload)) scheduleRefetch();
+        });
+
+        // Keep legacy callbacks for compatibility with current service users.
+        scoringHub.onLiveUpdated = (payload: any) => {
+          if (isSameMatchEvent(payload)) scheduleRefetch();
+        };
+        scoringHub.onDeliveryAdded = (payload: any) => {
+          if (isSameMatchEvent(payload)) scheduleRefetch();
+        };
+        scoringHub.onDeliveryVoided = (payload: any) => {
+          if (isSameMatchEvent(payload)) scheduleRefetch();
+        };
         scoringHub.onConnectionStateChange = (state) => {
           if (!cancelled) {
             setSignalRConnected(state === signalR.HubConnectionState.Connected);
+            if (state === signalR.HubConnectionState.Connected) {
+              scheduleRefetch();
+            }
           }
         };
 
@@ -1092,6 +1149,8 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     return () => {
       cancelled = true;
       clearTimeout(retryTimeout);
+      if (realtimeRefetchTimer) clearTimeout(realtimeRefetchTimer);
+      if (unsubscribeRealtime) unsubscribeRealtime();
       scoringHub.onLiveUpdated = null;
       scoringHub.onDeliveryAdded = null;
       scoringHub.onDeliveryVoided = null;
@@ -1206,7 +1265,7 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
     }),
     enabled: !!matchId,
     staleTime: 0,
-    refetchInterval: isMatchLive ? 2000 : 15000,
+    refetchInterval: isMatchLive ? 1000 : 15000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
@@ -1337,102 +1396,244 @@ function MatchScorecardView({ matchId, match, onBack, initialScorecardTab }: { m
 function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLive }: { scorecard: any; loading: boolean; playerNameMap?: Record<string, string>; matchId?: string; isLive?: boolean }) {
   // Map API innings data to display format
   const apiInnings: any[] = scorecard?.innings ?? [];
+  const dismissalCacheRef = useRef<Record<string, string>>({});
+  const lastDeliveriesRef = useRef<Record<number, any[]>>({});
 
   // Fetch deliveries to determine current striker and build detailed dismissal text
   const currentInningsNo = apiInnings.length > 0 ? (apiInnings[apiInnings.length - 1]?.inningsNo ?? apiInnings[apiInnings.length - 1]?.inningsNumber ?? apiInnings.length) : 1;
-  const { data: deliveriesData } = useQuery({
+  const { data: deliveriesData, isLoading: deliveriesLoading } = useQuery({
     queryKey: ['deliveriesForScorecard', matchId, currentInningsNo],
     queryFn: async () => {
-      // Fetch deliveries for all innings
+      // Fetch deliveries for all innings in parallel so scorecard sub-sections populate faster.
       const allDeliveries: Record<number, any[]> = {};
-      for (let i = 1; i <= apiInnings.length; i++) {
+      const tasks = Array.from({ length: apiInnings.length }, (_, idx) => idx + 1).map(async (i) => {
         try {
-          const r = await scoringService.getDeliveries(matchId!, i, 0, 500);
+          const r = await scoringService.getDeliveries(matchId!, i, 0, 5000);
           allDeliveries[i] = r.data?.data ?? r.data ?? [];
-        } catch { allDeliveries[i] = []; }
-      }
+        } catch {
+          allDeliveries[i] = [];
+        }
+      });
+      await Promise.all(tasks);
       return allDeliveries;
     },
     enabled: !!matchId && apiInnings.length > 0,
     staleTime: 0,
-    refetchInterval: isLive ? 2000 : false,
+    refetchInterval: isLive ? 1000 : false,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
 
+  const hasCurrentDeliveriesData = !!deliveriesData && Object.keys(deliveriesData).length > 0;
+  if (hasCurrentDeliveriesData) {
+    lastDeliveriesRef.current = deliveriesData as Record<number, any[]>;
+  }
+  const stableDeliveriesData: Record<number, any[]> = hasCurrentDeliveriesData
+    ? (deliveriesData as Record<number, any[]>)
+    : lastDeliveriesRef.current;
+
+  const hasDismissalsNeedingDetails = apiInnings.some((inn: any) => {
+    const batsmen = inn?.batsmen ?? inn?.batting ?? [];
+    return batsmen.some((b: any) => {
+      const raw = String(b?.dismissal ?? b?.dismissalType ?? b?.howOut ?? '').trim();
+      if (!raw) return false;
+      const rawLower = raw.toLowerCase();
+      if (rawLower === 'not out' || rawLower === 'batting') return false;
+      const hasDetailedPattern = /(\bc\s+.+\s+b\s+.+)|(\bst\s+.+\s+b\s+.+)|(\blbw\s+b\s+.+)|(\bb\s+.+)|(\brun out\s*\(.+\))|(\bc and b\s+.+)/i.test(raw);
+      return !hasDetailedPattern;
+    });
+  });
+  const shouldWaitForDismissalDetails = hasDismissalsNeedingDetails && deliveriesLoading && Object.keys(stableDeliveriesData).length === 0;
+
   // Build player ID → name map from scorecard data (batsmen + bowlers across all innings)
   const playerIdNameMap: Record<string, string> = {};
+  const idKey = (id: any): string => String(id ?? '').trim().toLowerCase();
+  const setPlayerName = (id: any, name: any) => {
+    const key = idKey(id);
+    const n = String(name ?? '').trim();
+    if (key && n && !playerIdNameMap[key]) playerIdNameMap[key] = n;
+  };
+  const nameKey = (name: any): string => String(name ?? '').trim().toLowerCase();
+  const getCachedDismissal = (id: any, name: any): string => {
+    const idK = idKey(id);
+    const nmK = nameKey(name);
+    return (idK ? dismissalCacheRef.current[idK] : '') || (nmK ? dismissalCacheRef.current[nmK] : '') || '';
+  };
+  const setCachedDismissal = (id: any, name: any, dismissal: string) => {
+    const idK = idKey(id);
+    const nmK = nameKey(name);
+    if (idK) dismissalCacheRef.current[idK] = dismissal;
+    if (nmK) dismissalCacheRef.current[nmK] = dismissal;
+  };
   if (playerNameMap) Object.assign(playerIdNameMap, playerNameMap);
   apiInnings.forEach((inn: any) => {
     (inn.batsmen ?? inn.batting ?? []).forEach((b: any) => {
       const id = b.batsmanId ?? b.playerId ?? b.id ?? '';
       const name = b.batsmanName ?? (`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim());
-      if (id && name) playerIdNameMap[id] = name;
+      setPlayerName(id, name);
     });
     (inn.bowlers ?? inn.bowling ?? []).forEach((b: any) => {
       const id = b.bowlerId ?? b.playerId ?? b.id ?? '';
       const name = b.bowlerName ?? (`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim());
-      if (id && name) playerIdNameMap[id] = name;
+      setPlayerName(id, name);
     });
   });
   // Also add player names from deliveries (strikerId, nonStrikerId, bowlerId, fielderId)
-  if (deliveriesData) {
-    Object.values(deliveriesData).forEach((deliveries: any[]) => {
+  if (Object.keys(stableDeliveriesData).length > 0) {
+    Object.values(stableDeliveriesData).forEach((deliveries: any[]) => {
       deliveries.forEach((d: any) => {
-        if (d.strikerId && d.strikerName && !playerIdNameMap[d.strikerId]) playerIdNameMap[d.strikerId] = d.strikerName;
-        if (d.nonStrikerId && d.nonStrikerName && !playerIdNameMap[d.nonStrikerId]) playerIdNameMap[d.nonStrikerId] = d.nonStrikerName;
-        if (d.bowlerId && d.bowlerName && !playerIdNameMap[d.bowlerId]) playerIdNameMap[d.bowlerId] = d.bowlerName;
-        if (d.fielderId && d.fielderName && !playerIdNameMap[d.fielderId]) playerIdNameMap[d.fielderId] = d.fielderName;
-        if (d.playerOutId && d.playerOutName && !playerIdNameMap[d.playerOutId]) playerIdNameMap[d.playerOutId] = d.playerOutName;
+        setPlayerName(d.strikerId ?? d.StrikerId, d.strikerName ?? d.StrikerName);
+        setPlayerName(d.nonStrikerId ?? d.NonStrikerId, d.nonStrikerName ?? d.NonStrikerName);
+        setPlayerName(d.bowlerId ?? d.BowlerId, d.bowlerName ?? d.BowlerName);
+        setPlayerName(d.fielderId ?? d.FielderId, d.fielderName ?? d.FielderName);
+        setPlayerName(d.playerOutId ?? d.PlayerOutId, d.playerOutName ?? d.PlayerOutName);
       });
     });
   }
 
   // Build wicket dismissal map: playerOutId → detailed dismissal text
+  const normalizeDismissalKind = (v: any): string => String(v ?? '')
+    .toLowerCase()
+    .replace(/[_-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const toBool = (v: any): boolean => {
+    if (typeof v === 'boolean') return v;
+    if (typeof v === 'string') return v.toLowerCase() === 'true';
+    return !!v;
+  };
   const buildDismissalText = (d: any): string => {
-    const kind = (d.dismissalKind ?? d.wicketType ?? d.DismissalKind ?? d.WicketType ?? '').toLowerCase();
+    const rawKind = normalizeDismissalKind(
+      d.dismissalKind ?? d.wicketType ?? d.dismissalType ?? d.howOut
+      ?? d.DismissalKind ?? d.WicketType ?? d.DismissalType ?? d.HowOut
+    );
+    const kind = rawKind;
     // Resolve names: prefer map lookup, fall back to delivery-level name fields, then firstName/lastName
-    const bowlerName = playerIdNameMap[d.bowlerId] || d.bowlerName || d.BowlerName
+    const bowlerId = d.bowlerId ?? d.BowlerId ?? d.bowlerPlayerId ?? d.BowlerPlayerId;
+    const fielderId = d.fielderId ?? d.FielderId ?? d.wicketKeeperId ?? d.WicketKeeperId ?? d.keeperId ?? d.KeeperId;
+    const bowlerName = playerIdNameMap[idKey(bowlerId)] || d.bowlerName || d.BowlerName
+      || d.dismissedByName || d.DismissedByName
       || (`${d.bowlerFirstName ?? d.BowlerFirstName ?? ''} ${d.bowlerLastName ?? d.BowlerLastName ?? ''}`.trim()) || '';
-    const fielderName = d.fielderId ? (playerIdNameMap[d.fielderId] || d.fielderName || d.FielderName
-      || (`${d.fielderFirstName ?? d.FielderFirstName ?? ''} ${d.fielderLastName ?? d.FielderLastName ?? ''}`.trim()) || '') : '';
-    
+    const fielderName = (playerIdNameMap[idKey(fielderId)] || d.fielderName || d.FielderName
+      || d.wicketKeeperName || d.WicketKeeperName || d.keeperName || d.KeeperName
+      || d.stumpedByName || d.StumpedByName || d.keeperPlayerName || d.KeeperPlayerName
+      || d.wicketKeeperPlayerName || d.WicketKeeperPlayerName
+      || (`${d.fielderFirstName ?? d.FielderFirstName ?? ''} ${d.fielderLastName ?? d.FielderLastName ?? ''}`.trim()) || '');
+
     switch (kind) {
       case 'bowled':
         return bowlerName ? `b ${bowlerName}` : 'Bowled';
       case 'caught':
         if (fielderName && bowlerName) return `c ${fielderName} b ${bowlerName}`;
-        if (bowlerName) return `c & b ${bowlerName}`;
+        if (bowlerName) return `b ${bowlerName}`;
         return 'Caught';
       case 'caughtandbowled':
       case 'caught and bowled':
-        return bowlerName ? `c & b ${bowlerName}` : 'c & b';
+      case 'c&b':
+      case 'c and b':
+      case 'caught bowled':
+      case 'caught n bowled':
+        if (fielderName && bowlerName && fielderName !== bowlerName) return `c ${fielderName} b ${bowlerName}`;
+        return bowlerName ? `c and b ${bowlerName}` : 'c and b';
       case 'lbw':
         return bowlerName ? `lbw b ${bowlerName}` : 'LBW';
       case 'stumped':
         if (fielderName && bowlerName) return `st ${fielderName} b ${bowlerName}`;
-        return bowlerName ? `st b ${bowlerName}` : 'Stumped';
+        if (fielderName) return `st ${fielderName} b ${fielderName}`;
+        return bowlerName ? `st ${bowlerName} b ${bowlerName}` : 'Stumped';
+      case 'st':
+      case 'stump':
+      case 'stumped out':
+        if (fielderName && bowlerName) return `st ${fielderName} b ${bowlerName}`;
+        if (fielderName) return `st ${fielderName} b ${fielderName}`;
+        return bowlerName ? `st ${bowlerName} b ${bowlerName}` : 'Stumped';
       case 'runout':
       case 'run out':
+      case 'run-out':
         return fielderName ? `run out (${fielderName})` : 'Run Out';
       case 'hitwicket':
       case 'hit wicket':
         return bowlerName ? `hit wicket b ${bowlerName}` : 'Hit Wicket';
       case 'retired':
       case 'retiredhurt':
+      case 'retired hurt':
         return 'Retired Hurt';
       default:
-        return kind || 'out';
+        return rawKind || 'out';
     }
+  };
+
+  const buildDismissalFromBattingRow = (b: any, rawDismissal: any, fallbackBowlerName?: string): string => {
+    const raw = String(rawDismissal ?? '').trim();
+    if (!raw) return 'not out';
+    const rawLower = raw.toLowerCase();
+    if (rawLower === 'not out' || rawLower === 'batting') return raw;
+    // If API already provides detailed format (includes player refs), keep it.
+    if (/(\bc\s+.+\s+b\s+.+)|(\bst\s+.+\s+b\s+.+)|(\blbw\s+b\s+.+)|(\bb\s+.+)|(\brun out\s*\(.+\))|(\bc and b\s+.+)/i.test(raw)) {
+      return raw;
+    }
+
+    const kind = normalizeDismissalKind(raw);
+    const bowlerName = (b.bowlerName ?? b.BowlerName ?? b.dismissedByName ?? b.DismissedByName ?? fallbackBowlerName ?? '').toString().trim();
+    const fielderName = (
+      b.fielderName ?? b.FielderName ?? b.wicketKeeperName ?? b.WicketKeeperName ?? b.keeperName ?? b.KeeperName
+      ?? b.stumpedByName ?? b.StumpedByName ?? b.keeperPlayerName ?? b.KeeperPlayerName
+      ?? b.wicketKeeperPlayerName ?? b.WicketKeeperPlayerName
+      ?? b.runOutByName ?? b.RunOutByName ?? ''
+    ).toString().trim();
+
+    if (kind === 'lbw') return bowlerName ? `lbw b ${bowlerName}` : 'lbw';
+    if (kind === 'bowled') return bowlerName ? `b ${bowlerName}` : 'bowled';
+    if (kind === 'stumped' || kind === 'st' || kind === 'stump' || kind === 'stumped out') {
+      if (fielderName && bowlerName) return `st ${fielderName} b ${bowlerName}`;
+      if (fielderName) return `st ${fielderName} b ${fielderName}`;
+      return bowlerName ? `st ${bowlerName} b ${bowlerName}` : 'stumped';
+    }
+    if (kind === 'run out' || kind === 'runout') return fielderName ? `run out (${fielderName})` : 'run out';
+    if (kind === 'caught') {
+      if (fielderName && bowlerName) return `c ${fielderName} b ${bowlerName}`;
+      return bowlerName ? `b ${bowlerName}` : 'caught';
+    }
+    if (['caught and bowled', 'caughtandbowled', 'c and b', 'c&b', 'caught bowled', 'caught n bowled'].includes(kind)) {
+      if (fielderName && bowlerName && fielderName !== bowlerName) return `c ${fielderName} b ${bowlerName}`;
+      return bowlerName ? `c and b ${bowlerName}` : 'c and b';
+    }
+
+    return raw;
+  };
+
+  const isDetailedDismissalText = (text: any): boolean => {
+    const t = String(text ?? '').trim();
+    if (!t) return false;
+    if (/^not out$/i.test(t)) return true;
+    return /(\bc\s+.+\s+b\s+.+)|(\bst\s+.+\s+b\s+.+)|(\blbw\s+b\s+.+)|(\bb\s+.+)|(\brun out\s*\(.+\))|(\bc and b\s+.+)/i.test(t);
   };
 
   // Map playerOutId → dismissal text from deliveries
   const wicketMap: Record<string, string> = {};
-  if (deliveriesData) {
-    Object.values(deliveriesData).forEach((deliveries: any[]) => {
+  const wicketMapByName: Record<string, string> = {};
+  if (Object.keys(stableDeliveriesData).length > 0) {
+    Object.values(stableDeliveriesData).forEach((deliveries: any[]) => {
       deliveries.forEach((d: any) => {
-        if (d.isWicket && d.playerOutId) {
-          wicketMap[d.playerOutId] = buildDismissalText(d);
+        const isWicket = toBool(d.isWicket ?? d.IsWicket) || !!(d.dismissalKind ?? d.DismissalKind ?? d.wicketType ?? d.WicketType ?? d.dismissalType ?? d.DismissalType);
+        if (!isWicket) return;
+
+        const kind = normalizeDismissalKind(d.dismissalKind ?? d.DismissalKind ?? d.wicketType ?? d.WicketType ?? d.dismissalType ?? d.DismissalType);
+        const playerOutId = d.playerOutId ?? d.PlayerOutId ?? d.dismissedPlayerId ?? d.DismissedPlayerId;
+        const strikerId = d.strikerId ?? d.StrikerId;
+        const nonStrikerId = d.nonStrikerId ?? d.NonStrikerId;
+        const outCandidates = [playerOutId, kind === 'run out' || kind === 'runout' ? nonStrikerId : null, strikerId].filter(Boolean);
+        const text = buildDismissalText(d);
+        const outName = d.playerOutName ?? d.PlayerOutName;
+        const outNameKey = nameKey(outName);
+        if (outNameKey && !wicketMapByName[outNameKey]) wicketMapByName[outNameKey] = text;
+        outCandidates.forEach((idVal: any) => {
+          const outKey = idKey(idVal);
+          if (outKey && !wicketMap[outKey]) wicketMap[outKey] = text;
+        });
+        if (playerOutId) {
+          const outKey = idKey(playerOutId);
+          if (outKey) wicketMap[outKey] = text;
         }
       });
     });
@@ -1441,6 +1642,12 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
   const mappedInnings = apiInnings.map((inn: any, idx: number) => {
     const batsmen = inn.batsmen ?? inn.batting ?? [];
     const bowlers = inn.bowlers ?? inn.bowling ?? [];
+    const inningsBowlerNameById: Record<string, string> = {};
+    bowlers.forEach((bw: any) => {
+      const bid = bw.bowlerId ?? bw.playerId ?? bw.id ?? bw.BowlerId ?? bw.PlayerId ?? bw.Id ?? '';
+      const bName = bw.bowlerName ?? bw.BowlerName ?? (`${bw.firstName ?? bw.FirstName ?? ''} ${bw.lastName ?? bw.LastName ?? ''}`.trim()) ?? '';
+      if (bid && bName) inningsBowlerNameById[idKey(bid)] = bName;
+    });
     const inningsNo = inn.inningsNo ?? inn.inningsNumber ?? (idx + 1);
     const battingTeamName = inn.battingTeamName ?? inn.battingTeam ?? inn.teamName ?? `Innings ${inningsNo}`;
     const status = inn.status ?? inn.inningsStatus ?? scorecard?.status ?? '-';
@@ -1449,6 +1656,8 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
     const batting = batsmen.map((b: any, bIdx: number) => {
       const name = b.batsmanName ?? (`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim() || '-');
       const batsmanId = b.batsmanId ?? b.playerId ?? b.id ?? '';
+      const battingBowlerId = b.bowlerId ?? b.BowlerId ?? b.dismissedById ?? b.DismissedById ?? b.outById ?? b.OutById ?? '';
+      const fallbackBowlerName = inningsBowlerNameById[idKey(battingBowlerId)] || '';
       const runs = b.runsScored ?? b.runs ?? 0;
       const balls = b.ballsFaced ?? b.balls ?? 0;
       const fours = b.fours ?? 0;
@@ -1456,14 +1665,25 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
       const sr = balls > 0 ? ((runs / balls) * 100) : 0;
       const rawDismissal = b.dismissal ?? b.dismissalType ?? b.howOut ?? 'not out';
       // Use detailed dismissal from deliveries if available
-      const dismissal = (batsmanId && wicketMap[batsmanId]) ? wicketMap[batsmanId] : rawDismissal;
+      const batsmanNameKey = nameKey(name);
+      const dismissalFromDeliveries = (batsmanId && wicketMap[idKey(batsmanId)])
+        ? wicketMap[idKey(batsmanId)]
+        : (batsmanNameKey ? wicketMapByName[batsmanNameKey] : '');
+      const computedDismissal = dismissalFromDeliveries || buildDismissalFromBattingRow(b, rawDismissal, fallbackBowlerName);
+      const cachedDismissal = getCachedDismissal(batsmanId, name);
+      const dismissal = isDetailedDismissalText(computedDismissal)
+        ? computedDismissal
+        : (cachedDismissal || computedDismissal);
+      if (isDetailedDismissalText(dismissal)) {
+        setCachedDismissal(batsmanId, name, dismissal);
+      }
       const isStriker = b.isStriker === true || b.isOnStrike === true || b.status === 'Striker';
       const isNonStriker = b.isNonStriker === true || b.status === 'NonStriker';
       return { batsmanId, batsmanName: name, dismissal, runs, balls, fours, sixes, sr, isStriker, isNonStriker, status: b.status };
     });
 
     // Calculate maiden, dot ball, and over counts from delivery data (same logic as mobile app)
-    const inningsDeliveries: any[] = (deliveriesData?.[inningsNo] ?? [])
+    const inningsDeliveries: any[] = (stableDeliveriesData?.[inningsNo] ?? [])
       .filter((d: any) => !d.isVoided);
     const bowlerDeliveryStats: Record<string, { dots: number; maidens: number; overs: number }> = {};
     let deliveryBasedTotalOvers: number | null = null;
@@ -1548,6 +1768,18 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
     // Compute extras breakdown from delivery data (API only returns total as a number)
     // Mobile app sends noBall=1 per no-ball delivery; API stores noBallRuns per delivery
     let extras: { total: number; noBall: number; wide: number; legByes: number; byes: number; penalty: number };
+    const toNum = (v: any): number => {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const firstNum = (...vals: any[]): number => {
+      for (const v of vals) {
+        if (v !== undefined && v !== null && v !== '') return toNum(v);
+      }
+      return 0;
+    };
+    const sumBowlerNoBalls = (bowlers ?? []).reduce((s: number, bw: any) => s + firstNum(bw.noBalls, bw.NoBalls), 0);
+    const sumBowlerWides = (bowlers ?? []).reduce((s: number, bw: any) => s + firstNum(bw.wides, bw.Wides), 0);
     if (inningsDeliveries.length > 0) {
       let nbRuns = 0, wdRuns = 0, byeRuns = 0, lbRuns = 0, penRuns = 0;
       inningsDeliveries.forEach((d: any) => {
@@ -1562,16 +1794,47 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
       extras = { total: Math.max(computedTotal, apiTotal), noBall: nbRuns, wide: wdRuns, legByes: lbRuns, byes: byeRuns, penalty: penRuns };
     } else if (typeof inn.extras === 'object' && inn.extras !== null) {
       const extrasRaw = inn.extras;
+      const noBall = firstNum(
+        extrasRaw.noBall, extrasRaw.NoBall, extrasRaw.noBalls, extrasRaw.NoBalls, extrasRaw.noBallRuns, extrasRaw.NoBallRuns,
+        inn.noBall, inn.NoBall, inn.noBalls, inn.NoBalls, inn.noBallRuns, inn.NoBallRuns,
+        sumBowlerNoBalls,
+      );
+      const wide = firstNum(
+        extrasRaw.wide, extrasRaw.Wide, extrasRaw.wides, extrasRaw.Wides, extrasRaw.wideRuns, extrasRaw.WideRuns,
+        inn.wide, inn.Wide, inn.wides, inn.Wides, inn.wideRuns, inn.WideRuns,
+        sumBowlerWides,
+      );
+      const legByes = firstNum(
+        extrasRaw.legByes, extrasRaw.LegByes, extrasRaw.legByeRuns, extrasRaw.LegByeRuns,
+        inn.legByes, inn.LegByes, inn.legByeRuns, inn.LegByeRuns,
+      );
+      const byes = firstNum(
+        extrasRaw.byes, extrasRaw.Byes, extrasRaw.byeRuns, extrasRaw.ByeRuns,
+        inn.byes, inn.Byes, inn.byeRuns, inn.ByeRuns,
+      );
+      const penalty = firstNum(
+        extrasRaw.penalty, extrasRaw.Penalty, extrasRaw.penalties, extrasRaw.Penalties, extrasRaw.penaltyRuns, extrasRaw.PenaltyRuns,
+        inn.penalty, inn.Penalty, inn.penaltyRuns, inn.PenaltyRuns,
+      );
+      const computedTotal = noBall + wide + legByes + byes + penalty;
+      const apiTotal = firstNum(extrasRaw.total, extrasRaw.Total, extrasRaw.extras, extrasRaw.Extras, inn.extrasTotal, inn.ExtrasTotal);
       extras = {
-        total: extrasRaw.total ?? 0,
-        noBall: extrasRaw.noBall ?? extrasRaw.noBalls ?? extrasRaw.noBallRuns ?? 0,
-        wide: extrasRaw.wide ?? extrasRaw.wides ?? extrasRaw.wideRuns ?? 0,
-        legByes: extrasRaw.legByes ?? extrasRaw.legByeRuns ?? 0,
-        byes: extrasRaw.byes ?? extrasRaw.byeRuns ?? 0,
-        penalty: extrasRaw.penalty ?? extrasRaw.penalties ?? extrasRaw.penaltyRuns ?? inn.penaltyRuns ?? inn.penalty ?? 0,
+        total: Math.max(apiTotal, computedTotal),
+        noBall,
+        wide,
+        legByes,
+        byes,
+        penalty,
       };
     } else {
-      extras = { total: inn.extras ?? 0, noBall: 0, wide: 0, legByes: 0, byes: 0, penalty: 0 };
+      const noBall = firstNum(inn.noBall, inn.NoBall, inn.noBalls, inn.NoBalls, inn.noBallRuns, inn.NoBallRuns, sumBowlerNoBalls);
+      const wide = firstNum(inn.wide, inn.Wide, inn.wides, inn.Wides, inn.wideRuns, inn.WideRuns, sumBowlerWides);
+      const legByes = firstNum(inn.legByes, inn.LegByes, inn.legByeRuns, inn.LegByeRuns);
+      const byes = firstNum(inn.byes, inn.Byes, inn.byeRuns, inn.ByeRuns);
+      const penalty = firstNum(inn.penalty, inn.Penalty, inn.penaltyRuns, inn.PenaltyRuns);
+      const computedTotal = noBall + wide + legByes + byes + penalty;
+      const apiTotal = firstNum(inn.extras, inn.Extras, inn.extrasTotal, inn.ExtrasTotal);
+      extras = { total: Math.max(apiTotal, computedTotal), noBall, wide, legByes, byes, penalty };
     }
 
     const runRate = totalOvers > 0 ? +(totalRuns / totalOvers).toFixed(2) : 0;
@@ -1596,10 +1859,19 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
         const name = b.bowlerName ?? b.name ?? b.playerName ?? ((`${b.firstName ?? ''} ${b.lastName ?? ''}`.trim()) || '');
         if (id && name) playerIdToName[id] = name;
       });
+      // Also add from fallOfWickets array if it's an array
+      const fow = allInn.fallOfWickets ?? allInn.fow ?? [];
+      if (Array.isArray(fow)) {
+        fow.forEach((f: any) => {
+          const id = f.batsmanId ?? f.playerId ?? f.id ?? '';
+          const name = f.batsmanName ?? f.playerName ?? f.name ?? ((`${f.firstName ?? ''} ${f.lastName ?? ''}`.trim()) || '');
+          if (id && name) playerIdToName[id] = name;
+        });
+      }
     });
     // Also enrich from delivery data (strikerId/nonStrikerId/bowlerId may have names not in batting/bowling lists)
-    if (deliveriesData) {
-      Object.values(deliveriesData).forEach((dels: any[]) => {
+    if (Object.keys(stableDeliveriesData).length > 0) {
+      Object.values(stableDeliveriesData).forEach((dels: any[]) => {
         dels.forEach((d: any) => {
           if (d.strikerId && d.strikerName && !playerIdToName[d.strikerId]) playerIdToName[d.strikerId] = d.strikerName;
           if (d.nonStrikerId && d.nonStrikerName && !playerIdToName[d.nonStrikerId]) playerIdToName[d.nonStrikerId] = d.nonStrikerName;
@@ -1622,13 +1894,15 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
     if (Array.isArray(rawFow)) {
       // FoW is an array of objects — resolve player IDs to names
       fallOfWickets = rawFow.map((f: any) => {
-        const playerId = f.batsmanId ?? f.playerId ?? f.id ?? '';
-        const playerName = f.batsmanName ?? f.playerName ?? f.name ?? (playerId ? (playerIdToName[playerId] || playerId) : '');
+        const playerId = f.batsmanId ?? f.playerId ?? f.id ?? f.dismissedPlayerId ?? f.DismissedPlayerId ?? '';
+        const playerName = f.batsmanName ?? f.playerName ?? f.name ?? f.dismissedName ?? f.DismissedName ?? (playerId ? (playerIdToName[playerId] || playerId) : '');
         const resolvedName = (uuidPattern.test(playerName)) ? (playerIdToName[playerName] || playerName) : playerName;
-        const score = f.score ?? f.teamScore ?? f.runs ?? '';
-        const wicketNo = f.wicketNo ?? f.wicketNumber ?? '';
-        const over = f.over ?? f.overs ?? f.overNumber ?? '';
-        return `${score}-${wicketNo} (${resolvedName}, ${over} Ov)`;
+        const score = f.score ?? f.teamScore ?? f.runs ?? f.totalRuns ?? f.TotalRuns ?? '';
+        const wicketNo = f.wicketNo ?? f.wicketNumber ?? f.WicketNumber ?? f.wicketCount ?? f.WicketCount ?? '';
+        const over = f.over ?? f.overs ?? f.overNumber ?? f.OverNumber ?? f.ballNo ?? f.BallNo ?? '';
+        const ballNo = f.ballNo ?? f.BallNo ?? f.ballNumber ?? f.BallNumber ?? '';
+        const overStr = ballNo ? `${over}.${ballNo}` : `${over}`;
+        return `${score}-${wicketNo} (${resolvedName}, ${overStr} Ov)`;
       }).join(', ') || '-';
     } else if (typeof rawFow === 'string' && rawFow !== '-') {
       fallOfWickets = resolvePlayerIds(rawFow);
@@ -1696,7 +1970,7 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
     setExpandedInnings(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  if (loading) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading || shouldWaitForDismissalDetails) return <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   if (!scorecard && mappedInnings.length === 0) {
     return <div className="bg-white border-t p-6 text-center text-gray-500 text-sm">No scorecard data available for this match.</div>;
@@ -1771,8 +2045,7 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
                   <table className="w-full text-sm mb-1">
                     <thead>
                       <tr className="bg-gray-100 border-b-2 border-gray-300">
-                        <th className="text-left py-2.5 px-3 font-bold text-gray-700 w-[30%]">BATSMEN</th>
-                        <th className="text-left py-2.5 px-3 font-bold text-gray-700 w-[22%]"></th>
+                        <th className="text-left py-2.5 px-3 font-bold text-gray-700 w-[52%]">BATSMEN</th>
                         <th className="text-center py-2.5 px-2 font-bold text-gray-700 w-[7%]">R</th>
                         <th className="text-center py-2.5 px-2 font-bold text-gray-700 w-[7%]">B</th>
                         <th className="text-center py-2.5 px-2 font-bold text-gray-700 w-[7%]">4s</th>
@@ -1782,15 +2055,15 @@ function ScorecardTabContent({ scorecard, loading, playerNameMap, matchId, isLiv
                     </thead>
                     <tbody>
                       {inn.batting.map((b: any, idx: number) => {
-                        // Determine striker: use scorecard API's isStriker (authoritative)
-                        const isStriker = b.isStriker;
-                        const isNonStriker = b.isNonStriker;
+                        // Use isStriker flag from scorecard data (already set during prep phase)
+                        const isStriker = b.isStriker === true || b.isOnStrike === true;
+                        const isNonStriker = b.isNonStriker === true || b.status === 'NonStriker';
                         return (
                         <tr key={idx} className="border-b border-gray-200 hover:bg-blue-50/30">
-                          <td className="py-2.5 px-3 text-blue-700 font-medium">
-                            {b.batsmanName}{isStriker ? ' *' : ''}
+                          <td className="py-2.5 px-3">
+                            <div className="text-blue-700 font-medium">{b.batsmanName}{isStriker ? ' *' : ''}{isNonStriker ? ' †' : ''}</div>
+                            <div className="text-gray-500 text-sm">{b.dismissal}</div>
                           </td>
-                          <td className="py-2.5 px-3 text-gray-500 text-sm">{b.dismissal}</td>
                           <td className="py-2.5 px-2 text-center font-bold text-gray-800">{b.runs}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600">{b.balls}</td>
                           <td className="py-2.5 px-2 text-center text-gray-600">{b.fours}</td>
@@ -1902,7 +2175,7 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
       await Promise.all(
         inningsNumbers.map(async (inningsNo: number) => {
           try {
-            const res = await scoringService.getDeliveries(matchId, inningsNo, 0, 200);
+            const res = await scoringService.getDeliveries(matchId, inningsNo, 0, 5000);
             const raw = res.data;
             const data = raw?.data ?? raw;
             console.log('[BallByBall] deliveries response for innings', inningsNo, ':', JSON.stringify(data)?.slice(0, 500));
@@ -1916,8 +2189,8 @@ function BallByBallTabContent({ scorecard, matchId }: { scorecard: any; matchId:
       return results;
     },
     enabled: !!matchId && inningsNumbers.length > 0,
-    staleTime: 10000,
-    refetchInterval: 2000,
+    staleTime: 0,
+    refetchInterval: 1000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
@@ -2306,7 +2579,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         return (Array.isArray(d) ? d : (d as any)?.items ?? (d as any)?.data ?? []) as Match[];
       });
     },
-    refetchInterval: 30000,
+    refetchInterval: 5000,
   });
 
   // Pre-fetch grounds so location data is cached before user opens a match
@@ -2330,15 +2603,23 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
       const items = d?.data ?? d;
       return Array.isArray(items) ? items : items?.$values ?? [];
     }),
-    refetchInterval: 15000,
+    refetchInterval: 1000,
   });
+
+  const normalizeStatus = (s: any) => String(s ?? '').toLowerCase().replace(/[_\s-]/g, '');
+  const isLiveLike = (s: any) => ['live', 'inprogress', 'started'].includes(normalizeStatus(s));
+  const idKey = (id: any) => String(id ?? '').trim().toLowerCase();
+
   const liveMatchIds = new Set(
-    (Array.isArray(landingLiveMatches) ? landingLiveMatches : []).flatMap((m: any) => [m.id, m.Id, m.scheduleId, m.ScheduleId, m.matchId, m.MatchId].filter(Boolean))
+    (Array.isArray(landingLiveMatches) ? landingLiveMatches : [])
+      .filter((m: any) => isLiveLike(m.status ?? m.Status ?? m.matchStatus ?? m.MatchStatus ?? m.gameStatus ?? m.GameStatus))
+      .flatMap((m: any) => [m.id, m.Id, m.scheduleId, m.ScheduleId, m.matchId, m.MatchId].filter(Boolean))
+      .map((id: any) => idKey(id))
   );
   // Determine effective status: if Scoring Service says it's live, override schedule status
   const getEffectiveStatus = (m: any) => {
-    const mid = m.id || m.Id || m.scheduleId || m.ScheduleId || '';
-    if (liveMatchIds.has(mid)) return 'Live';
+    const mid = idKey(m.id || m.Id || m.scheduleId || m.ScheduleId || '');
+    if (mid && liveMatchIds.has(mid)) return 'Live';
     return m.status || 'Scheduled';
   };
 
@@ -2346,7 +2627,7 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
     const s = getEffectiveStatus(m).toLowerCase().replace(/[_\s]/g, '');
     return s === 'completed' || s === 'complete' || s === 'finished' || s === 'ended';
   });
-  const isInProgress = (s: string) => ['Live', 'InProgress', 'In Progress', 'Started'].includes(s);
+  const isInProgress = (s: string) => isLiveLike(s);
   const upcomingMatches = allMatches.filter((m: any) => {
     const s = getEffectiveStatus(m);
     const sNorm = s.toLowerCase().replace(/[_\s]/g, '');
