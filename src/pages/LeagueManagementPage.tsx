@@ -66,8 +66,21 @@ const toDateKey = (raw: string): string => {
   if (!raw) return '';
   const s = String(raw).trim();
 
-  const isoStart = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (isoStart) return `${isoStart[1]}-${isoStart[2]}-${isoStart[3]}`;
+  // Date-only values should be used as-is to avoid timezone shifts.
+  const isoDateOnly = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoDateOnly) return `${isoDateOnly[1]}-${isoDateOnly[2]}-${isoDateOnly[3]}`;
+
+  // For datetime values, align filtering with what we render in UI (local date/time).
+  const isoDateTime = /^(\d{4})-(\d{2})-(\d{2})T/.test(s);
+  if (isoDateTime) {
+    const dt = new Date(ensureUtc(s));
+    if (!isNaN(dt.getTime())) {
+      const yyyy = dt.getFullYear();
+      const mm = String(dt.getMonth() + 1).padStart(2, '0');
+      const dd = String(dt.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
 
   const slashStart = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
   if (slashStart) return `${slashStart[3]}-${slashStart[2]}-${slashStart[1]}`;
