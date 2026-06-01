@@ -60,6 +60,53 @@ const formatDateOnly = (d: string | Date): string => {
 
 const normalizeStatusKey = (status: any): string => String(status ?? '').toLowerCase().replace(/[_\s-]/g, '');
 const isLiveEligibleStatus = (status: any): boolean => ['live', 'inprogress', 'started', 'matchstarted'].includes(normalizeStatusKey(status));
+const normalizeMatchStatusLikeMobile = (status: any): 'upcoming' | 'in_progress' | 'completed' | 'cancelled' => {
+  const s = normalizeStatusKey(status);
+  const normalized = s === '2'
+    ? 'inprogress'
+    : s === '3'
+      ? 'completed'
+      : s === '4'
+        ? 'cancelled'
+        : (s === '0' || s === '1')
+          ? 'upcoming'
+          : s;
+
+  switch (normalized) {
+    case 'inprogress':
+    case 'live':
+    case 'started':
+    case 'active':
+    case 'ongoing':
+    case 'playing':
+      return 'in_progress';
+    case 'completed':
+    case 'complete':
+    case 'finished':
+    case 'ended':
+    case 'result':
+    case 'closed':
+      return 'completed';
+    case 'cancelled':
+    case 'canceled':
+    case 'abandoned':
+    case 'void':
+      return 'cancelled';
+    case 'upcoming':
+    case 'scheduled':
+    case 'confirmed':
+    case 'notstarted':
+    case 'pending':
+    case 'ready':
+    case 'readytoplay':
+    case 'created':
+    case 'draft':
+    case '':
+      return 'upcoming';
+    default:
+      return 'upcoming';
+  }
+};
 
 /** Normalize mixed datetime formats to YYYY-MM-DD for consistent date-range filtering */
 const toDateKey = (raw: string): string => {
@@ -2647,22 +2694,22 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
       .flatMap((m: any) => [m.id, m.Id, m.scheduleId, m.ScheduleId, m.matchId, m.MatchId].filter(Boolean))
       .map((id: any) => idKey(id))
   );
+  const getMatchStatus = (m: any) => m.status ?? m.Status ?? m.matchStatus ?? m.MatchStatus ?? m.gameStatus ?? m.GameStatus ?? 'Scheduled';
+  const getLiveMatchKey = (m: any) => idKey(m.id || m.Id || m.scheduleId || m.ScheduleId || '');
   // Determine effective status: if Scoring Service says it's live, override schedule status
   const getEffectiveStatus = (m: any) => {
-    const mid = idKey(m.id || m.Id || m.scheduleId || m.ScheduleId || '');
-    if (mid && liveMatchIds.has(mid)) return 'Live';
-    return m.status || 'Scheduled';
+    const mid = getLiveMatchKey(m);
+    if (mid && liveMatchIds.has(mid)) return 'in_progress';
+    return normalizeMatchStatusLikeMobile(getMatchStatus(m));
   };
 
   const recentResults = allMatches.filter((m: any) => {
-    const s = getEffectiveStatus(m).toLowerCase().replace(/[_\s]/g, '');
-    return s === 'completed' || s === 'complete' || s === 'finished' || s === 'ended';
+    return getEffectiveStatus(m) === 'completed';
   });
-  const isInProgress = (s: string) => isLiveEligibleStatus(s);
+  const isInProgress = (s: string) => normalizeMatchStatusLikeMobile(s) === 'in_progress';
   const upcomingMatches = allMatches.filter((m: any) => {
     const s = getEffectiveStatus(m);
-    const sNorm = s.toLowerCase().replace(/[_\s]/g, '');
-    return s === 'Scheduled' || sNorm === 'scheduled' || isInProgress(s);
+    return s === 'upcoming' || s === 'in_progress';
   });
 
   // Fetch roster → boardName mapping from tournament teams data
@@ -2793,7 +2840,8 @@ function LeagueLandingTab({ boardId }: { boardId: string }) {
         {upcomingMatches.length > 0 ? (
           <div className="space-y-3">
             {upcomingMatches.map((m: any) => {
-              const liveEnabled = isInProgress(getEffectiveStatus(m));
+              // Match the mobile app: enable Live Score only for in-progress matches.
+              const liveEnabled = getEffectiveStatus(m) === 'in_progress';
               return (
                 <div key={m.id} className="bg-white rounded-lg p-4 border flex justify-between items-center">
                   <div>
