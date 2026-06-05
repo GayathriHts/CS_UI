@@ -59,7 +59,20 @@ const formatDateOnly = (d: string | Date): string => {
 };
 
 const normalizeStatusKey = (status: any): string => String(status ?? '').toLowerCase().replace(/[_\s-]/g, '');
-const isLiveEligibleStatus = (status: any): boolean => ['live', 'inprogress', 'started', 'matchstarted'].includes(normalizeStatusKey(status));
+const isLiveEligibleStatus = (status: any): boolean => {
+  const s = normalizeStatusKey(status);
+  return [
+    '2',
+    'live',
+    'inprogress',
+    'started',
+    'matchstarted',
+    'inningsstarted',
+    'active',
+    'ongoing',
+    'playing',
+  ].includes(s);
+};
 const normalizeMatchStatusLikeMobile = (status: any): 'upcoming' | 'in_progress' | 'completed' | 'cancelled' => {
   const s = normalizeStatusKey(status);
   const normalized = s === '2'
@@ -759,8 +772,8 @@ function LiveTabContent({ matchId, scorecard, scorecardLoading, match }: { match
   };
   const isLive = Array.isArray(liveMatches) && liveMatches.some(isMatchIdMatch);
   // Also consider match live if scorecard status is "Live"
-  const scorecardStatus = (scorecard?.status ?? scorecard?.data?.status ?? '').toLowerCase();
-  const hasLiveScorecard = scorecardStatus === 'live' || scorecardStatus === 'inprogress' || scorecardStatus === 'started';
+  const scorecardStatus = scorecard?.status ?? scorecard?.data?.status;
+  const hasLiveScorecard = isLiveEligibleStatus(scorecardStatus);
   const effectivelyLive = isLive || hasLiveScorecard;
 
   // Get the live match data from the scoring API response
